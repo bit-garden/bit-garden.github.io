@@ -1,0 +1,101 @@
+<html>
+<title>Testing board</title>
+<link rel="shortcut icon" href="rabbit.png">
+<link rel="stylesheet" type="text/css" href="lib/theme.css">
+<style>
+</style>
+<body onload="brython({indexedDB: false})"></body>
+<script src="lib/brython.js"></script>
+<script src="lib/brython_stdlib.js"></script>
+<script type="text/python">
+
+from browser import document as doc
+from browser import window
+from browser.html import *
+import traceback
+
+def Try(_callback = None):
+  def _try(_func):
+    def __try(*args, **kwargs):
+      try:
+        return _func(*args, **kwargs)
+      except Exception as e:
+        if _callback:
+          if callable(_callback):
+            #_callback((_func.__name__, e))
+            _callback(traceback.format_exc())
+          else:
+            print(_callback)
+    return __try
+  return _try
+
+
+# storage is like dictionary
+#from browser.local_storage import storage
+
+
+@Try(window.alert)
+def main():
+  doc <= BUTTON('test', Class='card ripple')
+  doc <= BUTTON('test', Class='button ripple')
+  doc <= INPUT('test', Class='card input')
+  doc <= INPUT('test', Class='button input')
+  doc <= INPUT(Class='card input', Type='text', list='browsers')
+  dropdown_options = DATALIST(Id='browsers')
+  for op in ['apple', 'banana', 'cucumber']:
+    dropdown_options <= OPTION(op)
+  doc <= dropdown_options
+  
+  doc <= DIV(make_toggle('test'), style={'width':'200px'})
+  doc <= DIV(make_toggle('test', Class='card'), style={'width':'200px'})
+  doc <= BUTTON('test', Class='card red_card ripple red_ripple')
+  doc <= BUTTON('test', Class='card green_card ripple green_ripple')
+  doc <= BUTTON('test', Class='card blue_card ripple blue_ripple')
+  doc <= BUTTON('test', Class='card purple_card ripple purple_ripple')
+  doc <= BUTTON('test', Class='card orange_card ripple orange_ripple')
+
+
+def toggle_onoff(ev):
+  classes = ev.currentTarget.className.split(' ')
+  if 'check-off' in classes:
+    classes.remove('check-off')
+    classes.append('check-on')
+    ev.currentTarget.state='on'
+  else:
+    classes.remove('check-on')
+    classes.append('check-off')
+    ev.currentTarget.state='off'
+  ev.currentTarget.className = ' '.join(classes)
+  
+window.toggle_onoff = toggle_onoff
+
+def make_toggle(text='test', _on='ON', _off='OFF', state='off', on_state=None, Class='button'):
+  b = BUTTON(
+          DIV(text, Class='label') + 
+          DIV(_on, Class='on') +
+          DIV(_off, Class='off'),
+        Class=f'{Class} ripple check-{state}')
+  b.bind('click', toggle_onoff)
+  if on_state:
+    b.bind('click', on_state)
+  b.state=state
+  return b
+
+
+
+
+main()
+
+</script>
+<script>
+      var _logger = function(msg){
+	if(msg != "using indexedDB for stdlib modules cache"){
+      	  alert(msg)
+	}
+      }
+      
+      console.log=_logger
+      console.error=_logger
+      console.warning=_logger
+      </script>
+</html>
