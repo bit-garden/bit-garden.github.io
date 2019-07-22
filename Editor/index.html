@@ -24,8 +24,12 @@
   src: url("lib/RobotoMono-Thin.ttf") format("truetype");
 }
 @font-face {
-  font-family: Monofur;
-  src: url("lib/Monofur.ttf") format("truetype");
+  font-family: Roboto;
+  src: url("lib/Roboto-Regular.ttf") format("truetype");
+}
+
+* {
+        font-family: Roboto;
 }
 
 .CodeMirror, .CodeMirror-gutters{background:#111111 !important;}
@@ -41,10 +45,10 @@
  .cm-nums{color: #ffaaaa;}
 
  .cm-numss{color: #afafff;}
- .CodeMirror{font-family: Mono;}
+ .CodeMirror, .CodeMirror * {font-family: Mono !important;}
 
       .editbox + .CodeMirror{
-        font-family: Mono;
+        font-family: Mono !important;
         height:auto;
         line-height:14px;
         font-size:14px;
@@ -214,7 +218,7 @@ input::-webkit-calendar-picker-indicator {
   background-color: #222222;
   box-shadow: 0 4px 8px #000;
   outline: none;
-  font-family: Mono;
+  font-family: Mono !important;
 }
 
 .input{
@@ -1371,45 +1375,6 @@ class Table:
       return {i: group_data(self.sub_table[sub_tab], i)  for i in self.headers}
     else:
       return {i: group_data(sub_tab, i)  for i in self.headers}
-
-      
-class Clock(Entity):
-  sec = Property(0, int, bounded_number(0, 59))
-  min = Property(0, int, bounded_number(0, 59))
-  hour = Property(0, int, bounded_number(0, 23))
-  day = Property(0, int, bounded_number(1, 31))
-  month = Property(0, int, bounded_number(1, 12))
-  year = Property(0)
-  human = Property(0)
-  text = Property('')
-
-  done = Property(False)
-  recurring = Property(False)
-
-  def __init__(self, **kw):
-    n = datetime.now()
-    defaults = {'sec': 0,
-      'min': 0,
-      'hour': 0,
-      'day': n.day,
-      'month': n.month,
-      'year': n.year}
-    defaults.update(**kw)
-    super().__init__(**defaults)
-    self.human = int(f'{self.year}{self.month:02d}{self.day:02d}{self.hour:02d}{self.min:02d}{self.sec:02d}')
-  
-  def update(self, obj):
-    self.sec = obj.second
-    self.min = obj.minute
-    self.hour = obj.hour
-    self.day = obj.day
-    self.month = obj.month
-    self.year = obj.year
-
-    self.human = int(f'{self.year}{self.month:02d}{self.day:02d}{self.hour:02d}{self.min:02d}{self.sec:02d}')
-
-  def update_human(self, **kw):
-    self.human = int(f'{self.year}{self.month:02d}{self.day:02d}{self.hour:02d}{self.min:02d}{self.sec:02d}')
     
 
 # --- end focus
@@ -1440,13 +1405,6 @@ def make_toggle(text='test', _on='ON', _off='OFF', state='off', on_state=None, C
   b.state=state
   return b
 
-from datetime import datetime
-
-window.clock = Clock()
-
-def tick():
-  window.clock.update(datetime.now())
-window.setInterval(tick, 1000)
 
 from browser import document as doc
 import re
