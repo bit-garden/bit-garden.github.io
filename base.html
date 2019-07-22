@@ -3,6 +3,15 @@
 <link rel="shortcut icon" href="rabbit.png">
 <link rel="stylesheet" type="text/css" href="lib/theme.css">
 <style>
+@font-face {
+  font-family: Roboto;
+  src: url("lib/Roboto-Regular.ttf") format("truetype");
+}
+
+* {
+        font-family: Roboto;
+}
+
 </style>
 <body onload="brython({indexedDB: false})"></body>
 <script src="lib/brython.js"></script>
@@ -551,47 +560,6 @@ class Table:
 
 # --- end focus
       
-from datetime import datetime
-class Clock(Entity):
-  sec = Property(0, int, bounded_number(0, 59))
-  min = Property(0, int, bounded_number(0, 59))
-  hour = Property(0, int, bounded_number(0, 23))
-  day = Property(0, int, bounded_number(1, 31))
-  month = Property(0, int, bounded_number(1, 12))
-  year = Property(0)
-  human = Property(0)
-  text = Property('')
-
-  done = Property(False)
-  recurring = Property(False)
-
-  def __init__(self, **kw):
-    n = datetime.now()
-    defaults = {'sec': 0,
-      'min': 0,
-      'hour': 0,
-      'day': n.day,
-      'month': n.month,
-      'year': n.year}
-    defaults.update(**kw)
-    super().__init__(**defaults)
-    self.human = int(f'{self.year}{self.month:02d}{self.day:02d}{self.hour:02d}{self.min:02d}{self.sec:02d}')
-  
-  def update(self, obj):
-    self.sec = obj.second
-    self.min = obj.minute
-    self.hour = obj.hour
-    self.day = obj.day
-    self.month = obj.month
-    self.year = obj.year
-
-    self.human = int(f'{self.year}{self.month:02d}{self.day:02d}{self.hour:02d}{self.min:02d}{self.sec:02d}')
-
-  def update_human(self, **kw):
-    self.human = int(f'{self.year}{self.month:02d}{self.day:02d}{self.hour:02d}{self.min:02d}{self.sec:02d}')
-    
-
-
 def toggle_onoff(ev):
   classes = ev.currentTarget.className.split(' ')
   if 'check-off' in classes:
@@ -617,15 +585,6 @@ def make_toggle(text='test', _on='ON', _off='OFF', state='off', on_state=None, C
     b.bind('click', on_state)
   b.state=state
   return b
-
-
-# --- For timers
-window.clock = Clock()
-
-def tick():
-  window.clock.update(datetime.now())
-window.setInterval(tick, 1000)
-
 
 main()
 
