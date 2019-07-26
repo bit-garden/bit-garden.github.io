@@ -1405,6 +1405,49 @@ def make_toggle(text='test', _on='ON', _off='OFF', state='off', on_state=None, C
   b.state=state
   return b
 
+def make_ripple(el, base_color='#222222', hover_color='#474747', pulse_color='grey', no_key=False):
+  def prep_ripple():
+    base_sty = {'background-color': base_color, 'background-position': 'center', 'transition': 'background 0.4s'}
+    for k, v in base_sty.items():
+      el.style[k] = v
+
+  def pre_ripple():
+    hover_sty = {'transition': 'background 0.4s', 'background': f'{hover_color} radial-gradient(circle, transparent 1%, {hover_color} 1%) center/15000%'}
+
+    for k, v in hover_sty.items():
+      el.style[k] = v
+
+  def do_ripple():
+    active_sty = {'background-color': pulse_color, 'background-size': '100%', 'transition': 'background 0s'}
+
+    for k, v in active_sty.items():
+      el.style[k] = v
+    
+    window.setTimeout(pre_ripple, 50)
+
+  def _do_ripple():
+    pre_ripple()
+    window.setTimeout(do_ripple, 400)
+    window.setTimeout(pre_ripple, 450)
+    window.setTimeout(prep_ripple, 600)
+  
+  def _key_ripple(ev):
+    if ev.key=='Enter' or ev.key==' ':
+      do_ripple()
+  
+  prep_ripple()
+  el.bind('mouseover', pre_ripple)
+  el.bind('focus', pre_ripple)
+  el.bind('mousedown', do_ripple)
+  #el.bind('mouseup', pre_ripple)
+  el.bind('mouseout', prep_ripple)
+  el.bind('blur', prep_ripple)
+  
+  if not no_key:
+    el.bind('keydown', _key_ripple)
+  
+  return (el, _do_ripple)
+
 
 from browser import document as doc
 import re
