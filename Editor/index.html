@@ -865,22 +865,34 @@ CodeMirror.Vim.defineEx('notes', null, notes)
 <script src="lib/brython.js"></script>
 <script src="lib/brython_stdlib.js"></script>
 <script type="text/python">
-import traceback
 
-def Try(_callback = None):
-  def _try(_func):
-    def __try(*args, **kwargs):
-      try:
-        return _func(*args, **kwargs)
-      except Exception as e:
-        if _callback:
-          if callable(_callback):
-            #_callback((_func.__name__, e))
-            _callback(traceback.format_exc())
-          else:
-            print(_callback)
-    return __try
-  return _try
+# small hacks to be more asyncio like
+from browser import aio
+
+def Task(coro, Id, block):
+  async def _task():
+    block[Id] = None
+    try:
+      block[Id] = await coro
+    except Exception as e:
+      block[Id] = e
+    
+    if not block[Id]:
+      del block[Id]
+  return _task()
+
+async def gather(*coros, rate=0):
+  dones = {}
+  counts = 0 # only task0, task1, task2 because brython coro is missing __name__
+  for c in coros:
+    aio.run(aio.Task(c, f'task{counts}', dones))
+    counts += 1
+  while not all(dones.values()):
+    await aio.sleep(rate)
+  return dones
+  
+aio.gather = gather
+aio.Task = Task
   
 # --- start focus
 from browser import window
@@ -1463,68 +1475,74 @@ _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = True
 
-def on_down(ev):
-  global ctrl, tables
-  if ev.ctrlKey:
-    ctrl=True
-  else:
-    ctrl=False
+#def on_down(ev):
+#  global ctrl, tables
+#  if ev.ctrlKey:
+#    ctrl=True
+#  else:
+#    ctrl=False
+#
+#  if ev.which == 37 and ctrl:
+#    if not cm_editbox.state.vim.insertMode:
+#      ev.preventDefault()
+#      ev.stopPropagation()
+#      #cm_editbox.setOption('lineNumbers', False)
+#      cm_editbox.setOption('lineWrapping', True)
+#      cm_editbox.setOption('readOnly', True)
+#  if ev.which == 39 and ctrl:
+#    if not cm_editbox.state.vim.insertMode:
+#      ev.preventDefault()
+#      ev.stopPropagation()
+#      #cm_editbox.setOption('lineNumbers', True)
+#      cm_editbox.setOption('lineWrapping', False)
+#      cm_editbox.setOption('readOnly', False)
+#  if chr(ev.which)=='G' and ctrl:
+#    start = cm_editbox.getCursor(True).line
+#    end = cm_editbox.getCursor(False).line
+#    if start == end:
+#      print(cm_editbox.getCursor().line + 1)
+#    else:
+#      diff = abs(start-end)
+#      print('{}:{}({})'.format(start+1, end+1, diff+1))
+#    ev.preventDefault()
+#    ev.stopPropagation()
 
-  if ev.which == 37 and ctrl:
-    if not cm_editbox.state.vim.insertMode:
-      ev.preventDefault()
-      ev.stopPropagation()
-      #cm_editbox.setOption('lineNumbers', False)
-      cm_editbox.setOption('lineWrapping', True)
-      cm_editbox.setOption('readOnly', True)
-  if ev.which == 39 and ctrl:
-    if not cm_editbox.state.vim.insertMode:
-      ev.preventDefault()
-      ev.stopPropagation()
-      #cm_editbox.setOption('lineNumbers', True)
-      cm_editbox.setOption('lineWrapping', False)
-      cm_editbox.setOption('readOnly', False)
-  if chr(ev.which)=='G' and ctrl:
-    start = cm_editbox.getCursor(True).line
-    end = cm_editbox.getCursor(False).line
-    if start == end:
-      print(cm_editbox.getCursor().line + 1)
-    else:
-      diff = abs(start-end)
-      print('{}:{}({})'.format(start+1, end+1, diff+1))
-    ev.preventDefault()
-    ev.stopPropagation()
 
 
-@Try(window.make_popup)
 def do_table() -> None:
-  def print(*l):
-    window.make_popup('\n'.join(l))
-  window.vdo("?_table_|jmx|/_table_|kmz'xV'zo")
-  tab = Table(cm_editbox.getSelection())
-  tab.run_code()
-  cm_editbox.replaceSelection(str(tab))
-  #window.reg('"', str(tab))
-  #window.vdo('gvp')
+  try:
+    def print(*l):
+      window.make_popup('\n'.join(l))
+    window.vdo("?_table_|jmx|/_table_|kmz'xV'zo")
+    tab = Table(cm_editbox.getSelection())
+    tab.run_code()
+    cm_editbox.replaceSelection(str(tab))
+    #window.reg('"', str(tab))
+    #window.vdo('gvp')
+  except:
+    window.make_popup(traceback.format_exc())
         
 def run_table(cm, params):
   do_table()
 window.CodeMirror.Vim.defineEx("do_table", None, run_table)
 
-@Try(window.make_popup)
+
 def do_py() -> None:
-  @debounce(.25, cache=[])
-  def print(*l, cache=[]):
-    window.console.log('\n'.join([str(i[0][0]) for i in cache]))
-  window.vdo("gv")
-  tab = exec(cm_editbox.getSelection())
+  try:
+    @debounce(.25, cache=[])
+    def print(*l, cache=[]):
+      window.console.log('\n'.join([str(i[0][0]) for i in cache]))
+    window.vdo("gv")
+    tab = exec(cm_editbox.getSelection())
+  except:
+    window.make_popup(traceback.format_exc())
 
         
 def run_py(cm, params):
   do_py()
 window.CodeMirror.Vim.defineEx("do_py", None, run_py)
         
-doc.get(selector='.CodeMirror')[0].bind('keydown', on_down)
+#doc.get(selector='.CodeMirror')[0].bind('keydown', on_down)
 
 def showRelativeLines(cm):
   cm.setOption('lineNumbers', cm.state.vim.visualMode)
@@ -1753,7 +1771,7 @@ window.CodeMirror.Vim.defineEx("align_by_equals", None, run_align_by_equals)
 </script>
 <script>
       var _logger = function(msg){
-	if(msg != "using indexedDB for stdlib modules cache"){
+	if(msg != "using indexedDB for stdlib modules cache" && msg != 'empty stack'){
           cm_editbox.openNotification('<pre>'+msg+'</pre>')
 	}
       //cm_editbox.openNotification('<p>'+msg.split('\n').join('<br>')+'</p>')
