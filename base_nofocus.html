@@ -9,33 +9,46 @@
 <script src="lib/brython_stdlib.js"></script>
 <script type="text/python">
 
+# small hacks to be more asyncio like
+from browser import aio
+
+def Task(coro, Id, block):
+  async def _task():
+    block[Id] = None
+    try:
+      block[Id] = await coro
+    except Exception as e:
+      block[Id] = e
+    
+    if not block[Id]:
+      del block[Id]
+  return _task()
+
+async def gather(*coros, rate=0):
+  dones = {}
+  counts = 0 # only task0, task1, task2 because brython coro is missing __name__
+  for c in coros:
+    #name = c.__name__ 
+    #if name not in counts:
+    #  counts[name] = 0
+    aio.run(aio.Task(c, f'task{counts}', dones))
+    counts += 1
+  while not all(dones.values()):
+    await aio.sleep(rate)
+  return dones
+  
+aio.gather = gather
+aio.Task = Task
+
 from browser import document as doc
 from browser import window
 from browser.html import *
-import traceback
-
-def Try(_callback = None):
-  def _try(_func):
-    def __try(*args, **kwargs):
-      try:
-        return _func(*args, **kwargs)
-      except Exception as e:
-        if _callback:
-          if callable(_callback):
-            #_callback((_func.__name__, e))
-            _callback(traceback.format_exc())
-          else:
-            print(_callback)
-    return __try
-  return _try
-
 
 # storage is like dictionary
 #from browser.local_storage import storage
 
 
-@Try(window.alert)
-def main():
+async def main():
   doc <= BUTTON('test', Class='card ripple')
   doc <= BUTTON('test', Class='button ripple')
   doc <= INPUT('test', Class='card input')
@@ -125,7 +138,7 @@ def make_ripple(el, base_color='#222222', hover_color='#474747', pulse_color='gr
   return (el, _do_ripple)
 
 
-main()
+aio.run(main())
 
 </script>
 <script>
