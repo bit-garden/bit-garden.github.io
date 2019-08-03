@@ -898,7 +898,6 @@ aio.cancel = window.CustomEvent.new('cancel')
 
 async def select_event(el, events):
   events += ' cancel'
-  triggered = None
 
   def on_event(ev):
     event['triggered'] = ev
