@@ -867,7 +867,7 @@ CodeMirror.Vim.defineEx('notes', null, notes)
 <script type="text/python">
 
 # small hacks to be more asyncio like
-from browser import aio
+from browser import aio, window
 
 def Task(coro, Id, block):
   async def _task():
@@ -893,6 +893,35 @@ async def gather(*coros, rate=0):
   
 aio.gather = gather
 aio.Task = Task
+
+aio.cancel = window.CustomEvent.new('cancel')
+
+async def select_event(el, events):
+  events += ' cancel'
+  triggered = None
+
+  def on_event(ev):
+    event['triggered'] = ev
+    for e in event['events'].split(' '):
+      el.unbind(e, event['on_event'])
+
+  event = {'events': events,
+            'triggered': None, # Should be the event that fires when done
+            'on_event': on_event}
+  
+  for e in events.split(' '):
+    el.bind(e, on_event)
+
+  while event['triggered'] is None:
+    await aio.sleep(0)
+    
+  return event['triggered']
+    
+def cancel_event(el):
+  el.dispatchEvent(aio.cancel)
+
+aio.select_event = select_event
+aio.cancel_event = cancel_event
   
 # --- start focus
 from browser import window
