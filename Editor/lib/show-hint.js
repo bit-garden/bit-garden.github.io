@@ -93,6 +93,7 @@ var mac = /Mac/.test(navigator.platform);
                                 completion.to || data.to, "complete");
       CodeMirror.signal(data, "pick", completion);
       this.close();
+      //window.vdo(':js put(" ")|a')
     },
 
     cursorActivity: function() {

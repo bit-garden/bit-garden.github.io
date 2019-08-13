@@ -20,6 +20,38 @@
 
     <style>
 @font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url("lib/MaterialIcons-Regular.ttf") format('truetype')
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+    
+@font-face {
   font-family: Mono;
   src: url("lib/RobotoMono-Thin.ttf") format("truetype");
 }
@@ -40,11 +72,12 @@
  .cm-strings{color: #aaffaa;}
  .cm-variables{color: #aaffff;}
 
- .cm-deco{color: #ffbf00;    }
+ .cm-deco{color: #ffbf00;}
 
  .cm-nums{color: #ffaaaa;}
 
  .cm-numss{color: #afafff;}
+ 
  .CodeMirror, .CodeMirror * {font-family: Mono !important;}
 
       .editbox + .CodeMirror{
@@ -222,41 +255,130 @@ input::-webkit-calendar-picker-indicator {
 }
 
 .input{
-  border-bottom: rgba(34,34,34,0) solid 2px;
+  border-bottom: rgba(16,75,121,1) solid 2px;
   padding: 12px 18px 10px 18px;
   transition: border .4s;
 }
-.input:focus{
-  border-bottom: rgba(128,128,128,255) solid 2px;
+.input:focus, .input:hover{
+  border-bottom: rgba(33,150,243,1) solid 2px;
 }
 
-.check-on > .off {
-  display:none !important;
+/* checkbox */
+
+input.switch{
+  opacity: 0;
+  height:0px;
+  width:0px;
 }
 
-.check-off > .on {
-  display:none !important;
+input.switch+div{
+  background:rgba(128,128,128,.5);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  display:inline-block;
+  overflow:visible;
+  border-radius:12px;
+  margin:6px;
+  width:36px;
 }
 
-.check-on > .on{
-  font-weight:bold;
-  color:#44ff44;
-  float:right;
+input.switch:checked+div div.thumb{
+  left:24px;
+  background:rgba(33,150,243,1);
 }
 
-.check-off > .off{
-  font-weight:bold;
-  color:#ff4444;
-  float:right;
+input.switch:focus+div,
+input.switch:focus+div div.thumb{
+  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12), 0 3px 5px -1px rgba(0, 0, 0, 0.2);
+  outline:none;
+  box-shadow: 0 0px 8px rgba(33,150,243,1);
 }
 
-.check-on > .label, .check-off > .label{
-  float:left;
+input.switch+div div.thumb{
+  content:'off';
+  height:24px;
+  transition:all .2s;
+  width:24px;
+  background:rgba(16,75,121,1);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  position:relative;
+  left:0px;
+  margin:-6px;
+  border-radius:12px;
 }
 
-.check-on, .check-off{
-  width:100%;
+/* radio */
+
+input.radio{
+  opacity: 0;
+  height:0px;
+  width:0px;
 }
+
+input.radio+div{
+  background:rgba(128,128,128,.5);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  display:inline-block;
+  overflow:visible;
+  border-radius:18px;
+  width:12px;
+  height:12px;
+  padding:6px;
+  transition:all .2s;
+}
+
+input.radio:checked+div div.thumb{
+  background:rgba(33,150,243,1);
+  width:16px;
+  height:16px;
+}
+
+input.radio:checked+div{
+  padding:4px;
+  height:16px;
+  width:16px;
+}
+
+input.radio:focus+div,
+input.radio:focus+div div.thumb{
+  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12), 0 3px 5px -1px rgba(0, 0, 0, 0.2);
+  outline:none;
+  box-shadow: 0 0px 8px rgba(33,150,243,1);
+}
+
+input.radio+div div.thumb{
+  content:'off';
+  height:12px;
+  transition:all .2s;
+  width:12px;
+  background:rgba(16,75,121,1);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  border-radius:12px;
+}
+
+.fab {
+  border: none;
+  border-radius: 999px;
+  padding: 18px 18px;
+  font-size: 16px;
+  cursor: default;
+  color: white;
+  background-color: #222222;
+  box-shadow: 0 4px 8px #000;
+  outline: none;
+}
+
+.fab-small {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 12px;
+  font-size: 16px;
+  cursor: default;
+  color: white;
+  background-color: #222222;
+  box-shadow: 0 4px 8px #000;
+  outline: none;
+}
+  
   
 </style>
 <script>
@@ -740,16 +862,22 @@ function DoubleTap(cm, params){
     }
   })
 }
-CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
-
-CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
-CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
-CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
-CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
-CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
-CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
-CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
-CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
+//CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
+//
+//CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
+//CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
+//CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
+//CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
+//CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
+//CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
+//CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
+//CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
+CodeMirror.Vim.map("''", ":vdo :js put(\"''\")|i", 'insert')
+CodeMirror.Vim.map("((", ":vdo :js put(\"()\")|i", 'insert')
+CodeMirror.Vim.map("[[", ":vdo :js put(\"[]\")|i", 'insert')
+CodeMirror.Vim.map("{{", ":vdo :js put(\"{}\")|i", 'insert')
+CodeMirror.Vim.map('""', ':vdo :js put(\'""\')|i', 'insert')
+CodeMirror.Vim.map("<<", ":vdo :js put(\"<>\")|i", 'insert')
 
 function kpos(cm, params){
   window.lastline = cm_editbox.getCursor().line
@@ -867,7 +995,19 @@ CodeMirror.Vim.defineEx('notes', null, notes)
 <script type="text/python">
 
 # small hacks to be more asyncio like
-from browser import aio, window
+from browser import aio
+import traceback
+
+
+from browser.html import *
+from browser import document as doc
+
+# for table magic
+from operator import itemgetter
+import itertools
+
+import re
+
 
 def Task(coro, Id, block):
   async def _task():
@@ -893,6 +1033,8 @@ async def gather(*coros, rate=0):
   
 aio.gather = gather
 aio.Task = Task
+
+from browser import window
 
 aio.cancel = window.CustomEvent.new('cancel')
 
@@ -922,14 +1064,217 @@ def cancel_event(el):
 aio.select_event = select_event
 aio.cancel_event = cancel_event
   
-# --- start focus
-from browser import window
-from browser.html import *
+# --- new entity stuff
 
-from copy import deepcopy
-from operator import itemgetter
-import itertools
-import re
+# --- Literal type backport from 3.8 version
+# will be used for sanity checking specific possibilities
+
+from typing import *
+from typing import _GenericAlias
+import typing 
+
+class _LiteralForm(typing._SpecialForm, _root=True):
+
+  def __repr__(self):
+    return 'typing_extensions.' + self._name
+
+  def __getitem__(self, parameters):
+    return _GenericAlias(self, parameters)
+
+Literal = _LiteralForm('Literal',
+            doc="""A type that can be used to indicate to type checkers
+            that the corresponding value has a value literally equivalent
+            to the provided parameter. For example:
+              var: Literal[4] = 4
+            The type checker understands that 'var' is literally equal to
+            the value 4 and no other value.
+            Literal[...] cannot be subclassed. There is no runtime
+            checking verifying that the parameter is actually a value
+            instead of a type.""")
+
+
+from dataclasses import dataclass, field
+
+import inspect
+import typing
+from contextlib import suppress
+from functools import wraps
+
+def validate_type(name, type_hint, value):
+  """Validates value against type_hint.
+  
+  This doesn't check in depth for List, Set and so on.
+  This additionally treats strings as Any so future typing can be done.
+  """
+  
+  if not isinstance(type_hint, typing._SpecialForm):
+    # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
+    is_literal = False # for literal checking
+    try:
+      actual_type = type_hint.__origin__
+    except AttributeError:
+      actual_type = type_hint
+    if actual_type == Literal:
+      is_literal = True
+    if isinstance(actual_type, typing._SpecialForm):
+      # case of typing.Union[...] or typing.ClassVar[...]
+      actual_type = type_hint.__args__
+
+    if type(actual_type) == str:
+      return
+      
+    if is_literal:
+      if value not in actual_type:
+        raise TypeError('Unexpected value for \'{}\' (expected {} but found {})'.format(name, type_hint, value))
+
+    if not isinstance(value, actual_type):
+      raise TypeError('Unexpected type for \'{}\' (expected {} but found {})'.format(name, type_hint, type(value)))
+
+def bind(self, **kw):
+  """Bind callbacks to properties."""
+  for prop, fun in kw.items():
+    if prop not in self._callbacks:
+      self._callbacks[prop] = []
+    self._callbacks[prop].append(fun)
+    
+def unbind(self, **kw):
+  """Unbind callbacks to properties."""
+  for prop, fun in kw.items():
+    self._callbacks[prop].remove(fun)
+    if not self._callbacks[prop]:
+      del self._callbacks[prop]
+      
+class On_attr:
+  """Customer attribute to delegate changes to a property."""
+  def __init__(self, type, name, bindable=False):
+    self.type = type
+    self.name = name
+    self.bindable = bindable # for faster check if _callbacks is used
+
+  # set name not working in current brython version
+
+  def __get__(self, instance, owner):
+    if not instance: return self
+    return instance.__dict__[self.name]
+
+  def __delete__(self, instance):
+    del instance.__dict__[self.name]
+
+  def __set__(self, instance, value):
+    """Validate type, on_prop_vali, on_prop, then _callbacks."""
+    validate_type(self.name, self.type, value)
+
+    curval = instance.__dict__.get(self.name, self)
+
+    instance.__dict__[self.name] = value
+
+    if curval != self:
+      if value != curval:
+        on_prop = getattr(instance, f'on_{self.name}', None)
+        if on_prop:
+          on_prop(curval, value)
+        if self.bindable:
+          if self.name in instance._callbacks:
+            for i in instance._callbacks[self.name]:
+              i(instance, curval, value)
+
+
+def enforce_types(callable):
+  """Decorator to bind On_attr on annotated properties.
+  
+  Also attaches bind/unbind if _callbacks dictionary is annotated.
+  
+  Also checks incoming annotated parameters for __init__ or decorated functions.
+  """
+  
+  spec = inspect.getfullargspec(callable)
+  annos = spec.annotations
+  annos.pop('return')
+
+  def check_types(*args, **kwargs):
+    parameters = dict(zip(spec.args, args))
+    parameters.update(kwargs)
+    for name, value in parameters.items():
+      with suppress(KeyError): # Assume un-annotated parameters can be any type
+        type_hint = spec.annotations[name]
+        validate_type(name, type_hint, value)
+
+  def decorate(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+      check_types(*args, **kwargs)
+      return func(*args, **kwargs)
+    return wrapper
+
+  if inspect.isclass(callable):
+    callable.__init__ = decorate(callable.__init__)
+    bindable = False
+    if '_callbacks' in annos:
+      bindable = True
+      callable.bind = bind
+      callable.unbind = unbind
+    for k, v in annos.items():
+      setattr(callable, k, On_attr(v, k, bindable))
+    return callable
+
+  return decorate(callable)
+
+
+def strip_dict(_dict):
+  """Strip out keys with leading _.
+  
+  This seams more readable to the eye for simply hiding properties compared to field(...)
+  """
+  
+  return {k: v for k, v in _dict.items() if not k.startswith('_')}
+
+@dataclass
+class Engine:
+  """Organizes classes to be quickly referenced later.
+  
+  This takes supplied entities, gets their base classes and makes a dictionary
+    referring to all the classes. This is looked up as a dictionary with __getitem__.
+  """
+  entities: list = field(default_factory=list)
+  components: list = field(default_factory=list)
+  objs: dict = field(default_factory=dict)
+
+  def __post_init__(self):
+    for e in self.entities:
+      self.objs[e] = []
+      for base in e.__bases__:
+        self.objs[base] = []
+        self.components.append(base)
+
+  def load(self, data):
+    """Load dictionary and create objects as needed."""
+    for k,v in self.objs.items():
+      if k in self.entities and k.__name__ in data:
+        for item in data[k.__name__]:
+          self.add(k(**item))
+          
+  def __repr__(self):
+    """Strip out private properties and print out a evalable nested dictionary."""
+    return str({e.__name__: [strip_dict(i.__dict__) for i in self.objs[e]] for e in self.entities})
+
+  def __getitem__(self, key):
+    return self.objs[key]
+
+  def add(self, obj):
+    self.objs[obj.__class__].append(obj)
+    for b in obj.__class__.__bases__:
+      self.objs[b].append(obj)
+
+  def remove(self, obj):
+    self.objs[obj.__class__].remove(obj)
+    for b in obj.__class__.__bases__:
+      self.objs[b].remove(obj)
+      
+# end new entity stuff
+
+# throttle and debounce are left here, but will have async versions nativly
+  
+
 import time
 
 # do not run first pass
@@ -1000,25 +1345,6 @@ def throttle(wait, cache=None):
 
   return decorator
 
-# Sort key for logical number sorting
-def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
-  return [int(text) if text.isdigit() else text.lower()
-          for text in _nsre.split(s)]    
-
-def itemgetter_nat(*items):
-  if len(items) == 1:
-    item = items[0]
-    def g(obj):
-      return natural_sort_key(obj[item])
-  else:
-    def g(obj):
-      return natural_sort_key(' '.join(str(obj[item]) for item in items))
-  return g
-
-# sort by multiple columns
-def sort_data(data, *cats, **kwargs):
-  return sorted(data, key=itemgetter_nat(*cats), **kwargs)
-
 # Use to get groups of data
 def group_data(data, column):
   out = {}
@@ -1026,247 +1352,6 @@ def group_data(data, column):
   for key, group in itertools.groupby(sorted_data, key=lambda x:x[column]):
     out[key] = list(group)
   return out
-
-# --- property modifiers
-
-# Returns error if not one of the allowed types
-def union(*largs):
-  def _union(obj):
-    if type(obj) not in largs:
-      raise(Exception(f'Union violated with {obj}'))
-    else:
-      return obj
-  return _union
-
-# Same as Union(None, ...)
-def optional(*largs):
-  return union(None, *largs)
-
-def options(default='', choices=[]):
-  def _options(obj):
-    if obj in choices:
-      return obj
-    return default
-  return _options
-
-# Returns value locked to min of lower, max of upper
-# lower and upper are inclusive
-def bounded_number(lower, upper):
-  def _bounded_number(num):
-    num = union(int, float)(num)
-    if num > upper:
-      return upper
-    if num < lower:
-      return lower
-    return num
-  return _bounded_number
-
-# Returns value wrapped to min of lower, max of upper
-# lower is inclusive and upper is exclusive
-def wrapped_number(lower, upper):
-  diff = abs(upper - lower)
-  def _wrapped_number(num):
-    num = union(int, float)(num)
-    while num >= upper:
-      num -= diff
-    while num < lower:
-      num += diff
-    return num
-  return _wrapped_number
-  
-def d2e(_type):
-  def _d2e(obj):
-    obj = union(list, _type, dict)(obj)
-    if type(obj) == list:
-      return [type(union(dict, _type)(o)) == _type and o or _type(**o) for o in obj]
-    elif type(obj) == _type:
-      return obj
-    else:
-      return _type(**obj)
-  return _d2e
-  
-def length(value):
-  def _length(obj):
-    return obj[:value]
-  return _length
-
-# --- Property
-
-# Call generate_prop(target, prop_name)
-# This binds prop_name property with simple getter, setter that calls bound functions
-# and on{prop_name} function of the class.
-# This also uses the on_prop_name list of functions to constrain the value
-#
-# Like x = Property(0)
-# y = Property(10, union(int, str))
-class Property:
-  def __init__(self, default_value=None, *on_prop_name):
-    self.default_value = default_value
-    self.on_prop_name = on_prop_name
-
-  def generate_prop(class_self, self, prop_name, new_default_value = None):
-    #def Property(prop_name, on_prop_name = None):
-    #if new_default_value is not None:
-    #  setattr(self.__class__, f'_{prop_name}', new_default_value)
-    #else:
-    self.__class__.property_list.append(prop_name)
-    setattr(self.__class__, f'_{prop_name}', class_self.default_value)
-    if new_default_value is not None:
-      for on_prop_fun in class_self.on_prop_name:
-        new_default_value = on_prop_fun(new_default_value)
-      setattr(self, f'_{prop_name}', new_default_value)
-    else:
-      setattr(self, f'_{prop_name}', deepcopy(class_self.default_value))
-
-    def _get(self):
-      return getattr(self, f'_{prop_name}', class_self.default_value)
-
-    def _set(self, value):
-      if getattr(self, f'_{prop_name}') != value:
-
-        old_val = getattr(self, f'_{prop_name}')
-
-        for on_prop_fun in class_self.on_prop_name:
-          value = on_prop_fun(value)
-
-        setattr(self, f'_{prop_name}', value)
-
-        if getattr(self, f'on_{prop_name}', None):
-          getattr(self, f'on_{prop_name}')(prop=prop_name, value=value, old_val=old_val)
-
-        if prop_name in self.properties:
-          for func in self.properties[prop_name]:
-            func(self, prop=prop_name, value=value, old_val=old_val)
-
-    setattr(self.__class__, prop_name, property(_get, _set))
-
-
-# --- Entity
-
-# Base Entity class.
-class Entity:
-  #property_list = []
-
-  # allows binding at runtime
-  #def bind(self, prop_name, func):
-  def bind(self, **kwargs):
-    for prop_name, func in kwargs.items():
-      if prop_name in self.property_list:
-        if prop_name not in self.properties:
-          self.properties[prop_name] = []
-        self.properties[prop_name].append(func)
-  def unbind(self, **kwargs):
-    for prop_name, func in kwargs.items():
-      self.properties[prop_name].remove(func)
-
-  # manually dispatch change
-  # used for non reporting types like lists or dicts
-  def dispatch(self, prop_name, *largs, **kwargs):
-    _on_fun = getattr(self, f'on_{prop_name}', None)
-    if _on_fun:
-      _on_fun(*largs, **kwargs)
-    for cb in self.properties.get(prop_name, []):
-      cb(self, *largs, **kwargs)
-
-  def __repr__(self):
-    return str(dict(zip([i for i in self.property_list if not i.startswith('_')], [getattr(self, p) for p in self.property_list if not p.startswith('_')])))
-
-  def __str__(self):
-    return str(dict(zip([i for i in self.property_list if not i.startswith('_')], [getattr(self, p) for p in self.property_list if not p.startswith('_')])))
-  
-  def __getitem__(self, item):
-    return getattr(self, item)
-
-  def __setitem__(self, item, value):
-    return setattr(self, item, value)
-
-  def to_dict(self):
-    return dict(zip([i for i in self.property_list if not i.startswith('_')], [getattr(self, p) for p in self.property_list if not p.startswith('_')]))
-
-  def __init__(self, **kwargs):
-    self.components = []
-    self.properties = {}
-    if 'property_list' not in dir(self):
-      self.__class__.property_list = []
-
-    for base in reversed(self.__class__.__bases__[1:]):
-      if Component in base.__bases__:
-        self.components.append(base)
-      #base.__init__(self, **kwargs)
-
-    for attr in dir(self.__class__):
-      if getattr(self.__class__, attr).__class__ == Property:
-        self.properties[attr] = []
-        getattr(self.__class__, attr).generate_prop(self, attr, kwargs.get(attr, None))
-
-      if attr in self.property_list:
-        setattr(self, attr, kwargs.get(attr, getattr(self.__class__, f'_{attr}')))
-        _on_fun = kwargs.get(f'on_{attr}', None)
-        if _on_fun:
-          self.bind(**{attr: _on_fun})
-
-
-# --- Components
-
-# Component shell
-class Component:
-  pass
-
-# --- Engine
-
-class Engine:
-  def __init__(self, *systems):
-    self.systems = systems
-    self.entities = {}
-
-  def tick(self, delta=0):
-    for system in self.systems:
-      system.tick(delta)
-
-  def add(self, *entities):
-    for system in self.systems:
-      system.add(*entities)
-    for en in entities:
-      if en.__class__.__name__ not in self.entities:
-        self.entities[en.__class__.__name__] = []
-      self.entities[en.__class__.__name__].append(en)
-
-  def remove(self, *entities):
-    for system in self.systems:
-      system.remove(*entities)
-    for en in entities:
-      self.entities[en.__class__.__name__].remove(en)
-
-# --- System
-
-class System:
-  components = []
-
-  def __init__(self):
-    self.entities = []
-
-  def add(self, *entities):
-    for en in entities:
-      for component in self.components:
-        if component in en.components and not en in self.entities:
-          self.entities.append(en)
-          self.on_add(en)
-
-  def on_add(self, entity):
-    pass
-
-  def remove(self, *entities):
-    for en in entities:
-      if en in self.entities:
-        self.entities.remove(en)
-        self.on_remove(en)
-
-  def on_remove(self, entity):
-    pass
-
-  def tick(self, delta=0):
-    pass
-    
     
 def align_by(_dat, _char = ',', _glue = ''):
   if not _glue:
@@ -1320,15 +1405,44 @@ def align_by(_dat, _char = ',', _glue = ''):
     else:
       _out += ' ' * lpad + _glue.join((width.format(val) for val, width in zip(row, widths))).rstrip() + '\n'
   return _out
-
-def default(value):
-  def _default(obj):
-    return obj or value
-  return _default
   
 def ig(obj, prop):
   return [i[prop] for i in obj]
 
+from dataclasses import dataclass, field
+from typing import *
+import re
+  
+base_table_str = '''
+from typing import *
+from dataclasses import field
+
+@enforce_types
+@dataclass
+class R:
+  _callbacks: dict = field(default_factory=dict)
+  _sub_table: str = ''
+  pass
+
+  def __getitem__(self, key):
+    return self.__dict__[key]
+
+  def __setitem__(self, key, value):
+    return setattr(self, key, value)
+
+  def __repr__(self):
+    return str(strip_dict(self.__dict__))
+  
+locals()['R'] = R
+'''
+
+def trycast(d, anno):
+  for k, v in d.items():
+    try:
+      validate_type(k, anno[k], v)
+    except:
+      d[k] = anno[k](v)
+      
 class Table:
   all_items = property(lambda self: self._all_items)
   sub_table = property(lambda self: self.gd['_sub_table'])
@@ -1338,13 +1452,6 @@ class Table:
     self.code = ''
     if '\n#__code__\n' in data:
       data, self.code = data.split('\n#__code__\n')
-
-    if self.code.splitlines()[0].strip().startswith('props ='):
-      row_props = self.code.split('\n\n')[0][7:]
-      kwargs = eval(row_props)
-
-    class Row(Entity): pass
-    self.Row = Row
 
     _dat = data.strip().splitlines()
     
@@ -1359,8 +1466,24 @@ class Table:
     self._all_items = []
     self.lpad = min(len(i) - len(i.lstrip()) for i in _dat)
     
+    prop_str = ''
+    prop_dict = {}
+
+    row_props = self.code.split('\n\n')[0]
+    for i in row_props.splitlines():
+      if ':' in i:
+        prop_dict[i.split(':')[0]] = i
+
     for h in self.headers:
-      setattr(self.Row, h, kwargs.get(h, Property('')))
+      if h not in prop_dict:
+        prop_str += f"\n  {h}: Any = ''"
+      else:
+        prop_str += f"\n  {prop_dict[h]}"
+
+    loc = {}
+    exec(base_table_str.replace('pass', prop_str), globals(), loc)
+
+    self.Row = loc['R']
     
     last_sub_table = ''
     
@@ -1373,7 +1496,9 @@ class Table:
         
       else:
         #self.table.append(dict(zip(self.headers, [i.strip() for i in _dat.pop(0).split('|')])))
-        self.table.append(self.Row(**dict(zip(self.headers, [i.strip() for i in _dat.pop(0).split('|')]))))
+        _d = {k:v for k, v in zip(self.headers, [i.strip() for i in _dat.pop(0).split('|')]) if v != ''}
+        trycast(_d, self.Row.__annotations__)
+        self.table.append(self.Row(**_d))
         self.table[-1]['_sub_table'] = last_sub_table
         self._all_items.append(self.table[-1])
         if not last_sub_table and '' not in self._sub_tables:
@@ -1396,11 +1521,11 @@ class Table:
     
     for sub_tab in self._sub_tables:
       if sub_tab or (not sub_tab and sub_tab != self._sub_tables[0]):
-        out += f'{" "*self.lpad}---{sub_tab}\n'
+        out += f'{" "*self.lpad}---{sub_tab}\n' 
       out += '\n'.join([" "*self.lpad + '|'.join([str(i[head]) for head in self.headers]) for i in self.sub_table[sub_tab]])+'\n'
     out = align_by(out, '|', ' | ')
     if self.code:
-      out += f'\n#__code__\n{self.code.strip()}\n'
+      out += f'\n#__code__\n{self.code.strip()}'
     return out
 
 
@@ -1409,7 +1534,7 @@ class Table:
     def print(*l, cache=[]):
       window.console.log('\n'.join([str(i[0][0]) for i in cache]))
     exec(t.code)
-    
+
   def sub_group(self, sub_tab):
     if type(sub_tab) == str:
       return {i: group_data(self.sub_table[sub_tab], i)  for i in self.headers}
@@ -1419,46 +1544,32 @@ class Table:
 
 # --- end focus
 
-def toggle_onoff(ev):
-  classes = ev.currentTarget.className.split(' ')
-  if 'check-off' in classes:
-    classes.remove('check-off')
-    classes.append('check-on')
-    ev.currentTarget.state='on'
-  else:
-    classes.remove('check-on')
-    classes.append('check-off')
-    ev.currentTarget.state='off'
-  ev.currentTarget.className = ' '.join(classes)
-  
-window.toggle_onoff = toggle_onoff
+@enforce_types
+def ICON(_icon: str) -> I:
+  return I(_icon, Class='material-icons')
 
-def make_toggle(text='test', _on='ON', _off='OFF', state='off', on_state=None, Class='button'):
-  b = BUTTON(
-          DIV(text, Class='label') + 
-          DIV(_on, Class='on') +
-          DIV(_off, Class='off'),
-        Class=f'{Class} ripple check-{state}')
-  b.bind('click', toggle_onoff)
-  if on_state:
-    b.bind('click', on_state)
-  b.state=state
-  return b
+@enforce_types
+def SWITCH(text:str , state: bool = False, Type: Literal['checkbox', 'radio'] = 'checkbox', Class: Literal['switch', 'radio'] = 'switch', name: str = '') -> LABEL:
+  return LABEL(
+    SPAN(text, style={'padding': '16px'})
+    + INPUT(Type=Type, Class=Class, name=name, checked=state)
+    + DIV(DIV(Class='thumb'), style={'float': 'right'})
+  )
 
 def make_ripple(el, base_color='#222222', hover_color='#474747', pulse_color='grey', no_key=False):
   def prep_ripple():
-    base_sty = {'background-color': base_color, 'background-position': 'center', 'transition': 'background 0.4s'}
+    base_sty = {'background-color': base_color, 'background-position': 'center', 'transition': 'all 0.4s'}
     for k, v in base_sty.items():
       el.style[k] = v
 
   def pre_ripple():
-    hover_sty = {'transition': 'background 0.4s', 'background': f'{hover_color} radial-gradient(circle, transparent 1%, {hover_color} 1%) center/15000%'}
+    hover_sty = {'transition': 'all 0.4s', 'background': f'{hover_color} radial-gradient(circle, transparent 1%, {hover_color} 1%) center/15000%'}
 
     for k, v in hover_sty.items():
       el.style[k] = v
 
   def do_ripple():
-    active_sty = {'background-color': pulse_color, 'background-size': '100%', 'transition': 'background 0s'}
+    active_sty = {'background-color': pulse_color, 'background-size': '100%', 'transition': 'all 0s'}
 
     for k, v in active_sty.items():
       el.style[k] = v
@@ -1489,8 +1600,7 @@ def make_ripple(el, base_color='#222222', hover_color='#474747', pulse_color='gr
   return (el, _do_ripple)
 
 
-from browser import document as doc
-import re
+
 ctrl = False
 tables = {}
 _options = {}
@@ -1539,8 +1649,9 @@ _options['limelight'] = True
 
 def do_table() -> None:
   try:
-    def print(*l):
-      window.make_popup('\n'.join(l))
+    @debounce(.25, cache=[])
+    def print(*l, cache=[]):
+      window.console.log('\n'.join([str(i[0][0]) for i in cache]))
     window.vdo("?_table_|jmx|/_table_|kmz'xV'zo")
     tab = Table(cm_editbox.getSelection())
     tab.run_code()
@@ -1721,7 +1832,10 @@ def better_sort():
   window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(oldpos.line)+", 'ch':"+str(oldpos.ch)+"})")
   window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
 def run_better_sort(cm, params):
-  better_sort()
+  try:
+    better_sort()
+  except:
+    traceback.print_exc()
 window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 
 def align_by2(_char = ',', _glue = ''):
@@ -1795,6 +1909,100 @@ window.CodeMirror.Vim.defineEx("align_by_pipe", None, run_align_by_pipe)
 def run_align_by_equals(cm, params):
   align_by2('=', ' = ')
 window.CodeMirror.Vim.defineEx("align_by_equals", None, run_align_by_equals)
+
+#--- async stuff
+
+async def snack(content, delay=5):
+  # make element
+  _snack = DIV(content, Class='card',
+                style={
+                  'position': 'fixed',
+                  'z-index': '2',
+                  'bottom': '-16px',
+                  'left': '50%',
+                  'transform': 'translate(-50%, 100%)',
+                  'transition': 'transform .4s, bottom .4s'
+                })
+  # attach to doc
+  doc <= _snack
+  await aio.sleep(.05)
+  # update pos
+  _snack.style['bottom'] = '16px'
+  _snack.style['transform'] = 'translate(-50%, 0%)'
+  # sleep for 5
+  await aio.sleep(.4+delay)
+  # update pos
+  _snack.style['bottom'] = '-16px'
+  _snack.style['transform'] = 'translate(-50%, 100%)'
+  await aio.sleep(.4)
+  _snack.remove()
+  # return
+
+async def snackbar():
+  window.snacks = []
+  while True:
+    while window.snacks:
+      val = window.snacks.pop(0)
+      await snack(val)
+      
+    await aio.sleep(0)
+    
+async def popup(content):
+  frame = DIV(Class='darken', style={
+    'background': 'rgba(0, 0, 0, 0)',
+    'transition': 'background .4s',
+    'width': '100%',
+    'height': '100%',
+    'position': 'fixed',
+    'top': '0px',
+    'left': '0px',
+    'z-index': '1'
+  })
+
+  box = DIV(content, Class='card', style={
+    'position': 'absolute',
+    'left': '12.5%',
+    'top': '25%',
+    'opacity': 0,
+    'width': '75%',
+    'height': '75%',
+    'margin': '-16px',
+    'transition': 'opacity .4s, top .4s'
+  })
+
+  frame <= box
+
+  doc <= frame
+
+  await aio.sleep(.05)
+  frame.style['background'] = 'rgba(0, 0, 0, .5)'
+  box.style['opacity'] = 1
+  box.style['top'] = '12.5%'
+
+  # to allow clicks within the popup
+  while True:
+    ev = await aio.select_event(frame, 'click')
+    if ev.type == 'cancel' or ev.target == frame:
+      break
+
+  # Try to break all awaiting UI.
+  for el in box.querySelectorAll('*'):
+    aio.cancel_event(el)
+
+  frame.style['background'] = 'rgba(0, 0, 0, 0)'
+  box.style['opacity'] = 0
+  box.style['top'] = '25%'
+  await aio.sleep(.4)
+
+  frame.remove()
+  
+
+#async def main():
+#  res = await aio.gather(snackbar())
+#  window.make_popup('Snackbar died')
+#
+#aio.run(main())
+
 
 </script>
 <script>

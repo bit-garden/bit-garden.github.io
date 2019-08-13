@@ -1,4 +1,44 @@
+@font-face {
+  font-family: Roboto;
+  src: url("Roboto-Regular.ttf") format("truetype");
+}
 
+* {
+        font-family: Roboto;
+        color:white;
+}
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url("MaterialIcons-Regular.ttf") format('truetype')
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
 
 body{
   background:#111111;
@@ -146,39 +186,128 @@ input::-webkit-calendar-picker-indicator {
   font-family: Mono;
 }
 
+
+/* checkbox */
+
+input.switch{
+  opacity: 0;
+  height:0px;
+  width:0px;
+}
+
+input.switch+div{
+  background:rgba(128,128,128,.5);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  display:inline-block;
+  overflow:visible;
+  border-radius:12px;
+  margin:6px;
+  width:36px;
+}
+
+input.switch:checked+div div.thumb{
+  left:24px;
+  background:rgba(33,150,243,1);
+}
+
+input.switch:focus+div,
+input.switch:focus+div div.thumb{
+  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12), 0 3px 5px -1px rgba(0, 0, 0, 0.2);
+  outline:none;
+  box-shadow: 0 0px 8px rgba(33,150,243,1);
+}
+
+input.switch+div div.thumb{
+  content:'off';
+  height:24px;
+  transition:all .2s;
+  width:24px;
+  background:rgba(16,75,121,1);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  position:relative;
+  left:0px;
+  margin:-6px;
+  border-radius:12px;
+}
+
+/* radio */
+
+input.radio{
+  opacity: 0;
+  height:0px;
+  width:0px;
+}
+
+input.radio+div{
+  background:rgba(128,128,128,.5);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  display:inline-block;
+  overflow:visible;
+  border-radius:18px;
+  width:12px;
+  height:12px;
+  padding:6px;
+  transition:all .2s;
+}
+
+input.radio:checked+div div.thumb{
+  background:rgba(33,150,243,1);
+  width:16px;
+  height:16px;
+}
+
+input.radio:checked+div{
+  padding:4px;
+  height:16px;
+  width:16px;
+}
+
+input.radio:focus+div,
+input.radio:focus+div div.thumb{
+  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12), 0 3px 5px -1px rgba(0, 0, 0, 0.2);
+  outline:none;
+  box-shadow: 0 0px 8px rgba(33,150,243,1);
+}
+
+input.radio+div div.thumb{
+  content:'off';
+  height:12px;
+  transition:all .2s;
+  width:12px;
+  background:rgba(16,75,121,1);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  border-radius:12px;
+}
+
 .input{
-  border-bottom: rgba(34,34,34,0) solid 2px;
+  border-bottom: rgba(16,75,121,1) solid 2px;
   padding: 12px 18px 10px 18px;
   transition: border .4s;
 }
-.input:focus{
-  border-bottom: rgba(128,128,128,255) solid 2px;
+.input:focus, .input:hover{
+  border-bottom: rgba(33,150,243,1) solid 2px;
 }
 
-.check-on > .off {
-  display:none !important;
+.fab {
+  border: none;
+  border-radius: 999px;
+  padding: 18px 18px;
+  font-size: 16px;
+  cursor: default;
+  color: white;
+  background-color: #222222;
+  box-shadow: 0 4px 8px #000;
+  outline: none;
 }
 
-.check-off > .on {
-  display:none !important;
-}
-
-.check-on > .on{
-  font-weight:bold;
-  color:#44ff44;
-  float:right;
-}
-
-.check-off > .off{
-  font-weight:bold;
-  color:#ff4444;
-  float:right;
-}
-
-.check-on > .label, .check-off > .label{
-  float:left;
-}
-
-.check-on, .check-off{
-  width:100%;
+.fab-small {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 12px;
+  font-size: 16px;
+  cursor: default;
+  color: white;
+  background-color: #222222;
+  box-shadow: 0 4px 8px #000;
+  outline: none;
 }
