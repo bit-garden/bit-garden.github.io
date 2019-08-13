@@ -1127,7 +1127,7 @@ def validate_type(name, type_hint, value):
       if value not in actual_type:
         raise TypeError('Unexpected value for \'{}\' (expected {} but found {})'.format(name, type_hint, value))
 
-    if not isinstance(value, actual_type):
+    elif not isinstance(value, actual_type):
       raise TypeError('Unexpected type for \'{}\' (expected {} but found {})'.format(name, type_hint, type(value)))
 
 def bind(self, **kw):
