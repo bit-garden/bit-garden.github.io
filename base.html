@@ -5,7 +5,7 @@
 <link rel="stylesheet" type="text/css" href="lib/theme.css">
 <style>
 </style>
-<body onload="brython({indexedDB: true})"></body>
+<body onload="brython({indexedDB: false})"></body>
 <script src="lib/brython.js"></script>
 <script src="lib/brython_stdlib.js"></script>
 <script type="text/python">
@@ -24,7 +24,7 @@ async def ui():
   
 # ready the aio tasks
 async def main():
-  await aio.gather(snackbar(), ui())
+  await aio.gather(snackbar(), ui(), keybind())
   
 
   
@@ -88,92 +88,22 @@ def cancel_event(el):
 aio.select_event = select_event
 aio.cancel_event = cancel_event
 
-# --- debounce and throttle
-import time
-
-# do not run first pass
-# restart timer each call, within wait
-# only call last instance
-def debounce(wait, cache=None):
-  """ Decorator that will postpone a functions
-    execution until after wait seconds
-    have elapsed since the last time it was invoked. """
-  def decorator(fn):
-    def debounced(*args, **kwargs):
-      if cache is not None:
-        cache.append([args, kwargs])
-      def call_it():
-        if cache is not None:
-          tc = cache[:]
-          cache.clear()
-          fn(*args, cache=tc, **kwargs)
-        else:
-          fn(*args, **kwargs)
-      try:
-        window.clearTimeout(debounced.t)
-      except(AttributeError):
-        pass
-      debounced.t = window.setTimeout(call_it, int(wait*1000))
-      #debounced.t.start()
-    return debounced
-  return decorator
-
-
-# run first pass
-# only call last instance
-def throttle(wait, cache=None):
-  """ Decorator that will postpone a functions
-    execution until after wait seconds
-    have elapsed since the last time it was invoked. """
-
-  def decorator(fn):
-    def throttled(*args, **kwargs):
-      if cache is not None:
-        cache.append([args, kwargs])
-      def call_it():
-        throttled._timer = None
-        throttled._last_call = time.time()
-        if cache is not None:
-          tc = cache[:]
-          cache.clear()
-          return fn(*args, cache=tc, **kwargs)
-        else:
-          return fn(*args, **kwargs)
-
-      time_since_last_call = time.time() - throttled._last_call
-      if time_since_last_call >= wait:
-        return call_it()
-
-      if throttled._timer is None:
-        throttled._timer = window.setTimeout(call_it, int(wait*1000))
-        #throttled._timer.start()
-      else:
-        window.clearTimeout(throttled._timer)
-        throttled._timer = window.setTimeout(call_it, int(wait*1000))
-        #throttled._timer.start()
-
-    throttled._timer = None
-    throttled._last_call = 0
-
-    return throttled
-
-  return decorator
   
 # --- other UI stuff
 
 def make_ripple(el, base_color='#222222', hover_color='#474747', pulse_color='grey', no_key=False):
-  def prep_ripple():
-    base_sty = {'background-color': base_color, 'background-position': 'center', 'transition': 'all 0.4s'}
+  def prep_ripple(*_):
+    base_sty = {'background-color': base_color, 'background-position': 'center', 'transition': 'all 0.4s', 'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',}
     for k, v in base_sty.items():
       el.style[k] = v
 
-  def pre_ripple():
+  def pre_ripple(*_):
     hover_sty = {'transition': 'all 0.4s', 'background': f'{hover_color} radial-gradient(circle, transparent 1%, {hover_color} 1%) center/15000%'}
 
     for k, v in hover_sty.items():
       el.style[k] = v
 
-  def do_ripple():
+  def do_ripple(*_):
     active_sty = {'background-color': pulse_color, 'background-size': '100%', 'transition': 'all 0s'}
 
     for k, v in active_sty.items():
@@ -181,7 +111,7 @@ def make_ripple(el, base_color='#222222', hover_color='#474747', pulse_color='gr
     
     window.setTimeout(pre_ripple, 50)
 
-  def _do_ripple():
+  def _do_ripple(*_):
     pre_ripple()
     window.setTimeout(do_ripple, 400)
     window.setTimeout(pre_ripple, 450)
@@ -218,6 +148,7 @@ async def popup(content):
   frame = DIV(Class='darken', style={
     'background': 'rgba(0, 0, 0, 0)',
     'transition': 'background .4s',
+    'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
     'width': '100%',
     'height': '100%',
     'position': 'fixed',
@@ -234,7 +165,8 @@ async def popup(content):
     'width': '75%',
     'height': '75%',
     'margin': '-16px',
-    'transition': 'opacity .4s, top .4s'
+    'transition': 'opacity .4s, top .4s',
+    'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
   })
 
   frame <= box
@@ -272,7 +204,8 @@ async def snack(content, delay=5):
                   'bottom': '-16px',
                   'left': '50%',
                   'transform': 'translate(-50%, 100%)',
-                  'transition': 'transform .4s, bottom .4s'
+                  'transition': 'transform .4s, bottom .4s',
+                  'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
                 })
   # attach to doc
   doc <= _snack
@@ -297,176 +230,230 @@ async def snackbar():
       await snack(val)
       
     await aio.sleep(0)
+
+async def keybind():
+  muted_events = ['Meta', 'Shift', 'Control', 'Alt']
   
+  aio.cancel_event(doc)
+  ev = await aio.select_event(doc, 'keyup keydown')
+  while ev.type != 'cancel':
+    ctrl = ev.getModifierState('Control')
+    alt = ev.getModifierState('Alt')
+    shift = ev.getModifierState('Shift')
 
-# --- enforce and table
+    if ev.key not in muted_events and type(ev.target) not in (TEXTAREA, INPUT):
+      if ev.type == 'keyup':
+        #print(f'key up {ev.key}')
+        pass
+      elif ev.type == 'keydown':
+        #print(f'key down {ev.key}')
+        if ev.key == 'Escape':
+          tar = doc.querySelectorAll('.darken')
+          if len(tar):
+            aio.cancel_event(tar[-1])
 
-# --- Literal type backport from 3.8 version
-# will be used for sanity checking specific posibilities
-
-from typing import *
-from typing import _GenericAlias
-import typing 
-
-class _LiteralForm(typing._SpecialForm, _root=True):
-
-  def __repr__(self):
-    return 'typing_extensions.' + self._name
-
-  def __getitem__(self, parameters):
-    return _GenericAlias(self, parameters)
-
-Literal = _LiteralForm('Literal',
-            doc="""A type that can be used to indicate to type checkers
-            that the corresponding value has a value literally equivalent
-            to the provided parameter. For example:
-              var: Literal[4] = 4
-            The type checker understands that 'var' is literally equal to
-            the value 4 and no other value.
-            Literal[...] cannot be subclassed. There is no runtime
-            checking verifying that the parameter is actually a value
-            instead of a type.""")
-
-
-from dataclasses import dataclass, field
-
-import inspect
-import typing
-from contextlib import suppress
-from functools import wraps
-
-def validate_type(name, type_hint, value):
-  """Validates value against type_hint.
+    ev = await aio.select_event(doc, 'keyup keydown')
   
-  This doesn't check in depth for List, Set and so on.
-  This additionally treats strings as Any so future typing can be done.
-  """
-  
-  if not isinstance(type_hint, typing._SpecialForm):
-    # No check for typing.Any, typing.Union, typing.ClassVar (without parameters)
-    is_literal = False # for literal checking
-    try:
-      actual_type = type_hint.__origin__
-    except AttributeError:
-      actual_type = type_hint
-    if actual_type == Literal:
-      is_literal = True
-    if isinstance(actual_type, typing._SpecialForm):
-      # case of typing.Union[...] or typing.ClassVar[...]
-      actual_type = type_hint.__args__
-
-    if type(actual_type) == str:
-      return
-      
-    if is_literal:
-      if value not in actual_type:
-        raise TypeError('Unexpected value for \'{}\' (expected {} but found {})'.format(name, type_hint, value))
-
-    elif not isinstance(value, actual_type):
-      raise TypeError('Unexpected type for \'{}\' (expected {} but found {})'.format(name, type_hint, type(value)))
-
-def bind(self, **kw):
-  """Bind callbacks to properties."""
-  for prop, fun in kw.items():
-    if prop not in self._callbacks:
-      self._callbacks[prop] = []
-    self._callbacks[prop].append(fun)
+class Stagger:
+  def __init__(self, base_delay, rate):
+    self.delay = base_delay
+    self.rate = rate
     
-def unbind(self, **kw):
-  """Unbind callbacks to properties."""
-  for prop, fun in kw.items():
-    self._callbacks[prop].remove(fun)
-    if not self._callbacks[prop]:
-      del self._callbacks[prop]
-      
-class On_attr:
-  """Customer attribute to delegate changes to a property."""
-  def __init__(self, type, name, bindable=False):
-    self.type = type
+  async def delay_fun(self, fun, delay):
+    await aio.sleep(delay)
+    fun()
+    
+  def stagger(self, fun):
+    aio.run(self.delay_fun(fun, self.delay))
+    self.delay += self.rate
+    
+  def __enter__(self):
+    return self.stagger
+    
+  def __exit__(self, *_):
+    pass
+
+
+def enforce(f):
+  annos = f.__annotations__
+  del annos['return']
+
+  vars = f.__code__.co_varnames
+
+  defs = f.__defaults__ or []
+  offset = len(vars) - f.__code__.co_argcount
+
+  #print(defs)
+  defs = [v for v in vars[-(len(defs)+offset): -offset]]
+
+  def new_f(*args, **kwds):
+    _args = {vars[i]: v for i, v in enumerate(args)}
+    _args.update(**kwds)
+    for k, v in annos.items():
+      if k in _args:
+        if not isinstance(_args[k], v):
+          raise TypeError(f"Expected type {v} but {k} was given type {type(_args[k])}.")
+
+    return f(*args, **kwds)
+  new_f.__name__ = f.__name__
+  return new_f
+
+def enforce_class(f):
+  annos = f.__annotations__
+  #del annos['return']
+
+  vars = list(annos.keys())
+
+  defs = [f.__dict__[i] for i in annos if i in f.__dict__]
+
+  #print(defs)
+  defs = [v for v in vars[-len(defs):]]
+
+  def new_f(self, *args, **kwds):
+    _args = {vars[i]: v for i, v in enumerate(args)}
+    _args.update(**kwds)
+    for k, v in annos.items():
+      if k in _args:
+        if v is not any and not isinstance(_args[k], v):
+          raise TypeError(f"Expected type {v} but {k} was given type {type(_args[k])}.")
+      elif k not in f.__dict__:
+        raise ValueError(f"Parameter {k} missing.")
+      else:
+        if type(f.__dict__[k]) is bound:
+          _args[k] = f.__dict__[k].default
+        else:
+          _args[k] = f.__dict__[k]
+    for k, v in _args.items():
+      if k not in annos:
+        raise ValueError(f"{k} is not a valid parameter.")
+    
+    self.__dict__.update(**_args)
+
+    pi = getattr(self, '__post_init__', None)
+    if pi:
+      pi()
+  f.__init__ = new_f
+  if '__repr__' not in f.__dict__:
+    def strip_dict(self):
+      return str({k: v for k, v in self.__dict__.items() if not k.startswith('_')})
+    f.__repr__ = strip_dict
+  return f
+
+
+class bound:
+  """Custome attribute to delegate changes to a property."""
+  def __init__(self, default, name):
     self.name = name
-    self.bindable = bindable # for faster check if _callbacks is used
+    if not default:
+      if type(default) in (set, list, tuple, dict):
+        self.default = type(default)()
+    self.default = default
 
   # set name not working in current brython version
+  def __set_name__(self, owner, name):
+    self.name = name
 
   def __get__(self, instance, owner):
-    if not instance: return self
+    if not instance: return self.default
     return instance.__dict__[self.name]
 
   def __delete__(self, instance):
     del instance.__dict__[self.name]
 
   def __set__(self, instance, value):
-    """Validate type, on_prop_vali, on_prop, then _callbacks."""
-    validate_type(self.name, self.type, value)
-
     curval = instance.__dict__.get(self.name, self)
 
     instance.__dict__[self.name] = value
 
-    if curval != self:
-      if value != curval:
-        on_prop = getattr(instance, f'on_{self.name}', None)
-        if on_prop:
-          on_prop(curval, value)
-        if self.bindable:
-          if self.name in instance._callbacks:
-            for i in instance._callbacks[self.name]:
-              i(instance, curval, value)
+    if value != curval:
+      getattr(instance, f'on_{self.name}')(curval, value)
 
 
-def enforce_types(callable):
-  """Decorator to bind On_attr on annotated properties.
+@enforce_class
+class Engine:
+  """Organizes classes to be quickly referenced later.
   
-  Also attaches bind/unbind if _callbacks dictionary is annotated.
-  
-  Also checks incoming annotated parameters for __init__ or decorated functions.
+  This takes supplied entities, gets their base classes and makes a dictionary
+    referring to all the classes. This is looked up as a dictionary with __getitem__.
   """
+
+  entities: list = bound([], 'entities')
+  components: list = bound([], 'components')
+  objs: dict = bound({}, 'objs')
+
+  def __post_init__(self):
+    for e in self.entities:
+      self.objs[e] = []
+      for base in e.__bases__:
+        self.objs[base] = []
+        self.components.append(base)
+
+  def load(self, data):
+    """Load dictionary and create objects as needed."""
+    for k,v in self.objs.items():
+      if k in self.entities and k.__qualname__ in data:
+        for item in data[k.__qualname__]:
+          self.add(k(**item))
   
-  spec = inspect.getfullargspec(callable)
-  annos = spec.annotations
-  annos.pop('return')
+  def __repr__(self):
+    return str({e.__qualname__: self.objs[e] for e in self.entities})
 
-  def check_types(*args, **kwargs):
-    parameters = dict(zip(spec.args, args))
-    parameters.update(kwargs)
-    for name, value in parameters.items():
-      with suppress(KeyError): # Assume un-annotated parameters can be any type
-        type_hint = spec.annotations[name]
-        validate_type(name, type_hint, value)
+  def __getitem__(self, key):
+    return self.objs[key]
 
-  def decorate(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-      check_types(*args, **kwargs)
-      return func(*args, **kwargs)
-    return wrapper
+  def add(self, obj):
+    self.objs[obj.__class__].append(obj)
+    for b in obj.__class__.__bases__:
+      self.objs[b].append(obj)
 
-  if inspect.isclass(callable):
-    callable.__init__ = decorate(callable.__init__)
-    bindable = False
-    if '_callbacks' in annos:
-      bindable = True
-      callable.bind = bind
-      callable.unbind = unbind
-    for k, v in annos.items():
-      setattr(callable, k, On_attr(v, k, bindable))
-    return callable
-
-  return decorate(callable)
+  def remove(self, obj):
+    self.objs[obj.__class__].remove(obj)
+    for b in obj.__class__.__bases__:
+      self.objs[b].remove(obj)
 
 
-def strip_dict(_dict):
-  """Strip out keys with leading _.
-  
-  This seams more readable to the eye for simply hiding properties compared to field(...)
-  """
-  
-  return {k: v for k, v in _dict.items() if not k.startswith('_')}
-
-
+# --- table stuff
 
 def ig(obj, prop):
   return [i[prop] for i in obj]
+
+def itemgetter(*items):
+  if len(items) == 1:
+    item = items[0]
+    def g(obj):
+      return obj[item]
+  else:
+    def g(obj):
+      return tuple(obj[item] for item in items)
+  return g
+
+
+class groupby:
+  # [k for k, g in groupby('AAAABBBCCDAABBB')] --> A B C D A B
+  # [list(g) for k, g in groupby('AAAABBBCCD')] --> AAAA BBB CC D
+  def __init__(self, iterable, key=None):
+    if key is None:
+      key = lambda x: x
+    self.keyfunc = key
+    self.it = iter(iterable)
+    self.tgtkey = self.currkey = self.currvalue = object()
+  def __iter__(self):
+    return self
+  def __next__(self):
+    self.id = object()
+    while self.currkey == self.tgtkey:
+      self.currvalue = next(self.it)  # Exit on StopIteration
+      self.currkey = self.keyfunc(self.currvalue)
+    self.tgtkey = self.currkey
+    return (self.currkey, self._grouper(self.tgtkey, self.id))
+  def _grouper(self, tgtkey, id):
+    while self.id is id and self.currkey == tgtkey:
+      yield self.currvalue
+      try:
+        self.currvalue = next(self.it)
+      except StopIteration:
+        return
+      self.currkey = self.keyfunc(self.currvalue)
 
 def align_by(_dat, _char = ',', _glue = ''):
   if not _glue:
@@ -523,13 +510,8 @@ def align_by(_dat, _char = ',', _glue = ''):
 
 
 base_table_str = '''
-from typing import *
-from dataclasses import field
-
-@enforce_types
-@dataclass
+@enforce_class
 class R:
-  _callbacks: dict = field(default_factory=dict)
   _sub_table: str = ''
   pass
 
@@ -538,18 +520,13 @@ class R:
 
   def __setitem__(self, key, value):
     return setattr(self, key, value)
-
-  def __repr__(self):
-    return str(strip_dict(self.__dict__))
   
 locals()['R'] = R
 '''
 
 def trycast(d, anno):
   for k, v in d.items():
-    try:
-      validate_type(k, anno[k], v)
-    except:
+    if anno[k] is not any and not isinstance(v, anno[k]):
       d[k] = anno[k](v)
 
 
@@ -557,7 +534,7 @@ def trycast(d, anno):
 def group_data(data, column):
   out = {}
   sorted_data = sorted(data, key=itemgetter(column))
-  for key, group in itertools.groupby(sorted_data, key=lambda x:x[column]):
+  for key, group in groupby(sorted_data, key=lambda x:x[column]):
     out[key] = list(group)
   return out
 
@@ -595,7 +572,7 @@ class Table:
 
     for h in self.headers:
       if h not in prop_dict:
-        prop_str += f"\n  {h}: Any = ''"
+        prop_str += f"\n  {h}: any = ''"
       else:
         prop_str += f"\n  {prop_dict[h]}"
 
@@ -658,7 +635,9 @@ class Table:
       return {i: group_data(sub_tab, i)  for i in self.headers}
 
 
+
 aio.run(main())
+
 
 </script>
 <script>
