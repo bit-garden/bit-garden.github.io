@@ -471,7 +471,7 @@ CodeMirror.Vim.map(',o', ':vdo oi', 'insert')
 CodeMirror.Vim.map(',O', ':vdo Oi', 'insert')
 CodeMirror.Vim.map('<C-k>', ':runup', 'normal')
 CodeMirror.Vim.map('<C-j>', ':rundown', 'normal')
-CodeMirror.Vim.map('<C-y>', ':vdo vip|:better_sort', 'normal')
+CodeMirror.Vim.map('<C-y>', ':vdo l|:kpos|vip|:better_sort|:rpos', 'normal')
 CodeMirror.Vim.map('<C-y>', ':better_sort', 'visual')
 CodeMirror.Vim.map(',y', ':js sort_by()', 'visual')
 CodeMirror.Vim.map(',,', ':align_by', 'visual')
@@ -1003,6 +1003,7 @@ CodeMirror.Vim.defineEx('notes', null, notes)
 from browser import aio, window
 from browser import document as doc
 from browser.html import *
+import time
 #import traceback
 
 import _jsre as re
@@ -1836,7 +1837,7 @@ async def snackbar():
       await snack(val)
       
     await aio.sleep(0)
-    
+
 async def popup(content):
   frame = DIV(Class='darken', style={
     'background': 'rgba(0, 0, 0, 0)',
@@ -1887,6 +1888,69 @@ async def popup(content):
   await aio.sleep(.4)
 
   frame.remove()
+    
+class Popup:
+  def __init__(self, _root):
+    self._root = _root
+    self.frame = DIV(Class='darken', style={
+      'background': 'rgba(0, 0, 0, 0)',
+      'transition': 'background .4s',
+      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+      'width': '100%',
+      'height': '100%',
+      'position': 'fixed',
+      'top': '0px',
+      'left': '0px',
+      'z-index': '1'
+    })
+
+    self.box = DIV(Class='card', style={
+      'position': 'absolute',
+      'left': '12.5%',
+      'top': '25%',
+      'opacity': 0,
+      'width': '75%',
+      'height': '75%',
+      'margin': '-16px',
+      'transition': 'opacity .4s, top .4s',
+      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+    })
+
+    self.frame <= self.box
+    
+  async def _background(self):
+    # to allow clicks within the popup
+    while True:
+      ev = await aio.select_event(self.frame, 'click')
+      if ev.type == 'cancel' or ev.target == self.frame:
+        break
+        
+    # Try to break all awaiting UI.
+    for el in self.box.querySelectorAll('*'):
+      aio.cancel_event(el)
+      
+    self.frame.style['background'] = 'rgba(0, 0, 0, 0)'
+    self.box.style['opacity'] = 0
+    self.box.style['top'] = '25%'
+    #await aio.sleep(.4)
+
+    self.frame.remove()
+    
+  def __enter__(self):
+    self._root <= self.frame
+
+    #await aio.sleep(.05)
+    self.frame.style['background'] = 'rgba(0, 0, 0, .5)'
+    self.box.style['opacity'] = 1
+    self.box.style['top'] = '12.5%'
+
+    aio.run(self._background())
+    
+    return self.box
+    
+  def __exit__(self, type, value, traceback):
+    aio.cancel_event(self.frame)
+    #await aio.sleep(.4)
 
 async def keybind():
   muted_events = ['Meta', 'Shift', 'Control', 'Alt']
@@ -1907,7 +1971,37 @@ async def keybind():
         if ev.key == 'Escape':	
           tar = doc.querySelectorAll('.darken')
           if len(tar):
-            aio.cancel_event(tar[-1])
+            aio.cancel_event(tar[-1])#def on_down(ev):
+    if ev.key not in muted_events:
+      if ev.type == 'keyup':
+        #print(f'key up {ev.key}')
+        pass
+      elif ev.type == 'keydown':
+        if ev.which == 37 and ctrl:
+          if not cm_editbox.state.vim.insertMode:
+            ev.preventDefault()
+            ev.stopPropagation()
+            #cm_editbox.setOption('lineNumbers', False)
+            cm_editbox.setOption('lineWrapping', True)
+            cm_editbox.setOption('readOnly', True)
+        if ev.which == 39 and ctrl:
+          if not cm_editbox.state.vim.insertMode:
+            ev.preventDefault()
+            ev.stopPropagation()
+            #cm_editbox.setOption('lineNumbers', True)
+            cm_editbox.setOption('lineWrapping', False)
+            cm_editbox.setOption('readOnly', False)
+        if chr(ev.which)=='G' and ctrl:
+          ev.preventDefault()
+          ev.stopPropagation()
+          start = cm_editbox.getCursor(True).line
+          end = cm_editbox.getCursor(False).line
+          if start == end:
+            print(cm_editbox.getCursor().line + 1)
+          else:
+            diff = abs(start-end)
+            print('{}:{}({})'.format(start+1, end+1, diff+1))
+
 
     ev = await aio.select_event(doc, 'keyup keydown')
 
@@ -1929,6 +2023,72 @@ class Stagger:
     
   def __exit__(self, *_):
     pass
+    
+class Debounce:
+  def __init__(self, fun, limit):
+    self.dat = []
+    self.limit = limit
+    self.last_ran = time.time()
+    self.command = fun
+    
+  def _deferred_fun(self, *l, **kw):
+    self.dat.append((l, kw))
+    self.last_ran = time.time()
+    
+  async def db_task(self, handle):
+    while handle['running'] == True:
+      if self.dat and self.last_ran + self.limit < time.time():
+        self.command(self.dat)
+        self.dat = []
+      await aio.sleep(0)
+  
+  def __enter__(self):
+    self.last_ran = time.time()
+    self.task_handle = {'running': True}
+    aio.run(self.db_task(self.task_handle))
+    
+    return self._deferred_fun
+    
+  def __exit__(self, type, value, traceback):
+    # flush command with data
+    if self.dat:
+      self.command(self.dat)
+      self.dat = []
+    self.task_handle['running'] = False
+    
+    
+class Throttle:
+  def __init__(self, fun, limit):
+    self.dat = []
+    self.limit = limit
+    self.last_ran = time.time()
+    self.command = fun
+    
+  def _deferred_fun(self, *l, **kw):
+    if not self.dat:
+      self.last_ran = time.time()
+    self.dat.append((l, kw))
+    
+  async def db_task(self, handle):
+    while handle['running'] == True:
+      if self.dat and self.last_ran + self.limit < time.time():
+        self.command(self.dat)
+        self.dat = []
+      await aio.sleep(0)
+  
+  def __enter__(self):
+    self.last_ran = time.time()
+    self.task_handle = {'running': True}
+    aio.run(self.db_task(self.task_handle))
+    
+    return self._deferred_fun
+    
+  def __exit__(self, type, value, traceback):
+    # flush command with data
+    if self.dat:
+      self.command(self.dat)
+      self.dat = []
+    self.task_handle['running'] = False
 
 async def main():
   res = await aio.gather(snackbar(), keybind())
