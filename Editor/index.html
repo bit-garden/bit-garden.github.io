@@ -270,7 +270,7 @@ input::-webkit-calendar-picker-indicator {
 
 input.switch{
   opacity: 0;
-  height:0px;
+  height:14px;
   width:0px;
 }
 
@@ -314,7 +314,7 @@ input.switch+div div.thumb{
 
 input.radio{
   opacity: 0;
-  height:0px;
+  height:14px;
   width:0px;
 }
 
@@ -383,7 +383,42 @@ input.radio+div div.thumb{
   box-shadow: 0 4px 8px #000;
   outline: none;
 }
+
+.main_sidebar{
+  overflow: auto;
+  background: #222222;
+}
+
+.main_sidebar > div.card{
+  margin-bottom: 8px;
+  background: #333333;
+}
+
+.main_sidebar.hidden{
+  position: absolute;
+  bottom: 0px;
+  left: -290px;
+  width: 300px;
+  height: 100%;
+  display: inline;
+  box-sizing: border-box;
+  transition: all .4s;
+  opacity: 0;
+  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+}
   
+.main_sidebar.shown{
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  width: 300px;
+  height: 100%;
+  display: inline;
+  box-sizing: border-box;
+  transition: all .3s;
+  opacity: 1;
+  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+}
   
 </style>
 <script>
@@ -413,7 +448,9 @@ String.prototype.replaceAll = function(search, replacement) {
 //{regex: /[-+]?[0-9]*\.?[0-9]+/, token: "nums"}, // numbers
 //{regex: /(__)(.*?)\1/, token: "under"},
 //{regex: /(~~)(.*?)\1/, token: "strike"},
-//{regex: /(\||--+|:-|:\|)/, token: "nums"},
+{regex: / \|( |$)/, token: "nums"},
+{regex: /^\s*---+/, token: "nums", sol:true},
+{regex: /---+$/, token: "nums"},
 	  
   ]
 });
@@ -552,9 +589,9 @@ function put(_text, pre=false){
   reg('z', _text)
   CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
   if (!pre)
-    vdo(':key("<Esc>")|l"zp')
+    vdo('l"zp')
   else
-    vdo(':key("<Esc>")|l"zP')
+    vdo('l"zP')
 }
 
 function _surround(i, l, r){
@@ -868,16 +905,16 @@ function DoubleTap(cm, params){
     }
   })
 }
-//CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
-//
-//CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
-//CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
-//CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
-//CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
-//CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
-//CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
-//CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
-//CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
+CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
+
+CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
+CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
+CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
+CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
+CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
+CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
+CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
+CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
 //CodeMirror.Vim.map("''", ":vdo :js put(\"''\")|i", 'insert')
 //CodeMirror.Vim.map("((", ":vdo :js put(\"()\")|i", 'insert')
 //CodeMirror.Vim.map("[[", ":vdo :js put(\"[]\")|i", 'insert')
@@ -1004,6 +1041,7 @@ from browser import aio, window
 from browser import document as doc
 from browser.html import *
 import time
+from types import FunctionType as function
 #import traceback
 
 import _jsre as re
@@ -1074,7 +1112,41 @@ def cancel_event(el):
 
 aio.select_event = select_event
 aio.cancel_event = cancel_event
+
+# usefull for binding multiple buttons
+def parents_of(_tar):
+  parents = []
+  base = _tar
+  while(base):
+    parents.append(base)
+    base = base.parentNode
+    
+  return parents
   
+class Event:
+  ''' 
+  Asyncio primitive, Event.
+  https://docs.python.org/3/library/asyncio-sync.html#event
+  '''
+  
+  def __init__(self, *) -> None:
+    self._set = False
+    
+  async def wait(self) -> None:
+    while not self._set:
+      await aio.sleep(0)
+      
+  def is_set(self) -> bool:
+    return self._set
+    
+  def set(self) -> None:
+    self._set = True
+    
+  def clear(self) -> None:
+    self._set = False
+    
+aio.Event = Event
+
 # --- new entity stuff
 
 def enforce(f):
@@ -1093,9 +1165,17 @@ def enforce(f):
     _args = {vars[i]: v for i, v in enumerate(args)}
     _args.update(**kwds)
     for k, v in annos.items():
+      if type(v) == tuple:
+        v = tuple(type(None) if i is None else i for i in v)
+      elif v == None:
+        v = type(None)
       if k in _args:
-        if not isinstance(_args[k], v):
-          raise TypeError(f"Expected type {v} but {k} was given type {type(_args[k])}.")
+        if type(v) == list:
+          if _args[k] not in v:
+            raise ValueError(f"Expected values {v} but {k} was given value {_args[k]}.")
+        else:
+          if not isinstance(_args[k], v):
+            raise TypeError(f"Expected type {v} but {k} was given type {type(_args[k])}.")
 
     return f(*args, **kwds)
   new_f.__name__ = f.__name__
@@ -1104,6 +1184,10 @@ def enforce(f):
 def enforce_class(f):
   annos = f.__annotations__
   #del annos['return']
+   
+  for k, v in annos.items():
+    if type(getattr(f, k)) is not bound:
+      setattr(f, k, bound(getattr(f, k), k))
 
   vars = list(annos.keys())
 
@@ -1115,17 +1199,30 @@ def enforce_class(f):
   def new_f(self, *args, **kwds):
     _args = {vars[i]: v for i, v in enumerate(args)}
     _args.update(**kwds)
+    setattr(self, '_cbs', {})
     for k, v in annos.items():
+      if type(v) == tuple:
+        v = tuple(type(None) if i is None else i for i in v)
+      elif v == None:
+        v = type(None)
       if k in _args:
-        if v is not any and not isinstance(_args[k], v):
-          raise TypeError(f"Expected type {v} but {k} was given type {type(_args[k])}.")
-      elif k not in f.__dict__:
+        if type(v) == list:
+          if _args[k] not in v:
+            raise ValueError(f"Expected values {v} but {k} was given value {_args[k]}.")
+        else:
+          if v is not any and not isinstance(_args[k], v):
+            raise TypeError(f"Expected type {v} but {k} was given type {type(_args[k])}.")
+      elif k not in dir(f):
         raise ValueError(f"Parameter {k} missing.")
       else:
-        if type(f.__dict__[k]) is bound:
-          _args[k] = f.__dict__[k].default
+        if type(getattr(f, k).default) is list:
+          _args[k] = ObservableList(getattr(f, k).default, obj=self, name=k)
+        elif type(getattr(f, k).default) is dict:
+          _args[k] = ObservableDict(getattr(f, k).default, obj=self, name=k)
+        elif type(getattr(f, k).default) in (set, list, tuple, dict):
+          _args[k] = type(getattr(f, k).default)(getattr(f, k).default)
         else:
-          _args[k] = f.__dict__[k]
+          _args[k] = getattr(f, k).default
     for k, v in _args.items():
       if k not in annos:
         raise ValueError(f"{k} is not a valid parameter.")
@@ -1135,6 +1232,30 @@ def enforce_class(f):
     pi = getattr(self, '__post_init__', None)
     if pi:
       pi()
+
+  def bind(self, **kwargs):
+    for k, v in kwargs.items():
+      if k not in self._cbs:
+        self._cbs[k] = []
+      self._cbs[k].append(v)
+
+  def unbind(self, **kwargs):
+    for k, v in kwargs.items():
+      self._cbs[k].remove(v)
+      if not self._cbs[k]:
+        del self._cbs[k]
+
+  def dispatch(self, prop, *l, **kw):
+    if getattr(self, f'on_{prop}', None):
+      getattr(self, f'on_{prop}')(*l, **kw)
+    if prop in self._cbs:
+      for cb in self._cbs[prop]:
+        cb(self, *l, **kw)
+
+  f.bind = bind
+  f.unbind = unbind
+  f.dispatch = dispatch
+
   f.__init__ = new_f
   if '__repr__' not in f.__dict__:
     def strip_dict(self):
@@ -1142,22 +1263,25 @@ def enforce_class(f):
     f.__repr__ = strip_dict
   return f
 
-
+def dispatch(fun):
+  def _dispatch(self, *l, **kw):
+    fun(self, *l, **kw)
+    self.dispatch(fun.__name__, *l, **kw)
+  _dispatch.__name__ = fun.__name__
+  return _dispatch
+  
 class bound:
-  """Custome attribute to delegate changes to a property."""
-  def __init__(self, default, name):
-    self.name = name
-    if not default:
-      if type(default) in (set, list, tuple, dict):
-        self.default = type(default)()
+  """Custom attribute to delegate changes to a property."""
+  def __init__(self, default, name=''):
     self.default = default
+    self.name = name
 
   # set name not working in current brython version
   def __set_name__(self, owner, name):
     self.name = name
 
   def __get__(self, instance, owner):
-    if not instance: return self.default
+    if not instance: return self
     return instance.__dict__[self.name]
 
   def __delete__(self, instance):
@@ -1169,8 +1293,132 @@ class bound:
     instance.__dict__[self.name] = value
 
     if value != curval:
-      getattr(instance, f'on_{self.name}')(curval, value)
+      if getattr(instance, f'on_{self.name}', None):
+        getattr(instance, f'on_{self.name}')(curval, value)
+      if self.name in instance._cbs:
+        for cb in instance._cbs[self.name]:
+          cb(instance, curval, value)
 
+class ObservableList(list):
+  # Internal class to observe changes inside a native python list.
+  def __init__(self, *largs, obj=None, name=''):
+    self.name = name
+    self.obj = obj
+    super().__init__(*largs)
+    
+  def __setitem__(self, key, value):
+    list.__setitem__(self, key, value)
+    self.__onmut__(key, value, 'set')
+
+  def __delitem__(self, key):
+    value = self.__getitem__(key)
+    list.__delitem__(self, key)
+    self.__onmut__(key, value, 'del')
+
+  def __iadd__(self, *largs):
+    list.__iadd__(self, *largs)
+    self.__onmut__(-1, *largs, 'iadd')
+    return self
+
+  def __imul__(self, *largs):
+    list.__imul__(self, *largs)
+    self.__onmut__(-1, *largs, 'imul')
+    return self
+
+  def append(self, *largs):
+    list.append(self, *largs)
+    self.__onmut__(-1, *largs, 'append')
+
+  def remove(self, *largs):
+    list.remove(self, *largs)
+    self.__onmut__(-1, *largs, 'remove')
+
+  def insert(self, key, *largs):
+    list.insert(self, key, *largs)
+    self.__onmut__(key, *largs, 'insert')
+
+  def pop(self, key=-1):
+    result = list.pop(self, key)
+    self.__onmut__(key, result, 'pop')
+    return result
+
+  def extend(self, *largs):
+    list.extend(self, *largs)
+    self.__onmut__(-1, *largs, 'extend')
+
+  def sort(self, *largs):
+    list.sort(self, *largs)
+    self.__onmut__(-1, None, 'sort')
+
+  def reverse(self, *largs):
+    list.reverse(self, *largs)
+    self.__onmut__(-1, None, 'reverse')
+    
+  def clear(self, *largs):
+    list.clear(self, *largs)
+    self.__onmut__(-1, None, 'clear')
+    
+  def __onmut__(self, key, value, event):
+    if getattr(self.obj, f'on_{self.name}_{event}', None):
+      getattr(self.obj, f'on_{self.name}_{event}')(key, value)
+    if getattr(self.obj, f'on_{self.name}_mut', None):
+      getattr(self.obj, f'on_{self.name}_mut')(key, value, event)
+    if f'{self.name}_{event}' in self.obj._cbs:
+      for cb in self.obj._cbs[f'{self.name}_{event}']:
+        cb(self.obj, key, value)
+    if f'{self.name}_mut' in self.obj._cbs:
+      for cb in self.obj._cbs[f'{self.name}_mut']:
+        cb(self.obj, key, value, event)
+      
+class ObservableDict(dict):
+  # Internal class to observe changes inside a native python dict.
+  def __init__(self, *largs, obj=None, name=''):
+    self.name = name
+    self.obj = obj
+    super().__init__(*largs)
+    
+  def __setitem__(self, key, value):
+    dict.__setitem__(self, key, value)
+    self.__onmut__(key, value, 'set')
+
+  def __delitem__(self, key):
+    value = self.__getitem__(key)
+    dict.__delitem__(self, key)
+    self.__onmut__(key, value, 'del')
+
+  def clear(self, *largs):
+    dict.clear(self, *largs)
+    self.__onmut__(-1, None, 'clear')
+
+  def pop(self, *largs):
+    result = dict.pop(self, *largs)
+    self.__onmut__(largs[0], result, 'pop')
+    return result
+
+  def popitem(self, *largs):
+    result = dict.popitem(self, *largs)
+    self.__onmut__(-1, result, 'popitem')
+    return result
+
+  def setdefault(self, key, default):
+    dict.setdefault(self, key, default)
+    self.__onmut__(key, default, 'setdefault')
+
+  def update(self, *largs):
+    dict.update(self, *largs)
+    self.__onmut__(-1, *largs, 'update')
+    
+  def __onmut__(self, key, value, event):
+    if getattr(self.obj, f'on_{self.name}_{event}', None):
+      getattr(self.obj, f'on_{self.name}_{event}')(key, value)
+    if getattr(self.obj, f'on_{self.name}_mut', None):
+      getattr(self.obj, f'on_{self.name}_mut')(key, value, event)
+    if f'{self.name}_{event}' in self.obj._cbs:
+      for cb in self.obj._cbs[f'{self.name}_{event}']:
+        cb(self.obj, key, value)
+    if f'{self.name}_mut' in self.obj._cbs:
+      for cb in self.obj._cbs[f'{self.name}_mut']:
+        cb(self.obj, key, value, event)
 
 @enforce_class
 class Engine:
@@ -1180,9 +1428,9 @@ class Engine:
     referring to all the classes. This is looked up as a dictionary with __getitem__.
   """
 
-  entities: list = bound([], 'entities')
-  components: list = bound([], 'components')
-  objs: dict = bound({}, 'objs')
+  entities: list = []
+  components: list = []
+  objs: dict = {}
 
   def __post_init__(self):
     for e in self.entities:
@@ -1329,8 +1577,12 @@ locals()['R'] = R
 
 def trycast(d, anno):
   for k, v in d.items():
-    if anno[k] is not any and not isinstance(v, anno[k]):
-      d[k] = anno[k](v)
+    if type(anno[k]) == list:
+      if v not in anno[k]:
+        raise ValueError(f"Expected values {anno[k]} but {k} was given value {v}.")
+    else:
+      if anno[k] is not any and not isinstance(v, anno[k]):
+        d[k] = anno[k](v)
 
 
 # Use to get groups of data
@@ -1444,12 +1696,13 @@ def ICON(_icon: str) -> I:
   return I(_icon, Class='material-icons')
 
 @enforce
-def SWITCH(text:str , state: bool = False, Type: str = 'checkbox', Class: str = 'switch', name: str = '') -> LABEL:
-  return LABEL(
+def SWITCH(text: str , state: bool = False, Type: ['checkbox', 'radio'] = 'checkbox', Class: ['switch', 'radio'] = 'switch', name: str = '') -> LABEL:
+  return DIV(LABEL(
     SPAN(text, style={'padding': '16px'})
     + INPUT(Type=Type, Class=Class, name=name, checked=state)
-    + DIV(DIV(Class='thumb'), style={'float': 'right'})
-  )
+    + DIV(DIV(Class='thumb'), style={'float': 'right'}),
+    style={'width':'100%'}
+  ), style={'display':'flex', 'align-items': 'center'})
 
 def make_ripple(el, base_color='#222222', hover_color='#474747', pulse_color='grey', no_key=False):
   def prep_ripple(*_):
@@ -1551,8 +1804,8 @@ def do_table() -> None:
     #window.reg('"', str(tab))
     #window.vdo('gvp')
   except Exception as e:
-    window.make_popup(str(e))
-    #window.make_popup(traceback.format_exc())
+    import traceback
+    window.make_popup(traceback.format_exc())
         
 def run_table(cm, params):
   do_table()
@@ -1564,7 +1817,8 @@ def do_py() -> None:
     window.vdo("gv")
     tab = exec(cm_editbox.getSelection())
   except Exception as e:
-    window.make_popup(str(e))
+    import traceback
+    window.make_popup(traceback.format_exc())
 
         
 def run_py(cm, params):
@@ -1836,7 +2090,7 @@ async def snackbar():
       val = window.snacks.pop(0)
       await snack(val)
       
-    await aio.sleep(0)
+    await aio.sleep(1)
 
 async def popup(content):
   frame = DIV(Class='darken', style={
@@ -1888,7 +2142,7 @@ async def popup(content):
   await aio.sleep(.4)
 
   frame.remove()
-    
+
 class Popup:
   def __init__(self, _root):
     self._root = _root
@@ -1932,14 +2186,14 @@ class Popup:
     self.frame.style['background'] = 'rgba(0, 0, 0, 0)'
     self.box.style['opacity'] = 0
     self.box.style['top'] = '25%'
-    #await aio.sleep(.4)
+    await aio.sleep(.4)
 
     self.frame.remove()
     
-  def __enter__(self):
+  async def __aenter__(self):
     self._root <= self.frame
 
-    #await aio.sleep(.05)
+    await aio.sleep(.05)
     self.frame.style['background'] = 'rgba(0, 0, 0, .5)'
     self.box.style['opacity'] = 1
     self.box.style['top'] = '12.5%'
@@ -1948,9 +2202,38 @@ class Popup:
     
     return self.box
     
-  def __exit__(self, type, value, traceback):
+  async def __aexit__(self, type, value, traceback):
     aio.cancel_event(self.frame)
-    #await aio.sleep(.4)
+
+    
+# General with El that you can be used like with Popup
+class El:
+  def __init__(self, _root, el):
+    self._root = _root
+    self.el = el
+        
+  async def _background(self):
+    # to allow clicks within the popup
+    while True:
+      ev = await aio.select_event(self.el, '')
+      if ev.type == 'cancel':
+        break
+        
+    # Try to break all awaiting UI.
+    for el in self.el.querySelectorAll('*'):
+      aio.cancel_event(el)
+
+    self.el.remove()
+    
+  def __enter__(self):
+    self._root <= self.el
+
+    aio.run(self._background())
+    
+    return self.el
+    
+  def __exit__(self, type, value, traceback):
+    aio.cancel_event(self.el)
 
 async def keybind():
   muted_events = ['Meta', 'Shift', 'Control', 'Alt']
@@ -2024,8 +2307,33 @@ class Stagger:
   def __exit__(self, *_):
     pass
     
+async def sidebar() -> None:
+  hidden = 'card main_sidebar hidden'
+  shown = 'card main_sidebar shown'
+
+  with El(doc, SPAN(Class='card main_sidebar hidden')) as box:
+    # do stuff
+    
+    await aio.sleep(.05)
+    box.setAttribute('class', shown)
+    await aio.sleep(.4)
+    box.setAttribute('class', hidden)
+    
+    watched_events = 'mouseover mouseleave'
+    ev = await aio.select_event(box, watched_events)
+    while ev.type != 'cancel':
+      if ev.type == 'mouseover':
+        if ev.target==box:
+          box.setAttribute('class', shown)
+      elif ev.type == 'mouseleave':
+        if ev.target==box:
+          box.setAttribute('class', hidden)
+
+      ev = await aio.select_event(box, watched_events)
+    
 class Debounce:
-  def __init__(self, fun, limit):
+  @enforce
+  def __init__(self, fun: function, limit: (int, float)) -> None:
     self.dat = []
     self.limit = limit
     self.last_ran = time.time()
@@ -2091,7 +2399,7 @@ class Throttle:
     self.task_handle['running'] = False
 
 async def main():
-  res = await aio.gather(snackbar(), keybind())
+  res = await aio.gather(snackbar(), keybind(), sidebar())
 
 aio.run(main())
 
