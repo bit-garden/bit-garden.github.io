@@ -1201,7 +1201,10 @@ def align_by(_dat, _char=',', _glue='', _code=''):
     lpad = min(len(i) - len(i.lstrip()) for i in _dat.splitlines())
 
   if _code:
-    exec(_code)
+    #exec(_code)
+    _tempGlobals = dict(globals())
+    _tempGlobals['dat'] = dat
+    exec(_code, _tempGlobals)
     dat = [[str(j) for j in i] for i in dat]
 
   max_len = max(len(i) for i in dat)
