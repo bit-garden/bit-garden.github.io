@@ -905,16 +905,16 @@ function DoubleTap(cm, params){
     }
   })
 }
-CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
-
-CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
-CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
-CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
-CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
-CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
-CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
-CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
-CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
+//#CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
+//#
+//#CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
+//#CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
+//#CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
+//#CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
+//#CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
+//#CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
+//#CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
+//#CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
 //CodeMirror.Vim.map("''", ":vdo :js put(\"''\")|i", 'insert')
 //CodeMirror.Vim.map("((", ":vdo :js put(\"()\")|i", 'insert')
 //CodeMirror.Vim.map("[[", ":vdo :js put(\"[]\")|i", 'insert')
@@ -1147,327 +1147,6 @@ class Event:
     
 aio.Event = Event
 
-# --- new entity stuff
-
-def enforce(f):
-  annos = f.__annotations__
-  del annos['return']
-
-  vars = f.__code__.co_varnames
-
-  defs = f.__defaults__ or []
-  offset = len(vars) - f.__code__.co_argcount
-
-  #print(defs)
-  defs = [v for v in vars[-(len(defs)+offset): -offset]]
-
-  def new_f(*args, **kwds):
-    _args = {vars[i]: v for i, v in enumerate(args)}
-    _args.update(**kwds)
-    for k, v in annos.items():
-      if type(v) == tuple:
-        v = tuple(type(None) if i is None else i for i in v)
-      elif v == None:
-        v = type(None)
-      if k in _args:
-        if type(v) == list:
-          if _args[k] not in v:
-            raise ValueError(f"Expected values {v} but {k} was given value {_args[k]}.")
-        else:
-          if not isinstance(_args[k], v):
-            raise TypeError(f"Expected type {v} but {k} was given type {type(_args[k])}.")
-
-    return f(*args, **kwds)
-  new_f.__name__ = f.__name__
-  return new_f
-
-def enforce_class(f):
-  annos = f.__annotations__
-  #del annos['return']
-   
-  for k, v in annos.items():
-    if type(getattr(f, k)) is not bound:
-      setattr(f, k, bound(getattr(f, k), k))
-
-  vars = list(annos.keys())
-
-  defs = [f.__dict__[i] for i in annos if i in f.__dict__]
-
-  #print(defs)
-  defs = [v for v in vars[-len(defs):]]
-
-  def new_f(self, *args, **kwds):
-    _args = {vars[i]: v for i, v in enumerate(args)}
-    _args.update(**kwds)
-    setattr(self, '_cbs', {})
-    for k, v in annos.items():
-      if type(v) == tuple:
-        v = tuple(type(None) if i is None else i for i in v)
-      elif v == None:
-        v = type(None)
-      if k in _args:
-        if type(v) == list:
-          if _args[k] not in v:
-            raise ValueError(f"Expected values {v} but {k} was given value {_args[k]}.")
-        else:
-          if v is not any and not isinstance(_args[k], v):
-            raise TypeError(f"Expected type {v} but {k} was given type {type(_args[k])}.")
-      elif k not in dir(f):
-        raise ValueError(f"Parameter {k} missing.")
-      else:
-        if type(getattr(f, k).default) is list:
-          _args[k] = ObservableList(getattr(f, k).default, obj=self, name=k)
-        elif type(getattr(f, k).default) is dict:
-          _args[k] = ObservableDict(getattr(f, k).default, obj=self, name=k)
-        elif type(getattr(f, k).default) in (set, list, tuple, dict):
-          _args[k] = type(getattr(f, k).default)(getattr(f, k).default)
-        else:
-          _args[k] = getattr(f, k).default
-    for k, v in _args.items():
-      if k not in annos:
-        raise ValueError(f"{k} is not a valid parameter.")
-    
-    self.__dict__.update(**_args)
-
-    pi = getattr(self, '__post_init__', None)
-    if pi:
-      pi()
-
-  def bind(self, **kwargs):
-    for k, v in kwargs.items():
-      if k not in self._cbs:
-        self._cbs[k] = []
-      self._cbs[k].append(v)
-
-  def unbind(self, **kwargs):
-    for k, v in kwargs.items():
-      self._cbs[k].remove(v)
-      if not self._cbs[k]:
-        del self._cbs[k]
-
-  def dispatch(self, prop, *l, **kw):
-    if getattr(self, f'on_{prop}', None):
-      getattr(self, f'on_{prop}')(*l, **kw)
-    if prop in self._cbs:
-      for cb in self._cbs[prop]:
-        cb(self, *l, **kw)
-
-  f.bind = bind
-  f.unbind = unbind
-  f.dispatch = dispatch
-
-  f.__init__ = new_f
-  if '__repr__' not in f.__dict__:
-    def strip_dict(self):
-      return str({k: v for k, v in self.__dict__.items() if not k.startswith('_')})
-    f.__repr__ = strip_dict
-  return f
-
-def dispatch(fun):
-  def _dispatch(self, *l, **kw):
-    fun(self, *l, **kw)
-    self.dispatch(fun.__name__, *l, **kw)
-  _dispatch.__name__ = fun.__name__
-  return _dispatch
-  
-class bound:
-  """Custom attribute to delegate changes to a property."""
-  def __init__(self, default, name=''):
-    self.default = default
-    self.name = name
-
-  # set name not working in current brython version
-  def __set_name__(self, owner, name):
-    self.name = name
-
-  def __get__(self, instance, owner):
-    if not instance: return self
-    return instance.__dict__[self.name]
-
-  def __delete__(self, instance):
-    del instance.__dict__[self.name]
-
-  def __set__(self, instance, value):
-    curval = instance.__dict__.get(self.name, self)
-
-    instance.__dict__[self.name] = value
-
-    if value != curval:
-      if getattr(instance, f'on_{self.name}', None):
-        getattr(instance, f'on_{self.name}')(curval, value)
-      if self.name in instance._cbs:
-        for cb in instance._cbs[self.name]:
-          cb(instance, curval, value)
-
-class ObservableList(list):
-  # Internal class to observe changes inside a native python list.
-  def __init__(self, *largs, obj=None, name=''):
-    self.name = name
-    self.obj = obj
-    super().__init__(*largs)
-    
-  def __setitem__(self, key, value):
-    list.__setitem__(self, key, value)
-    self.__onmut__(key, value, 'set')
-
-  def __delitem__(self, key):
-    value = self.__getitem__(key)
-    list.__delitem__(self, key)
-    self.__onmut__(key, value, 'del')
-
-  def __iadd__(self, *largs):
-    list.__iadd__(self, *largs)
-    self.__onmut__(-1, *largs, 'iadd')
-    return self
-
-  def __imul__(self, *largs):
-    list.__imul__(self, *largs)
-    self.__onmut__(-1, *largs, 'imul')
-    return self
-
-  def append(self, *largs):
-    list.append(self, *largs)
-    self.__onmut__(-1, *largs, 'append')
-
-  def remove(self, *largs):
-    list.remove(self, *largs)
-    self.__onmut__(-1, *largs, 'remove')
-
-  def insert(self, key, *largs):
-    list.insert(self, key, *largs)
-    self.__onmut__(key, *largs, 'insert')
-
-  def pop(self, key=-1):
-    result = list.pop(self, key)
-    self.__onmut__(key, result, 'pop')
-    return result
-
-  def extend(self, *largs):
-    list.extend(self, *largs)
-    self.__onmut__(-1, *largs, 'extend')
-
-  def sort(self, *largs):
-    list.sort(self, *largs)
-    self.__onmut__(-1, None, 'sort')
-
-  def reverse(self, *largs):
-    list.reverse(self, *largs)
-    self.__onmut__(-1, None, 'reverse')
-    
-  def clear(self, *largs):
-    list.clear(self, *largs)
-    self.__onmut__(-1, None, 'clear')
-    
-  def __onmut__(self, key, value, event):
-    if getattr(self.obj, f'on_{self.name}_{event}', None):
-      getattr(self.obj, f'on_{self.name}_{event}')(key, value)
-    if getattr(self.obj, f'on_{self.name}_mut', None):
-      getattr(self.obj, f'on_{self.name}_mut')(key, value, event)
-    if f'{self.name}_{event}' in self.obj._cbs:
-      for cb in self.obj._cbs[f'{self.name}_{event}']:
-        cb(self.obj, key, value)
-    if f'{self.name}_mut' in self.obj._cbs:
-      for cb in self.obj._cbs[f'{self.name}_mut']:
-        cb(self.obj, key, value, event)
-      
-class ObservableDict(dict):
-  # Internal class to observe changes inside a native python dict.
-  def __init__(self, *largs, obj=None, name=''):
-    self.name = name
-    self.obj = obj
-    super().__init__(*largs)
-    
-  def __setitem__(self, key, value):
-    dict.__setitem__(self, key, value)
-    self.__onmut__(key, value, 'set')
-
-  def __delitem__(self, key):
-    value = self.__getitem__(key)
-    dict.__delitem__(self, key)
-    self.__onmut__(key, value, 'del')
-
-  def clear(self, *largs):
-    dict.clear(self, *largs)
-    self.__onmut__(-1, None, 'clear')
-
-  def pop(self, *largs):
-    result = dict.pop(self, *largs)
-    self.__onmut__(largs[0], result, 'pop')
-    return result
-
-  def popitem(self, *largs):
-    result = dict.popitem(self, *largs)
-    self.__onmut__(-1, result, 'popitem')
-    return result
-
-  def setdefault(self, key, default):
-    dict.setdefault(self, key, default)
-    self.__onmut__(key, default, 'setdefault')
-
-  def update(self, *largs):
-    dict.update(self, *largs)
-    self.__onmut__(-1, *largs, 'update')
-    
-  def __onmut__(self, key, value, event):
-    if getattr(self.obj, f'on_{self.name}_{event}', None):
-      getattr(self.obj, f'on_{self.name}_{event}')(key, value)
-    if getattr(self.obj, f'on_{self.name}_mut', None):
-      getattr(self.obj, f'on_{self.name}_mut')(key, value, event)
-    if f'{self.name}_{event}' in self.obj._cbs:
-      for cb in self.obj._cbs[f'{self.name}_{event}']:
-        cb(self.obj, key, value)
-    if f'{self.name}_mut' in self.obj._cbs:
-      for cb in self.obj._cbs[f'{self.name}_mut']:
-        cb(self.obj, key, value, event)
-
-@enforce_class
-class Engine:
-  """Organizes classes to be quickly referenced later.
-  
-  This takes supplied entities, gets their base classes and makes a dictionary
-    referring to all the classes. This is looked up as a dictionary with __getitem__.
-  """
-
-  entities: list = []
-  components: list = []
-  objs: dict = {}
-
-  def __post_init__(self):
-    for e in self.entities:
-      self.objs[e] = []
-      for base in e.__bases__:
-        self.objs[base] = []
-        self.components.append(base)
-
-  def load(self, data):
-    """Load dictionary and create objects as needed."""
-    for k,v in self.objs.items():
-      if k in self.entities and k.__qualname__ in data:
-        for item in data[k.__qualname__]:
-          self.add(k(**item))
-  
-  def __repr__(self):
-    return str({e.__qualname__: self.objs[e] for e in self.entities})
-
-  def __getitem__(self, key):
-    return self.objs[key]
-
-  def add(self, obj):
-    self.objs[obj.__class__].append(obj)
-    for b in obj.__class__.__bases__:
-      self.objs[b].append(obj)
-
-  def remove(self, obj):
-    self.objs[obj.__class__].remove(obj)
-    for b in obj.__class__.__bases__:
-      self.objs[b].remove(obj)
-
-
-# --- table stuff
-
-def ig(obj, prop):
-  return [i[prop] for i in obj]
-
 def itemgetter(*items):
   if len(items) == 1:
     item = items[0]
@@ -1506,7 +1185,7 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
 
-def align_by(_dat, _char = ',', _glue = ''):
+def align_by(_dat, _char=',', _glue='', _code=''):
   if not _glue:
     _glue = _char + ' '
 
@@ -1520,6 +1199,10 @@ def align_by(_dat, _char = ',', _glue = ''):
     lpad = min(len(i) - len(i.lstrip()) for i in _dat.splitlines()[1:])
   else:
     lpad = min(len(i) - len(i.lstrip()) for i in _dat.splitlines())
+
+  if _code:
+    exec(_code)
+    dat = [[str(j) for j in i] for i in dat]
 
   max_len = max(len(i) for i in dat)
   for i in dat:
@@ -1559,143 +1242,11 @@ def align_by(_dat, _char = ',', _glue = ''):
       _out += ' ' * lpad + _glue.join((width.format(val) for val, width in zip(row, widths))).rstrip() + '\n'
   return _out
 
-
-base_table_str = '''
-@enforce_class
-class R:
-  _sub_table: str = ''
-  pass
-
-  def __getitem__(self, key):
-    return self.__dict__[key]
-
-  def __setitem__(self, key, value):
-    return setattr(self, key, value)
-  
-locals()['R'] = R
-'''
-
-def trycast(d, anno):
-  for k, v in d.items():
-    if type(anno[k]) == list:
-      if v not in anno[k]:
-        raise ValueError(f"Expected values {anno[k]} but {k} was given value {v}.")
-    else:
-      if anno[k] is not any and not isinstance(v, anno[k]):
-        d[k] = anno[k](v)
-
-
-# Use to get groups of data
-def group_data(data, column):
-  out = {}
-  sorted_data = sorted(data, key=itemgetter(column))
-  for key, group in groupby(sorted_data, key=lambda x:x[column]):
-    out[key] = list(group)
-  return out
-
-
-class Table:
-  all_items = property(lambda self: self._all_items)
-  sub_table = property(lambda self: self.gd['_sub_table'])
-  
-  def __init__(self, data, **kwargs):
-    
-    self.code = ''
-    if '\n#__code__\n' in data:
-      data, self.code = data.split('\n#__code__\n')
-
-    _dat = data.strip().splitlines()
-    
-    self.title = ''
-    if _dat[0].startswith('#'):
-      self.title = _dat.pop(0)
-      
-    self.headers = [i.strip() for i in _dat.pop(0).split('|')]
-    self.aligns = _dat.pop(0)
-    self.table = []
-    self._sub_tables = []
-    self._all_items = []
-    self.lpad = min(len(i) - len(i.lstrip()) for i in _dat)
-    
-    prop_str = ''
-    prop_dict = {}
-
-    row_props = self.code.split('\n\n')[0]
-    for i in row_props.splitlines():
-      if ':' in i:
-        prop_dict[i.split(':')[0]] = i
-
-    for h in self.headers:
-      if h not in prop_dict:
-        prop_str += f"\n  {h}: any = ''"
-      else:
-        prop_str += f"\n  {prop_dict[h]}"
-
-    loc = {}
-    exec(base_table_str.replace('pass', prop_str), globals(), loc)
-
-    self.Row = loc['R']
-    
-    last_sub_table = ''
-    
-    while len(_dat):
-      if _dat[0].strip().startswith('---'):
-        last_sub_table = _dat[0].strip().replace('-', '')
-        if last_sub_table not in self._sub_tables:
-          self._sub_tables.append(last_sub_table)
-        _dat.pop(0)
-        
-      else:
-        #self.table.append(dict(zip(self.headers, [i.strip() for i in _dat.pop(0).split('|')])))
-        _d = {k:v for k, v in zip(self.headers, [i.strip() for i in _dat.pop(0).split('|')]) if v != ''}
-        trycast(_d, self.Row.__annotations__)
-        self.table.append(self.Row(**_d))
-        self.table[-1]['_sub_table'] = last_sub_table
-        self._all_items.append(self.table[-1])
-        if not last_sub_table and '' not in self._sub_tables:
-          self._sub_tables.append('')
-    
-    self.gd = {i: group_data(self.table, i) for i in self.headers+['_sub_table']}
-    self.gd['_all_items'] = self._all_items
-    
-  def __getitem__(self, item):
-    return self.gd[item]
-    
-  def __str__(self):
-    out = ''
-    if self.title:
-      out += f'{self.title}\n'
-    
-    out += " "*self.lpad + '|'.join(self.headers) + '\n'
-    
-    out += f'{self.aligns}\n'
-    
-    for sub_tab in self._sub_tables:
-      if sub_tab or (not sub_tab and sub_tab != self._sub_tables[0]):
-        out += f'{" "*self.lpad}---{sub_tab}\n' 
-      out += '\n'.join([" "*self.lpad + '|'.join([str(i[head]) for head in self.headers]) for i in self.sub_table[sub_tab]])+'\n'
-    out = align_by(out, '|', ' | ')
-    if self.code:
-      out += f'\n#__code__\n{self.code.strip()}'
-    return out
-
-
-  def run_code(t):
-    exec(t.code)
-
-  def sub_group(self, sub_tab):
-    if type(sub_tab) == str:
-      return {i: group_data(self.sub_table[sub_tab], i)  for i in self.headers}
-    else:
-      return {i: group_data(sub_tab, i)  for i in self.headers}
-
 # --- end focus
 
-@enforce
 def ICON(_icon: str) -> I:
   return I(_icon, Class='material-icons')
 
-@enforce
 def SWITCH(text: str , state: bool = False, Type: ['checkbox', 'radio'] = 'checkbox', Class: ['switch', 'radio'] = 'switch', name: str = '') -> LABEL:
   return DIV(LABEL(
     SPAN(text, style={'padding': '16px'})
@@ -1798,9 +1349,16 @@ _options['limelight'] = True
 def do_table() -> None:
   try:
     window.vdo("?_table_|jmx|/_table_|kmz'xV'zo")
-    tab = Table(cm_editbox.getSelection())
-    tab.run_code()
-    cm_editbox.replaceSelection(str(tab))
+    data = cm_editbox.getSelection()
+
+    code = ''
+    if '\n#__code__\n' in data:
+      data, code = data.split('\n#__code__\n')
+
+    out = align_by(data, '|', ' | ', code)
+    if code:
+      out += f'\n#__code__\n{code.strip()}'
+    cm_editbox.replaceSelection(out)
     #window.reg('"', str(tab))
     #window.vdo('gvp')
   except Exception as e:
@@ -1824,6 +1382,82 @@ def do_py() -> None:
 def run_py(cm, params):
   do_py()
 window.CodeMirror.Vim.defineEx("do_py", None, run_py)
+
+def gen(cmd, sel):
+  if 'genself' in cmd:
+    lpad = max(len(i) - len(i.lstrip()) for i in sel)
+
+    out = '\n'.join(f'{" "*lpad}self.{i.strip()} = {i.strip()}' for i in sel)
+    return out
+    
+  if 'genprop' in cmd:
+    lpad = max(len(i) - len(i.lstrip()) for i in sel)
+    ipad = lpad + 2
+
+    lpad = ' ' * lpad
+    ipad = ' ' * ipad
+
+    out = []
+    for i in [j.strip() for j in sel]:
+      out.append(f'{lpad}@property\n{lpad}def {i}(self):\n{ipad}return self.__{i}')
+      out.append(f'{lpad}@{i}.setter\n{lpad}def {i}(self, value):\n{ipad}self.__{i} = value\n')
+
+    return '\n'.join(out)
+
+  if 'genrepr' in cmd:
+    lpad = max(len(i) - len(i.lstrip()) for i in sel)
+    ipad = lpad + 2
+
+    lpad = ' ' * lpad
+    ipad = ' ' * ipad
+
+    gens = ', '.join([repr(i) + ': {repr(self.' + i + ')}' for i in (j.strip() for j in sel)])
+    out = f'{lpad}def __repr__(self):\n{ipad}return "{{" + f"{gens}" + "}}"' 
+    return out
+
+  if 'genbind' in cmd:
+    lpad = max(len(i) - len(i.lstrip()) for i in sel)
+    ipad = lpad + 2
+
+    lpad = ' ' * lpad
+    ipad = ' ' * ipad
+
+    out = []
+    for i in [j.strip() for j in sel]:
+      out.append(f'{lpad}@property\n{lpad}def {i}(self):\n{ipad}return self._{i}')
+      out.append(f'{lpad}@{i}.setter\n{lpad}def {i}(self, value):\n{ipad}if not hasattr(self, "_{i}"): self._{i} = value\n{ipad}oldval = self._{i}\n{ipad}self._{i} = value\n{ipad}if oldval != value: self.dispatch("{i}", oldval, value)\n')
+
+    return '\n'.join(out)
+
+  if 'dropbind' in cmd:
+    return '''
+  def bind(self, **kwargs):
+    for k, v in kwargs.items():
+      if k not in self._cbs:
+        self._cbs[k] = []
+      self._cbs[k].append(v)
+
+  def unbind(self, **kwargs):
+    for k, v in kwargs.items():
+      self._cbs[k].remove(v)
+      if not self._cbs[k]:
+        del self._cbs[k]
+
+  def dispatch(self, prop, *l, **kw):
+    if getattr(self, f'on_{prop}', None):
+      getattr(self, f'on_{prop}')(*l, **kw)
+    if prop in self._cbs:
+      for cb in self._cbs[prop]:
+        cb(self, *l, **kw)
+  '''.strip('\n')
+
+def run_gen(cm, params):
+  window.vdo('gvo')
+  _dat = cm_editbox.getSelection()
+  _dat = gen(params.argString.split(' '), _dat.split('\n'))
+  cm_editbox.replaceSelection(_dat)
+  window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
+window.CodeMirror.Vim.defineEx("gen", None, run_gen)
         
 #doc.get(selector='.CodeMirror')[0].bind('keydown', on_down)
 
@@ -2332,8 +1966,7 @@ async def sidebar() -> None:
       ev = await aio.select_event(box, watched_events)
     
 class Debounce:
-  @enforce
-  def __init__(self, fun: function, limit: (int, float)) -> None:
+  def __init__(self, fun, limit):
     self.dat = []
     self.limit = limit
     self.last_ran = time.time()
@@ -2397,6 +2030,7 @@ class Throttle:
       self.command(self.dat)
       self.dat = []
     self.task_handle['running'] = False
+
 
 async def main():
   res = await aio.gather(snackbar(), keybind(), sidebar())
