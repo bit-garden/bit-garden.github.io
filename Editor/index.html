@@ -74,6 +74,7 @@
  .cm-variables{color: #aaffff;}
 
  .cm-deco{color: #ffbf00;}
+ .cm-decorator{color: #ffaaff;}
 
  .cm-nums{color: #ffaaaa;}
 
@@ -442,6 +443,7 @@ String.prototype.replaceAll = function(search, replacement) {
 	  
 {regex: /#(\S|\s\s).*$/, token: "comments"}, // darklights comments
 {regex: /#(\s\S.*|\s*$)/, token: "deco"}, // highlights comments
+{regex: /\s*\@\w+/, token: "decorator"}, // highlights comments
 	  
 {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:\}.$ ?])/, token: "strings"}, // single quote strings code
 {regex: /(^| )'([^']|'\w)*'( |$)/, token: "strings"}, // single quote strings speech
@@ -1201,7 +1203,7 @@ def align_by(_dat, _char=',', _glue='', _code=''):
     lpad = min(len(i) - len(i.lstrip()) for i in _dat.splitlines())
 
   if _code:
-    #exec(_code)
+    #exec(_code, {'dat': dat, 'Stagger': Stagger, 'Throttle': Throttle, 'align_by': align_by, 'popup': popup, 'Popup': Popup})
     _tempGlobals = dict(globals())
     _tempGlobals['dat'] = dat
     exec(_code, _tempGlobals)
@@ -1453,6 +1455,35 @@ def gen(cmd, sel):
       for cb in self._cbs[prop]:
         cb(self, *l, **kw)
   '''.strip('\n')
+
+  if 'genclass' in cmd:
+    lpad = max(len(i) - len(i.lstrip()) for i in sel)
+    ipad = lpad + 2
+
+    lpad = ' ' * lpad
+    ipad = ' ' * ipad
+
+    cls = sel.pop(0)
+    sel = [j.strip() for j in sel]
+    selvars = [j.split('=')[0].strip() for j in sel]
+
+    out = [f'{lpad}class {cls}:']
+    out.append(f'{ipad}def __init__(self, ' + ', '.join(sel) + '):')
+
+    for i in selvars:
+      out.append(f'{ipad}  self.{i} = {i}')
+    out.append('')
+
+    if 'prop' in cmd:
+      for i in selvars:
+        out.append(f'{lpad}  @property\n{lpad}  def {i}(self):\n{ipad}  return self.__{i}')
+        out.append(f'{lpad}  @{i}.setter\n{lpad}  def {i}(self, value):\n{ipad}  self.__{i} = value\n')
+
+    if 'repr' in cmd:
+      gens = ', '.join([repr(i) + ': {repr(self.' + i + ')}' for i in selvars])
+      out.append(f'{lpad}  def __repr__(self):\n{ipad}  return "{{" + f"{gens}" + "}}"')
+
+    return '\n'.join(out)
 
 def run_gen(cm, params):
   window.vdo('gvo')
