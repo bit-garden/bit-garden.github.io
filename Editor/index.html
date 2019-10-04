@@ -141,13 +141,13 @@ input::-webkit-calendar-picker-indicator {
 /* card style */
 .card {
   border: none;
-  border-radius: 3px;
+  /*border-radius: 3px;*/
   padding: 12px 18px;
   font-size: 16px;
   cursor: default;
   color: white;
   background-color: #222222;
-  box-shadow: 0 4px 8px #000;
+  /*box-shadow: 0 4px 8px #000;*/
   outline: none;
 }
 
@@ -233,7 +233,7 @@ input::-webkit-calendar-picker-indicator {
 
 .button{
   border: none;
-  border-radius: 3px;
+  /*border-radius: 3px;*/
   padding: 12px 18px;
   font-size: 16px;
   cursor: default;
@@ -245,14 +245,14 @@ input::-webkit-calendar-picker-indicator {
 /* card style */
 .codemirror-hints, .codemirror-dialog {
   border: none;
-  border-radius: 3px;
+  /*border-radius: 3px;*/
   padding: 8px 8px;
-  margin:6px;
+  /*margin:6px;*/
   font-size: 14px;
   cursor: default;
   color: white;
   background-color: #222222;
-  box-shadow: 0 4px 8px #000;
+  /*box-shadow: 0 4px 8px #000;*/
   outline: none;
   font-family: Mono !important;
 }
@@ -545,6 +545,7 @@ CodeMirror.Vim.map("s{", ":js surround('{'  , '}')"  , 'visual')
 CodeMirror.Vim.map("s(", ":js surround('('  , ')')"  , 'visual')
 
 CodeMirror.Vim.map("s_", ":js surround('_'  , '_')"  , 'visual')
+CodeMirror.Vim.map("s<", ":js surround('<'  , '>')"  , 'visual')
 
 
 
@@ -907,16 +908,16 @@ function DoubleTap(cm, params){
     }
   })
 }
-//#CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
-//#
-//#CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
-//#CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
-//#CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
-//#CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
-//#CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
-//#CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
-//#CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
-//#CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
+CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
+
+CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
+CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
+CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
+CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
+CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
+CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
+CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
+CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
 //CodeMirror.Vim.map("''", ":vdo :js put(\"''\")|i", 'insert')
 //CodeMirror.Vim.map("((", ":vdo :js put(\"()\")|i", 'insert')
 //CodeMirror.Vim.map("[[", ":vdo :js put(\"[]\")|i", 'insert')
@@ -1036,14 +1037,15 @@ CodeMirror.Vim.defineEx('notes', null, notes)
 
 </script>
 <script src="lib/brython.js"></script>
-<script src="lib/brython_stdlib.js"></script>
+<script src="lib/brython_stdlib.js"></script> 
+<!-- <script src="lib/brython_aio.js"></script> -->
 <script type="text/python">
 
 from browser import aio, window
+from browser import window
 from browser import document as doc
 from browser.html import *
-import time
-from types import FunctionType as function
+#import time
 #import traceback
 
 import _jsre as re
@@ -1125,6 +1127,31 @@ def parents_of(_tar):
     
   return parents
   
+class Dimension:
+  def __init__(self, bottom, height, left, right, top, width):
+    self.bottom = bottom
+    self.height = height
+    self.left = left
+    self.right = right
+    self.top = top
+    self.width = width
+    self.center = (left + (width/2), top + (height/2))
+    
+  def __repr__(self):
+    return "{" + f"'top': {repr(self.top)}, 'bottom': {repr(self.bottom)}, 'left': {repr(self.left)}, 'right': {repr(self.right)}, 'height': {repr(self.height)}, 'width': {repr(self.width)}, 'center': {repr(self.center)}" + "}"
+
+def getdim(el):
+  br = el.getBoundingClientRect()
+  out = {
+          'bottom': br.bottom,
+          'height': br.height,
+          'left': br.left,
+          'right': br.right,
+          'top': br.top,
+          'width': br.width
+          }
+  return Dimension(**out)
+  
 class Event:
   ''' 
   Asyncio primitive, Event.
@@ -1202,12 +1229,7 @@ def align_by(_dat, _char=',', _glue='', _code=''):
   else:
     lpad = min(len(i) - len(i.lstrip()) for i in _dat.splitlines())
 
-  if _code:
-    #exec(_code, {'dat': dat, 'Stagger': Stagger, 'Throttle': Throttle, 'align_by': align_by, 'popup': popup, 'Popup': Popup})
-    _tempGlobals = dict(globals())
-    _tempGlobals['dat'] = dat
-    exec(_code, _tempGlobals)
-    dat = [[str(j) for j in i] for i in dat]
+
 
   max_len = max(len(i) for i in dat)
   for i in dat:
@@ -1217,6 +1239,14 @@ def align_by(_dat, _char=',', _glue='', _code=''):
       i[0] = '---' + i[0] + '---'
     i.extend(['']*(max_len-len(i)))
 
+  if _code:
+    #exec(_code, {'dat': dat, 'Stagger': Stagger, 'Throttle': Throttle, 'align_by': align_by, 'popup': popup, 'Popup': Popup})
+    #_tempGlobals = dict(globals())
+    #_tempGlobals['dat'] = dat
+    #exec(_code, _tempGlobals)
+    exec(_code)
+    dat = [[str(j) for j in i] for i in dat]
+    
   def is_label(item):
     if item.startswith('---'):
       return 0
@@ -1456,6 +1486,42 @@ def gen(cmd, sel):
         cb(self, *l, **kw)
   '''.strip('\n')
 
+  if 'compare' in cmd:
+    lpad = max(len(i) - len(i.lstrip()) for i in sel)
+    ipad = lpad + 2
+
+    lpad = ' ' * lpad
+    ipad = ' ' * ipad
+
+    sel = [j.strip() for j in sel]
+    compsl = ', '.join(f'self.{i}' for i in sel)
+    compsr = ', '.join(f'other.{i}' for i in sel)
+    return f'''
+{lpad}def __eq__(self, other):
+{lpad}  if other.__class__ is self.__class__:
+{lpad}    return ({compsl}) == ({compsr})
+{lpad}  return NotImplemented
+{lpad}def __ne__(self, other):
+{lpad}  if other.__class__ is self.__class__:
+{lpad}    return ({compsl}) != ({compsr})
+{lpad}  return NotImplemented
+{lpad}def __lt__(self, other):
+{lpad}  if other.__class__ is self.__class__:
+{lpad}    return ({compsl}) < ({compsr})
+{lpad}  return NotImplemented
+{lpad}def __le__(self, other):
+{lpad}  if other.__class__ is self.__class__:
+{lpad}    return ({compsl}) <= ({compsr})
+{lpad}  return NotImplemented
+{lpad}def __gt__(self, other):
+{lpad}  if other.__class__ is self.__class__:
+{lpad}    return ({compsl}) > ({compsr})
+{lpad}  return NotImplemented
+{lpad}def __ge__(self, other):
+{lpad}  if other.__class__ is self.__class__:
+{lpad}    return ({compsl}) >= ({compsr})
+{lpad}  return NotImplemented'''.strip('\n')
+
   if 'genclass' in cmd:
     lpad = max(len(i) - len(i.lstrip()) for i in sel)
     ipad = lpad + 2
@@ -1463,7 +1529,7 @@ def gen(cmd, sel):
     lpad = ' ' * lpad
     ipad = ' ' * ipad
 
-    cls = sel.pop(0)
+    cls = sel.pop(0).strip()
     sel = [j.strip() for j in sel]
     selvars = [j.split('=')[0].strip() for j in sel]
 
@@ -1472,12 +1538,41 @@ def gen(cmd, sel):
 
     for i in selvars:
       out.append(f'{ipad}  self.{i} = {i}')
-    out.append('')
 
-    if 'prop' in cmd:
+    if 'bind' in cmd:
+      out.append(f'{ipad}  self._cbs = {{}}\n')
+      out.append(f'''
+{lpad}  def bind(self, **kwargs):
+{lpad}    for k, v in kwargs.items():
+{lpad}      if k not in self._cbs:
+{lpad}        self._cbs[k] = []
+{lpad}      self._cbs[k].append(v)
+{lpad}
+{lpad}  def unbind(self, **kwargs):
+{lpad}    for k, v in kwargs.items():
+{lpad}      self._cbs[k].remove(v)
+{lpad}      if not self._cbs[k]:
+{lpad}        del self._cbs[k]
+{lpad}
+{lpad}  def dispatch(self, prop, *l, **kw):
+{lpad}    if getattr(self, f'on_{{prop}}', None):
+{lpad}      getattr(self, f'on_{{prop}}')(*l, **kw)
+{lpad}    if prop in self._cbs:
+{lpad}      for cb in self._cbs[prop]:
+{lpad}        cb(self, *l, **kw)
+  '''.strip('\n'))
+
+
+    if 'prop' in cmd and 'bind' not in cmd:
+      out.append('')
       for i in selvars:
         out.append(f'{lpad}  @property\n{lpad}  def {i}(self):\n{ipad}  return self.__{i}')
         out.append(f'{lpad}  @{i}.setter\n{lpad}  def {i}(self, value):\n{ipad}  self.__{i} = value\n')
+
+    elif 'prop' in cmd:
+      for i in selvars:
+        out.append(f'{lpad}  @property\n{lpad}  def {i}(self):\n{ipad}  return self._{i}')
+        out.append(f'{lpad}  @{i}.setter\n{lpad}  def {i}(self, value):\n{ipad}  if not hasattr(self, "_{i}"): self._{i} = value\n{ipad}  oldval = self._{i}\n{ipad}  self._{i} = value\n{ipad}  if oldval != value: self.dispatch("{i}", oldval, value)\n')
 
     if 'repr' in cmd:
       gens = ', '.join([repr(i) + ': {repr(self.' + i + ')}' for i in selvars])
@@ -1730,9 +1825,10 @@ async def snack(content, delay=5):
                 style={
                   'position': 'fixed',
                   'z-index': '2',
-                  'bottom': '-16px',
-                  'left': '50%',
-                  'transform': 'translate(-50%, 100%)',
+                  'bottom': '0',
+                  'left': '0',
+                  'width': '100%',
+                  'transform': 'translate(0, 100%)',
                   'transition': 'transform .4s, bottom .4s',
                   'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
                 })
@@ -1740,13 +1836,11 @@ async def snack(content, delay=5):
   doc <= _snack
   await aio.sleep(.05)
   # update pos
-  _snack.style['bottom'] = '16px'
-  _snack.style['transform'] = 'translate(-50%, 0%)'
+  _snack.style['transform'] = 'translate(0, 0%)'
   # sleep for 5
   await aio.sleep(.4+delay)
   # update pos
-  _snack.style['bottom'] = '-16px'
-  _snack.style['transform'] = 'translate(-50%, 100%)'
+  _snack.style['transform'] = 'translate(0, 100%)'
   await aio.sleep(.4)
   _snack.remove()
   # return
@@ -1998,72 +2092,6 @@ async def sidebar() -> None:
           box.setAttribute('class', hidden)
 
       ev = await aio.select_event(box, watched_events)
-    
-class Debounce:
-  def __init__(self, fun, limit):
-    self.dat = []
-    self.limit = limit
-    self.last_ran = time.time()
-    self.command = fun
-    
-  def _deferred_fun(self, *l, **kw):
-    self.dat.append((l, kw))
-    self.last_ran = time.time()
-    
-  async def db_task(self, handle):
-    while handle['running'] == True:
-      if self.dat and self.last_ran + self.limit < time.time():
-        self.command(self.dat)
-        self.dat = []
-      await aio.sleep(0)
-  
-  def __enter__(self):
-    self.last_ran = time.time()
-    self.task_handle = {'running': True}
-    aio.run(self.db_task(self.task_handle))
-    
-    return self._deferred_fun
-    
-  def __exit__(self, type, value, traceback):
-    # flush command with data
-    if self.dat:
-      self.command(self.dat)
-      self.dat = []
-    self.task_handle['running'] = False
-    
-    
-class Throttle:
-  def __init__(self, fun, limit):
-    self.dat = []
-    self.limit = limit
-    self.last_ran = time.time()
-    self.command = fun
-    
-  def _deferred_fun(self, *l, **kw):
-    if not self.dat:
-      self.last_ran = time.time()
-    self.dat.append((l, kw))
-    
-  async def db_task(self, handle):
-    while handle['running'] == True:
-      if self.dat and self.last_ran + self.limit < time.time():
-        self.command(self.dat)
-        self.dat = []
-      await aio.sleep(0)
-  
-  def __enter__(self):
-    self.last_ran = time.time()
-    self.task_handle = {'running': True}
-    aio.run(self.db_task(self.task_handle))
-    
-    return self._deferred_fun
-    
-  def __exit__(self, type, value, traceback):
-    # flush command with data
-    if self.dat:
-      self.command(self.dat)
-      self.dat = []
-    self.task_handle['running'] = False
 
 
 async def main():
