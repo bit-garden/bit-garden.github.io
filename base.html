@@ -64,8 +64,9 @@ from browser import window
 from browser import aio
 from browser.html import *
 # storage is like dictionary
-#from browser.local_storage import storage
+from browser.local_storage import storage
 
+storage['a'] = 'test'
 
 anim = {'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
         'transition': 'all 0.4s'}
