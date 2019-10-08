@@ -908,16 +908,16 @@ function DoubleTap(cm, params){
     }
   })
 }
-CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
-
-CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
-CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
-CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
-CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
-CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
-CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
-CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
-CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
+//CodeMirror.Vim.defineEx('DoubleTap', null, DoubleTap)
+//
+//CodeMirror.Vim.map("'", ":DoubleTap '", 'insert')
+//CodeMirror.Vim.map('"', ':DoubleTap "', 'insert')
+//CodeMirror.Vim.map("[", ":DoubleTap [", 'insert')
+//CodeMirror.Vim.map("]", ":DoubleTap ]", 'insert')
+//CodeMirror.Vim.map("(", ":DoubleTap (", 'insert')
+//CodeMirror.Vim.map(")", ":DoubleTap )", 'insert')
+//CodeMirror.Vim.map("{", ":DoubleTap {", 'insert')
+//CodeMirror.Vim.map("}", ":DoubleTap }", 'insert')
 //CodeMirror.Vim.map("''", ":vdo :js put(\"''\")|i", 'insert')
 //CodeMirror.Vim.map("((", ":vdo :js put(\"()\")|i", 'insert')
 //CodeMirror.Vim.map("[[", ":vdo :js put(\"[]\")|i", 'insert')
@@ -1036,9 +1036,8 @@ for i in t._indices: r[i] = Row(**r[i]).to_dict()
 CodeMirror.Vim.defineEx('notes', null, notes)
 
 </script>
-<script src="lib/brython.js"></script>
-<script src="lib/brython_stdlib.js"></script> 
-<!-- <script src="lib/brython_aio.js"></script> -->
+<script src="lib/brython_aio.js"></script>
+<script src="lib/brython_stdlib.js"></script>
 <script type="text/python">
 
 from browser import aio, window
@@ -1155,26 +1154,78 @@ def getdim(el):
 class Event:
   ''' 
   Asyncio primitive, Event.
-  https://docs.python.org/3/library/asyncio-sync.html#event
+  https://docs.python.org/3/library/asyncio-sync.html
   '''
   
-  def __init__(self, *) -> None:
+  def __init__(self, *):
     self._set = False
     
-  async def wait(self) -> None:
+  async def wait(self):
     while not self._set:
       await aio.sleep(0)
       
-  def is_set(self) -> bool:
+  def is_set(self):
     return self._set
     
-  def set(self) -> None:
+  def set(self):
     self._set = True
     
-  def clear(self) -> None:
+  def clear(self):
     self._set = False
     
 aio.Event = Event
+
+class Lock:
+  def __init__(self, *):
+    self._locked = False
+
+  async def acquire(self):
+    while self._locked:
+      await aio.sleep(0)
+    self._locked = True
+
+  def release(self):
+    if not self._locked:
+      raise RuntimeError('Lock is already released')
+    self._locked = False
+
+  def locked(self):
+    return self._locked
+
+  async def __aenter__(self):
+    await self.acquire()
+    return self
+
+  async def __aexit__(self, *l):
+    self.release()
+
+aio.Lock = Lock
+
+class Semaphore:
+  def __init__(self, value=1, *):
+    self._locked = False
+    self.count = value
+    self.limit = value
+
+  async def acquire(self):
+    while self.count < 1:
+      await aio.sleep(0)
+    self.count -= 1
+
+  def release(self):
+    self.count = min(self.count + 1, self.limit)
+
+  def locked(self):
+    return self.count == 0
+
+  async def __aenter__(self):
+    await self.acquire()
+    return self
+
+  async def __aexit__(self, *l):
+    self.release()
+    
+aio.Semaphore = Semaphore
 
 def itemgetter(*items):
   if len(items) == 1:
@@ -1419,6 +1470,11 @@ def run_py(cm, params):
 window.CodeMirror.Vim.defineEx("do_py", None, run_py)
 
 def gen(cmd, sel):
+  if 'enum' in cmd:
+    lpad = ' '*max(len(i) - len(i.lstrip()) for i in sel)
+    sel = [j.strip() for j in sel]
+    return '\n'.join(f'{lpad}{v} = {k}' for k, v in enumerate(sel))
+    
   if 'genself' in cmd:
     lpad = max(len(i) - len(i.lstrip()) for i in sel)
 
@@ -1845,14 +1901,15 @@ async def snack(content, delay=5):
   _snack.remove()
   # return
 
+snacks = []
+  
 async def snackbar():
-  window.snacks = []
   while True:
-    while window.snacks:
-      val = window.snacks.pop(0)
+    while snacks:
+      val = snacks.pop(0)
       await snack(val)
       
-    await aio.sleep(1)
+    await aio.sleep(0)
 
 async def popup(content):
   frame = DIV(Class='darken', style={
@@ -1867,7 +1924,7 @@ async def popup(content):
     'z-index': '1'
   })
 
-  box = DIV(content, Class='card', style={
+  box = DIV(content, style={
     'position': 'absolute',
     'left': '12.5%',
     'top': '25%',
@@ -1920,19 +1977,28 @@ class Popup:
       'z-index': '1'
     })
 
-    self.box = DIV(Class='card', style={
+    self.box = DIV(style={
       'position': 'absolute',
       'left': '12.5%',
       'top': '25%',
       'opacity': 0,
-      'width': '75%',
-      'height': '75%',
+      #'width': '75%',
+      #'height': '75%',
       'margin': '-16px',
       'transition': 'opacity .4s, top .4s',
       'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+      'border': 'none',
+      #'padding': '12px 18px',
+      'font-size': '16px',
+      'cursor': 'default',
+      'color': 'white',
+      'background-color': '#282828',
+      'outline': 'none'
     })
 
     self.frame <= self.box
+    center(self.box)
+    self.box.top += 250
     
   async def _background(self):
     # to allow clicks within the popup
@@ -1947,7 +2013,8 @@ class Popup:
       
     self.frame.style['background'] = 'rgba(0, 0, 0, 0)'
     self.box.style['opacity'] = 0
-    self.box.style['top'] = '25%'
+    #self.box.style['top'] = '25%'
+    self.box.top += 250
     await aio.sleep(.4)
 
     self.frame.remove()
@@ -1958,7 +2025,8 @@ class Popup:
     await aio.sleep(.05)
     self.frame.style['background'] = 'rgba(0, 0, 0, .5)'
     self.box.style['opacity'] = 1
-    self.box.style['top'] = '12.5%'
+    #self.box.style['top'] = '12.5%'
+    self.box.top -= 250
 
     aio.run(self._background())
     
@@ -2092,10 +2160,17 @@ async def sidebar() -> None:
           box.setAttribute('class', hidden)
 
       ev = await aio.select_event(box, watched_events)
+      
+def center(el):
+  'bottom height left right top width'
+  root = getdim(doc.querySelector('body'))
+  eldim = getdim(el)
+  el.left = int(root.center[0] - eldim.width//2)
+  el.top = int(root.center[1] - eldim.height//2)
 
 
 async def main():
-  res = await aio.gather(snackbar(), keybind(), sidebar())
+  res = await aio.gather(snackbar())
 
 aio.run(main())
 
