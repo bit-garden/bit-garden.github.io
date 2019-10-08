@@ -2,7 +2,6 @@
 <title>Testing board</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="shortcut icon" href="rabbit.png">
-<link rel="stylesheet" type="text/css" href="lib/theme.css">
 <style>
 @font-face {
   font-family: Roboto;
@@ -47,7 +46,7 @@
 }
 
 body{
-  background:#000;
+  background:#121212;
   padding:0px;
   margin:0px;
 }
@@ -64,12 +63,29 @@ from browser import window
 from browser import aio
 from browser.html import *
 # storage is like dictionary
-from browser.local_storage import storage
+#from browser.local_storage import storage
 
-storage['a'] = 'test'
+
+async def ui():
+  snacks.append('hi')
+  async with Popup(doc) as p:
+    p <= DIV('test')
+    await aio.sleep(1)
+  
+
+
+  
+  
+def on_resize(self, *l, **kw):
+  pass
+  # do layout changes with this
+  
+window.addEventListener('resize', on_resize);
+
+  
 
 anim = {'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-        'transition': 'all 0.4s'}
+        'transition': 'all 0.3s'}
 
 opacities = {0:  0, 1: .05, 2: .07, 3: .08, 4: .09, 6: .11, 8: .12, 12: .14, 16: .15, 24: .16}
 elevation = {k:f'rgba(255, 255, 255, {v})' for k, v in opacities.items()}
@@ -78,7 +94,6 @@ def center(el):
   'bottom height left right top width'
   root = getdim(doc.querySelector('body'))
   eldim = getdim(el)
-  print(eldim)
   el.left = int(root.center[0] - eldim.width//2)
   el.top = int(root.center[1] - eldim.height//2)
 
@@ -148,54 +163,26 @@ themes['snack'] = {
   
   'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
   'transition': 'all 0.3s',
+  
+  'position': 'fixed',
+  'left': 0,
+  'width': '100%',
+  'box-sizing': 'border-box',
 }
 
-
-def on_sidebar(self, old, value):
-  if value:
-    #rootdim = getdim(self.root)
-    #sc = (rootdim.width-200)/rootdim.width
-    #self.root.style['transform'] = f'scale({sc})'
-    self.root.left = getdim(self.sidebar).width//2
-    self.sidebar.left = 0
-  else:
-    #self.root.style['transform'] = f'scale(1)'
-    self.root.left = 0
-    self.sidebar.left = -getdim(self.sidebar).width
-    
-def on_snack(self, key, value, action):
-  print(f'{key}, {value}, {action}')
-  
-def on_popup(self, key, value, action):
-  if self.popups:
-    rootdim = getdim(self.root)
-    scval = max(rootdim.width, rootdim.height)
-    sc = (scval-200)/scval
-    self.root.style['transform'] = f'scale({sc})'
-  else:
-    self.root.style['transform'] = f'scale(1)'
-
-async def ui():
-  layout = Layout(root=DIV(style=themes['root']), sidebar=DIV(style=themes['sidebar']))
-  layout.bind(sidebar_shown=on_sidebar, snacks_mut=on_snack, popups_mut=on_popup)
-  layout.root <= BUTTON('testasdfaf fa fdafsdfas asdf sadfsafsadfasd asfsa fsafsa fasd f', style=themes['button'])
-  
-  while True:
-    ev = await aio.select_event(layout.root, 'mousemove')
-    if ev.clientX <= 15 and not layout.sidebar_shown:
-      layout.sidebar_shown = True
-    elif ev.clientX >= getdim(layout.sidebar).width and layout.sidebar_shown:
-      layout.sidebar_shown = False
-  
-  
-
-  
-
-  
+themes['card'] = {
+  'border': 'none',
+  'padding': '12px 18px',
+  'font-size': '16px',
+  'cursor': 'default',
+  'color': 'white',
+  'background-color': '#282828',
+  'outline': 'none'
+}
   
 # ready the aio tasks
 async def main():
-  await aio.gather(ui())
+  await aio.gather(snackbar(), ui())
   
 # --- would be imports
   
@@ -260,26 +247,78 @@ aio.cancel_event = cancel_event
 class Event:
   ''' 
   Asyncio primitive, Event.
-  https://docs.python.org/3/library/asyncio-sync.html#event
+  https://docs.python.org/3/library/asyncio-sync.html
   '''
   
-  def __init__(self, *) -> None:
+  def __init__(self, *):
     self._set = False
     
-  async def wait(self) -> None:
+  async def wait(self):
     while not self._set:
       await aio.sleep(0)
       
-  def is_set(self) -> bool:
+  def is_set(self):
     return self._set
     
-  def set(self) -> None:
+  def set(self):
     self._set = True
     
-  def clear(self) -> None:
+  def clear(self):
     self._set = False
     
 aio.Event = Event
+
+class Lock:
+  def __init__(self, *):
+    self._locked = False
+
+  async def acquire(self):
+    while self._locked:
+      await aio.sleep(0)
+    self._locked = True
+
+  def release(self):
+    if not self._locked:
+      raise RuntimeError('Lock is already released')
+    self._locked = False
+
+  def locked(self):
+    return self._locked
+
+  async def __aenter__(self):
+    await self.acquire()
+    return self
+
+  async def __aexit__(self, *l):
+    self.release()
+
+aio.Lock = Lock
+
+class Semaphore:
+  def __init__(self, value=1, *):
+    self._locked = False
+    self.count = value
+    self.limit = value
+
+  async def acquire(self):
+    while self.count < 1:
+      await aio.sleep(0)
+    self.count -= 1
+
+  def release(self):
+    self.count = min(self.count + 1, self.limit)
+
+  def locked(self):
+    return self.count == 0
+
+  async def __aenter__(self):
+    await self.acquire()
+    return self
+
+  async def __aexit__(self, *l):
+    self.release()
+    
+aio.Semaphore = Semaphore
 
 
 # usefull for binding multiple buttons
@@ -356,229 +395,105 @@ class Stagger:
   def __exit__(self, *_):
     pass
     
-class ObservableList(list):
-  # Internal class to observe changes inside a native python list.
-  def __init__(self, *largs, obj=None, name=''):
-    self.name = name
-    self.obj = obj
-    super().__init__(*largs)
+class Popup:
+  def __init__(self, _root):
+    self._root = _root
+    self.frame = DIV(Class='darken', style={
+      'background': 'rgba(0, 0, 0, 0)',
+      'transition': 'background .4s',
+      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+      'width': '100%',
+      'height': '100%',
+      'position': 'fixed',
+      'top': '0px',
+      'left': '0px',
+      'z-index': '1'
+    })
+
+    self.box = DIV(style={
+      'position': 'absolute',
+      'left': '12.5%',
+      'top': '25%',
+      'opacity': 0,
+      #'width': '75%',
+      #'height': '75%',
+      'margin': '-16px',
+      'transition': 'opacity .4s, top .4s',
+      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+      'border': 'none',
+      #'padding': '12px 18px',
+      'font-size': '16px',
+      'cursor': 'default',
+      'color': 'white',
+      'background-color': '#282828',
+      'outline': 'none'
+    })
+
+    self.frame <= self.box
+    center(self.box)
+    self.box.top += 250
     
-  def __setitem__(self, key, value):
-    list.__setitem__(self, key, value)
-    self.__onmut__(key, value, 'set')
-
-  def __delitem__(self, key):
-    value = self.__getitem__(key)
-    list.__delitem__(self, key)
-    self.__onmut__(key, value, 'del')
-
-  def __iadd__(self, *largs):
-    list.__iadd__(self, *largs)
-    self.__onmut__(-1, *largs, 'iadd')
-    return self
-
-  def __imul__(self, *largs):
-    list.__imul__(self, *largs)
-    self.__onmut__(-1, *largs, 'imul')
-    return self
-
-  def append(self, *largs):
-    list.append(self, *largs)
-    self.__onmut__(-1, *largs, 'append')
-
-  def remove(self, *largs):
-    list.remove(self, *largs)
-    self.__onmut__(-1, *largs, 'remove')
-
-  def insert(self, key, *largs):
-    list.insert(self, key, *largs)
-    self.__onmut__(key, *largs, 'insert')
-
-  def pop(self, key=-1):
-    result = list.pop(self, key)
-    self.__onmut__(key, result, 'pop')
-    return result
-
-  def extend(self, *largs):
-    list.extend(self, *largs)
-    self.__onmut__(-1, *largs, 'extend')
-
-  def sort(self, *largs):
-    list.sort(self, *largs)
-    self.__onmut__(-1, None, 'sort')
-
-  def reverse(self, *largs):
-    list.reverse(self, *largs)
-    self.__onmut__(-1, None, 'reverse')
-    
-  def clear(self, *largs):
-    list.clear(self, *largs)
-    self.__onmut__(-1, None, 'clear')
-    
-  def __onmut__(self, key, value, event):
-    if getattr(self.obj, f'on_{self.name}_{event}', None):
-      getattr(self.obj, f'on_{self.name}_{event}')(key, value)
-    if getattr(self.obj, f'on_{self.name}_mut', None):
-      getattr(self.obj, f'on_{self.name}_mut')(key, value, event)
-    if f'{self.name}_{event}' in self.obj._cbs:
-      for cb in self.obj._cbs[f'{self.name}_{event}']:
-        cb(self.obj, key, value)
-    if f'{self.name}_mut' in self.obj._cbs:
-      for cb in self.obj._cbs[f'{self.name}_mut']:
-        cb(self.obj, key, value, event)
-      
-class ObservableDict(dict):
-  # Internal class to observe changes inside a native python dict.
-  def __init__(self, *largs, obj=None, name=''):
-    self.name = name
-    self.obj = obj
-    super().__init__(*largs)
-    
-  def __setitem__(self, key, value):
-    dict.__setitem__(self, key, value)
-    self.__onmut__(key, value, 'set')
-
-  def __delitem__(self, key):
-    value = self.__getitem__(key)
-    dict.__delitem__(self, key)
-    self.__onmut__(key, value, 'del')
-
-  def clear(self, *largs):
-    dict.clear(self, *largs)
-    self.__onmut__(-1, None, 'clear')
-
-  def pop(self, *largs):
-    result = dict.pop(self, *largs)
-    self.__onmut__(largs[0], result, 'pop')
-    return result
-
-  def popitem(self, *largs):
-    result = dict.popitem(self, *largs)
-    self.__onmut__(-1, result, 'popitem')
-    return result
-
-  def setdefault(self, key, default):
-    dict.setdefault(self, key, default)
-    self.__onmut__(key, default, 'setdefault')
-
-  def update(self, *largs):
-    dict.update(self, *largs)
-    self.__onmut__(-1, *largs, 'update')
-    
-  def __onmut__(self, key, value, event):
-    if getattr(self.obj, f'on_{self.name}_{event}', None):
-      getattr(self.obj, f'on_{self.name}_{event}')(key, value)
-    if getattr(self.obj, f'on_{self.name}_mut', None):
-      getattr(self.obj, f'on_{self.name}_mut')(key, value, event)
-    if f'{self.name}_{event}' in self.obj._cbs:
-      for cb in self.obj._cbs[f'{self.name}_{event}']:
-        cb(self.obj, key, value)
-    if f'{self.name}_mut' in self.obj._cbs:
-      for cb in self.obj._cbs[f'{self.name}_mut']:
-        cb(self.obj, key, value, event)
+  async def _background(self):
+    # to allow clicks within the popup
+    while True:
+      ev = await aio.select_event(self.frame, 'click')
+      if ev.type == 'cancel' or ev.target == self.frame:
+        break
         
-class Layout:
-  def __init__(self, root=None, sidebar=None, scale_root=False, notifications=[], snacks=[], popups=[]):
-    self.root = root
-    self.sidebar = sidebar
-    self.scale_root = scale_root
-    self.notifications = notifications 
-    self.snacks = snacks 
-    self.popups = popups 
-    self.sidebar_shown = False
-    self._cbs = {}
-    if self.root:
-      doc <= self.root
-    if self.sidebar:
-      doc <= self.sidebar
+    # Try to break all awaiting UI.
+    for el in self.box.querySelectorAll('*'):
+      aio.cancel_event(el)
       
-    window.addEventListener('resize', self.resize);
-    self.resize()
+    self.frame.style['background'] = 'rgba(0, 0, 0, 0)'
+    self.box.style['opacity'] = 0
+    #self.box.style['top'] = '25%'
+    self.box.top += 250
+    await aio.sleep(.4)
 
-  def bind(self, **kwargs):
-    for k, v in kwargs.items():
-      if k not in self._cbs:
-        self._cbs[k] = []
-      self._cbs[k].append(v)
-
-  def unbind(self, **kwargs):
-    for k, v in kwargs.items():
-      self._cbs[k].remove(v)
-      if not self._cbs[k]:
-        del self._cbs[k]
-
-  def dispatch(self, prop, *l, **kw):
-    if getattr(self, f'on_{prop}', None):
-      getattr(self, f'on_{prop}')(*l, **kw)
-    if prop in self._cbs:
-      for cb in self._cbs[prop]:
-        cb(self, *l, **kw)
-        
-  def resize(self, *l, **kw):
-    self.dispatch('resize')
-  
-  @property
-  def root(self):
-    return self._root
-  @root.setter
-  def root(self, value):
-    if not hasattr(self, "_root"): self._root = value
-    oldval = self._root
-    self._root = value
-    if oldval != value: self.dispatch("root", oldval, value)
+    self.frame.remove()
     
-  @property
-  def sidebar(self):
-    return self._sidebar
-  @sidebar.setter
-  def sidebar(self, value):
-    if not hasattr(self, "_sidebar"): self._sidebar = value
-    oldval = self._sidebar
-    self._sidebar = value
-    if oldval != value: self.dispatch("sidebar", oldval, value)
+  async def __aenter__(self):
+    self._root <= self.frame
+
+    await aio.sleep(.05)
+    self.frame.style['background'] = 'rgba(0, 0, 0, .5)'
+    self.box.style['opacity'] = 1
+    #self.box.style['top'] = '12.5%'
+    self.box.top -= 250
+
+    aio.run(self._background())
     
-  @property
-  def sidebar_shown(self):
-    return self._sidebar_shown
-  @sidebar_shown.setter
-  def sidebar_shown(self, value):
-    if not hasattr(self, "_sidebar_shown"): self._sidebar_shown = value
-    oldval = self._sidebar_shown
-    self._sidebar_shown = value
-    if oldval != value: self.dispatch("sidebar_shown", oldval, value)
+    return self.box
+    
+  async def __aexit__(self, type, value, traceback):
+    aio.cancel_event(self.frame)
+    
+async def snack(content, delay=5):
+  # make element
+  _snack = DIV(content,
+                style=themes['snack'])
+  # attach to doc
+  doc <= _snack
+  _snack.style['bottom'] = -getdim(_snack).height
+  await aio.sleep(.05)
+  # update pos
+  _snack.style['bottom'] = 0
+  # sleep for 5
+  await aio.sleep(.3+delay)
+  # update pos
+  _snack.style['bottom'] = -getdim(_snack).height
+  await aio.sleep(.3)
+  _snack.remove()
+  # return
 
-  @property
-  def notifications(self):
-    return self._notifications
-  @notifications.setter
-  def notifications(self, value):
-    if not hasattr(self, "_notifications"): self._notifications = value
-    oldval = self._notifications
-    self._notifications = ObservableList(value, obj=self, name='notifications')
-    if oldval != value: self.dispatch("notifications", oldval, value)
-
-  @property
-  def snacks(self):
-    return self._snacks
-  @snacks.setter
-  def snacks(self, value):
-    if not hasattr(self, "_snacks"): self._snacks = value
-    oldval = self._snacks
-    self._snacks = ObservableList(value, obj=self, name='snacks')
-    if oldval != value: self.dispatch("snacks", oldval, value)
-
-  @property
-  def popups(self):
-    return self._popups
-  @popups.setter
-  def popups(self, value):
-    if not hasattr(self, "_popups"): self._popups = value
-    oldval = self._popups
-    self._popups = ObservableList(value, obj=self, name='popups')
-    if oldval != value: self.dispatch("popups", oldval, value)
-  
-  def __repr__(self):
-    return "{" + f"'root': {repr(self.root)}, 'sidebar': {repr(self.sidebar)}, 'scale_root': {repr(self.scale_root)}, 'notifications': {repr(self.notifications)}, 'snacks': {repr(self.snacks)}, 'popups': {repr(self.popups)}" + "}"
+snacks = []
+async def snackbar():
+  while True:
+    while snacks:
+      val = snacks.pop(0)
+      await snack(val)
+      
+    await aio.sleep(0)
 
 aio.run(main())
 
