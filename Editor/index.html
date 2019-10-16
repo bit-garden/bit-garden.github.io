@@ -117,130 +117,6 @@
 input::-webkit-calendar-picker-indicator {
   display: none;
 }
-  
-/* Ripple effect */
-.ripple {
-  background-position: center;
-  transition: background 0.4s;
-  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-/* hover color need to match */
-.ripple:hover {
-  background: #474747 radial-gradient(circle, transparent 1%, #474747 1%) center/15000%;
-}
-.ripple:focus {
-  background: #474747 radial-gradient(circle, transparent 1%, #474747 1%) center/15000%;
-}
-/* pulse color */
-.ripple:active {
-  background-color: grey;
-  background-size: 100%;
-  transition: background 0s;
-}
-
-/* card style */
-.card {
-  border: none;
-  /*border-radius: 3px;*/
-  padding: 12px 18px;
-  font-size: 16px;
-  cursor: default;
-  color: white;
-  background-color: #222222;
-  /*box-shadow: 0 4px 8px #000;*/
-  outline: none;
-}
-
-.red_ripple:hover {
-  background: #990000 radial-gradient(circle, transparent 1%, #990000 1%) center/15000%;
-}
-.red_ripple:focus {
-  background: #990000 radial-gradient(circle, transparent 1%, #990000 1%) center/15000%;
-}
-/* pulse color */
-.red_ripple:active {
-  background-color: red;
-  background-size: 100%;
-  transition: background 0s;
-}
-.red_card{
-  background-color: #660000;
-}
-
-.green_ripple:hover {
-  background: #009900 radial-gradient(circle, transparent 1%, #009900 1%) center/15000%;
-}
-.green_ripple:focus {
-  background: #009900 radial-gradient(circle, transparent 1%, #009900 1%) center/15000%;
-}
-/* pulse color */
-.green_ripple:active {
-  background-color: green;
-  background-size: 100%;
-  transition: background 0s;
-}
-.green_card{
-  background-color: #006600;
-}
-
-.blue_ripple:hover {
-  background: #000099 radial-gradient(circle, transparent 1%, #000099 1%) center/15000%;
-}
-.blue_ripple:focus {
-  background: #000099 radial-gradient(circle, transparent 1%, #000099 1%) center/15000%;
-}
-/* pulse color */
-.blue_ripple:active {
-  background-color: blue;
-  background-size: 100%;
-  transition: background 0s;
-}
-.blue_card{
-  background-color: #000066;
-}
-
-.purple_ripple:hover {
-  background: #990099 radial-gradient(circle, transparent 1%, #990099 1%) center/15000%;
-}
-.purple_ripple:focus {
-  background: #990099 radial-gradient(circle, transparent 1%, #990099 1%) center/15000%;
-}
-/* pulse color */
-.purple_ripple:active {
-  background-color: purple;
-  background-size: 100%;
-  transition: background 0s;
-}
-.purple_card{
-  background-color: #660066;
-}
-
-.orange_ripple:hover {
-  background: #996600 radial-gradient(circle, transparent 1%, #996600 1%) center/15000%;
-}
-.orange_ripple:focus {
-  background: #996600 radial-gradient(circle, transparent 1%, #996600 1%) center/15000%;
-}
-/* pulse color */
-.orange_ripple:active {
-  background-color: orange;
-  background-size: 100%;
-  transition: background 0s;
-}
-.orange_card{
-  background-color: #664400;
-}
-
-.button{
-  border: none;
-  /*border-radius: 3px;*/
-  padding: 12px 18px;
-  font-size: 16px;
-  cursor: default;
-  color: white;
-  outline: none;
-  background-color:rgba(71,71,71,0);
-}
 
 /* card style */
 .codemirror-hints, .codemirror-dialog {
@@ -255,170 +131,6 @@ input::-webkit-calendar-picker-indicator {
   /*box-shadow: 0 4px 8px #000;*/
   outline: none;
   font-family: Mono !important;
-}
-
-.input{
-  border-bottom: rgba(16,75,121,1) solid 2px;
-  padding: 12px 18px 10px 18px;
-  transition: border .4s;
-  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-.input:focus, .input:hover{
-  border-bottom: rgba(33,150,243,1) solid 2px;
-}
-
-/* checkbox */
-
-input.switch{
-  opacity: 0;
-  height:14px;
-  width:0px;
-}
-
-input.switch+div{
-  background:rgba(128,128,128,.33);
-  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
-  display:inline-block;
-  overflow:visible;
-  border-radius:12px;
-  margin:6px;
-  width:36px;
-}
-
-input.switch:checked+div div.thumb{
-  left:24px;
-  background:rgba(33,150,243,1);
-}
-
-input.switch:focus+div,
-input.switch:focus+div div.thumb{
-  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12), 0 3px 5px -1px rgba(0, 0, 0, 0.2);
-  outline:none;
-  box-shadow: 0 0px 8px rgba(33,150,243,1);
-}
-
-input.switch+div div.thumb{
-  content:'off';
-  height:24px;
-  transition:all .2s;
-  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
-  width:24px;
-  background:rgba(16,75,121,1);
-  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
-  position:relative;
-  left:0px;
-  margin:-6px;
-  border-radius:12px;
-}
-
-/* radio */
-
-input.radio{
-  opacity: 0;
-  height:14px;
-  width:0px;
-}
-
-input.radio+div{
-  background:rgba(128,128,128,.33);
-  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
-  display:inline-block;
-  overflow:visible;
-  border-radius:18px;
-  width:12px;
-  height:12px;
-  padding:6px;
-  transition:all .2s;
-}
-
-input.radio:checked+div div.thumb{
-  background:rgba(33,150,243,1);
-  width:16px;
-  height:16px;
-}
-
-input.radio:checked+div{
-  padding:4px;
-  height:16px;
-  width:16px;
-}
-
-input.radio:focus+div,
-input.radio:focus+div div.thumb{
-  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12), 0 3px 5px -1px rgba(0, 0, 0, 0.2);
-  outline:none;
-  box-shadow: 0 0px 8px rgba(33,150,243,1);
-}
-
-input.radio+div div.thumb{
-  content:'off';
-  height:12px;
-  transition:all .2s;
-  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
-  width:12px;
-  background:rgba(16,75,121,1);
-  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
-  border-radius:12px;
-}
-
-.fab {
-  border: none;
-  border-radius: 999px;
-  padding: 18px 18px;
-  font-size: 16px;
-  cursor: default;
-  color: white;
-  background-color: #222222;
-  box-shadow: 0 4px 8px #000;
-  outline: none;
-}
-
-.fab-small {
-  border: none;
-  border-radius: 999px;
-  padding: 12px 12px;
-  font-size: 16px;
-  cursor: default;
-  color: white;
-  background-color: #222222;
-  box-shadow: 0 4px 8px #000;
-  outline: none;
-}
-
-.main_sidebar{
-  overflow: auto;
-  background: #222222;
-}
-
-.main_sidebar > div.card{
-  margin-bottom: 8px;
-  background: #333333;
-}
-
-.main_sidebar.hidden{
-  position: absolute;
-  bottom: 0px;
-  left: -290px;
-  width: 300px;
-  height: 100%;
-  display: inline;
-  box-sizing: border-box;
-  transition: all .4s;
-  opacity: 0;
-  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-  
-.main_sidebar.shown{
-  position: absolute;
-  bottom: 0px;
-  left: 0px;
-  width: 300px;
-  height: 100%;
-  display: inline;
-  box-sizing: border-box;
-  transition: all .3s;
-  opacity: 1;
-  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
 }
   
 </style>
@@ -1265,6 +977,14 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
 
+def label(_dat):
+  labs = {}
+  for idx, i in enumerate(_dat):
+    if i[0].startswith('---'):
+      labs[i[0].strip('-')] = idx
+  
+  return labs
+      
 def align_by(_dat, _char=',', _glue='', _code=''):
   if not _glue:
     _glue = _char + ' '
@@ -1874,93 +1594,28 @@ def run_align_by_equals(cm, params):
 window.CodeMirror.Vim.defineEx("align_by_equals", None, run_align_by_equals)
 
 #--- async stuff
-
-async def snack(content, delay=5):
-  # make element
-  _snack = DIV(content, Class='card',
-                style={
-                  'position': 'fixed',
-                  'z-index': '2',
-                  'bottom': '0',
-                  'left': '0',
-                  'width': '100%',
-                  'transform': 'translate(0, 100%)',
-                  'transition': 'transform .4s, bottom .4s',
-                  'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-                })
-  # attach to doc
-  doc <= _snack
-  await aio.sleep(.05)
-  # update pos
-  _snack.style['transform'] = 'translate(0, 0%)'
-  # sleep for 5
-  await aio.sleep(.4+delay)
-  # update pos
-  _snack.style['transform'] = 'translate(0, 100%)'
-  await aio.sleep(.4)
-  _snack.remove()
-  # return
-
+    
 snacks = []
-  
 async def snackbar():
   while True:
     while snacks:
       val = snacks.pop(0)
-      await snack(val)
+      doc <= val
+      val.hide()
+
+      await aio.sleep(.05)
+
+      val.show()
+      await aio.sleep(val.delay + .3)
+
+      val.hide()
+
+      await aio.sleep(.3)
+
+      val.remove()
       
     await aio.sleep(0)
 
-async def popup(content):
-  frame = DIV(Class='darken', style={
-    'background': 'rgba(0, 0, 0, 0)',
-    'transition': 'background .4s',
-    'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-    'width': '100%',
-    'height': '100%',
-    'position': 'fixed',
-    'top': '0px',
-    'left': '0px',
-    'z-index': '1'
-  })
-
-  box = DIV(content, style={
-    'position': 'absolute',
-    'left': '12.5%',
-    'top': '25%',
-    'opacity': 0,
-    'width': '75%',
-    'height': '75%',
-    'margin': '-16px',
-    'transition': 'opacity .4s, top .4s',
-    'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-  })
-
-  frame <= box
-
-  doc <= frame
-
-  await aio.sleep(.05)
-  frame.style['background'] = 'rgba(0, 0, 0, .5)'
-  box.style['opacity'] = 1
-  box.style['top'] = '12.5%'
-
-  # to allow clicks within the popup
-  while True:
-    ev = await aio.select_event(frame, 'click')
-    if ev.type == 'cancel' or ev.target == frame:
-      break
-
-  # Try to break all awaiting UI.
-  for el in box.querySelectorAll('*'):
-    aio.cancel_event(el)
-
-  frame.style['background'] = 'rgba(0, 0, 0, 0)'
-  box.style['opacity'] = 0
-  box.style['top'] = '25%'
-  await aio.sleep(.4)
-
-  frame.remove()
 
 class Popup:
   def __init__(self, _root):
@@ -1979,8 +1634,8 @@ class Popup:
 
     self.box = DIV(style={
       'position': 'absolute',
-      'left': '12.5%',
-      'top': '25%',
+      #'left': '12.5%',
+      #'top': '25%',
       'opacity': 0,
       #'width': '75%',
       #'height': '75%',
@@ -1992,7 +1647,7 @@ class Popup:
       'font-size': '16px',
       'cursor': 'default',
       'color': 'white',
-      'background-color': '#282828',
+      #'background-color': '#282828',
       'outline': 'none'
     })
 
@@ -2034,6 +1689,66 @@ class Popup:
     
   async def __aexit__(self, type, value, traceback):
     aio.cancel_event(self.frame)
+    
+async def popup(content):
+  frame = DIV(Class='darken', style={
+      'background': 'rgba(0, 0, 0, 0)',
+      'transition': 'background .4s',
+      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+      'width': '100%',
+      'height': '100%',
+      'position': 'fixed',
+      'top': '0px',
+      'left': '0px',
+      'z-index': '1'
+    })
+
+  box = DIV(content, style={
+      'position': 'absolute',
+      #'left': '12.5%',
+      #'top': '25%',
+      'opacity': 0,
+      #'width': '75%',
+      #'height': '75%',
+      'margin': '-16px',
+      'transition': 'opacity .4s, top .4s',
+      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+      'border': 'none',
+      #'padding': '12px 18px',
+      'font-size': '16px',
+      'cursor': 'default',
+      'color': 'white',
+      #'background-color': '#282828',
+      'outline': 'none'
+    })
+
+  frame <= box
+
+  doc <= frame
+  center(box)
+  box.top += 250
+
+  await aio.sleep(.05)
+  frame.style['background'] = 'rgba(0, 0, 0, .5)'
+  box.style['opacity'] = 1
+  box.top -= 250
+
+  # to allow clicks within the popup
+  while True:
+    ev = await aio.select_event(frame, 'click')
+    if ev.type == 'cancel' or ev.target == frame:
+      break
+
+  # Try to break all awaiting UI.
+  for el in box.querySelectorAll('*'):
+    aio.cancel_event(el)
+
+  frame.style['background'] = 'rgba(0, 0, 0, 0)'
+  box.style['opacity'] = 0
+  box.top += 250
+  await aio.sleep(.4)
+
+  frame.remove()
 
     
 # General with El that you can be used like with Popup
@@ -2065,6 +1780,7 @@ class El:
   def __exit__(self, type, value, traceback):
     aio.cancel_event(self.el)
 
+# Needs to be fixed
 async def keybind():
   muted_events = ['Meta', 'Shift', 'Control', 'Alt']
   
@@ -2136,30 +1852,7 @@ class Stagger:
     
   def __exit__(self, *_):
     pass
-    
-async def sidebar() -> None:
-  hidden = 'card main_sidebar hidden'
-  shown = 'card main_sidebar shown'
 
-  with El(doc, SPAN(Class='card main_sidebar hidden')) as box:
-    # do stuff
-    
-    await aio.sleep(.05)
-    box.setAttribute('class', shown)
-    await aio.sleep(.4)
-    box.setAttribute('class', hidden)
-    
-    watched_events = 'mouseover mouseleave'
-    ev = await aio.select_event(box, watched_events)
-    while ev.type != 'cancel':
-      if ev.type == 'mouseover':
-        if ev.target==box:
-          box.setAttribute('class', shown)
-      elif ev.type == 'mouseleave':
-        if ev.target==box:
-          box.setAttribute('class', hidden)
-
-      ev = await aio.select_event(box, watched_events)
       
 def center(el):
   'bottom height left right top width'
@@ -2168,6 +1861,345 @@ def center(el):
   el.left = int(root.center[0] - eldim.width//2)
   el.top = int(root.center[1] - eldim.height//2)
 
+def tint(r, g, b, a, val):
+  '''Tints rgb values to apply 'white' layer to materials'''
+
+  rt = r + (val * (255 - r))
+  gt = g + (val * (255 - g))
+  bt = b + (val * (255 - b))
+  return (rt, gt, bt, a)
+
+class Flex(DIV):
+  opacities = {0:  0, 1: .05, 2: .07, 3: .08, 4: .09, 6: .11, 8: .12, 12: .14, 16: .15, 24: .16}
+  shadows = {0: 'none', 
+              1: '0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20)',
+              2: '0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20)',
+              3: '0 3px 4px 0 rgba(0,0,0,0.14), 0 3px 3px -2px rgba(0,0,0,0.12), 0 1px 8px 0 rgba(0,0,0,0.20)',
+              4: '0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)',
+              6: '0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12), 0 3px 5px -1px rgba(0,0,0,0.20)',
+              8: '0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.20)',
+              12: '0 12px 17px 2px rgba(0,0,0,0.14), 0 5px 22px 4px rgba(0,0,0,0.12), 0 7px 8px -4px rgba(0,0,0,0.20)',
+              16: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.20)',
+              24: '0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20)',}
+
+  def __init__(self, *l, color=(18, 18, 18, 1), padding='12px 18px', elevation=0, flow='row wrap', justify='flex-start', align_items='stretch', align_content='stretch', grow=1, flat=False, style={}, **kw):
+    base_style = {
+      #'position': 'absolute',
+      'border': 'none',
+      'margin': '8px',
+      'border-radius': '5px',
+      'font-size': '16px',
+      'cursor': 'default',
+      'color': 'white',
+      'outline': 'none',
+      #'background': f'rgba{color}',
+      'display': 'flex',
+      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+      'transition': 'all 0.3s',
+      'box-sizing': 'border-box',
+    }
+    base_style.update(style)
+
+    super().__init__(*l, style=base_style, **kw)
+
+    self.__color = color
+    self.__elevation = elevation
+    self.flat = flat
+    self.color = color
+    self.padding = padding
+    self.elevation = elevation
+    self.flow = flow
+    self.justify = justify
+    self.align_items = align_items
+    self.align_content = align_content
+    self.grow = grow
+
+
+  @property
+  def color(self):
+    return self.__color
+  @color.setter
+  def color(self, value):
+    self.__color = value
+    if not self.flat:
+      self.style['background'] = f'rgba{tint(*value, self.opacities[self.elevation])}'
+    else:
+      self.style['background'] = f'rgba(255, 255, 255, {self.opacities[self.elevation]})'
+
+  @property
+  def padding(self):
+    return self.__padding
+  @padding.setter
+  def padding(self, value):
+    self.__padding = value
+    self.style['padding'] = value
+
+  @property
+  def elevation(self):
+    return self.__elevation
+  @elevation.setter
+  def elevation(self, value):
+    self.__elevation = value
+    if not self.flat:
+      self.style['background'] = f'rgba{tint(*self.color, self.opacities[value])}'
+      self.style['box-shadow'] = self.shadows[value]
+    else:
+      self.style['background'] = f'rgba(255, 255, 255, {self.opacities[value]})'
+
+  @property
+  def flow(self):
+    '''
+      row (default): left to right in ltr; right to left in rtl
+      row-reverse: right to left in ltr; left to right in rtl
+      column: same as row but top to bottom
+      column-reverse: same as row-reverse but bottom to top
+      nowrap (default): all flex items will be on one line
+      wrap: flex items will wrap onto multiple lines, from top to bottom.
+      wrap-reverse: flex items will wrap onto multiple lines from bottom to top.
+    '''
+    return self.__flow
+  @flow.setter
+  def flow(self, value):
+    self.__flow = value
+    self.style['flex-flow'] = value
+
+  @property
+  def justify(self):
+    '''
+      flex-start (default): items are packed toward the start of the flex-direction.
+      flex-end: items are packed toward the end of the flex-direction.
+      start: items are packed toward the start of the writing-mode direction.
+      end: items are packed toward the end of the writing-mode direction.
+      left: items are packed toward left edge of the container, unless that doesn't make sense with the flex-direction, then it behaves like start.
+      right: items are packed toward right edge of the container, unless that doesn't make sense with the flex-direction, then it behaves like start.
+      center: items are centered along the line
+      space-between: items are evenly distributed in the line; first item is on the start line, last item on the end line
+      space-around: items are evenly distributed in the line with equal space around them. Note that visually the spaces aren't equal, since all the items have equal space on both sides. The first item will have one unit of space against the container edge, but two units of space between the next item because that next item has its own spacing that applies.
+      space-evenly: items are distributed so that the spacing between any two items (and the space to the edges) is equal.
+    '''
+    return self.__justify
+  @justify.setter
+  def justify(self, value):
+    self.__justify = value
+    self.style['justify-content'] = value
+
+  @property
+  def align_items(self):
+    '''
+      stretch (default): stretch to fill the container (still respect min-width/max-width)
+      flex-start / start / self-start: items are placed at the start of the cross axis. The difference between these is subtle, and is about respecting the flex-direction rules or the writing-mode rules.
+      flex-end / end / self-end: items are placed at the end of the cross axis. The difference again is subtle and is about respecting flex-direction rules vs. writing-mode rules.
+      center: items are centered in the cross-axis
+      baseline: items are aligned such as their baselines align
+    '''
+    return self.__align_items
+  @align_items.setter
+  def align_items(self, value):
+    self.__align_items = value
+    self.style['align-items'] = value
+
+  @property
+  def align_content(self):
+    '''
+      flex-start / start: items packed to the start of the container. The (more supported) flex-start honors the flex-direction while start honors the writing-mode direction.
+      flex-end / end: items packed to the end of the container. The (more support) flex-end honors the flex-direction while end honors the writing-mode direction.
+      center: items centered in the container
+      space-between: items evenly distributed; the first line is at the start of the container while the last one is at the end
+      space-around: items evenly distributed with equal space around each line
+      space-evenly: items are evenly distributed with equal space around them
+      stretch (default): lines stretch to take up the remaining space
+    '''
+    return self.__align_content
+  @align_content.setter
+  def align_content(self, value):
+    self.__align_content = value
+    self.style['align-content'] = value
+
+  @property
+  def grow(self):
+    return self.__grow
+  @grow.setter
+  def grow(self, value):
+    self.__grow = value
+    self.style['flex-grow'] = value
+
+  def __repr__(self):
+    return "{" + f"'flat': {repr(self.flat)}, 'color': {repr(self.color)}, 'padding': {repr(self.padding)}, 'elevation': {repr(self.elevation)}, 'flow': {repr(self.flow)}, 'justify': {repr(self.justify)}, 'align_items': {repr(self.align_items)}, 'align_content': {repr(self.align_content)}" + "}"
+
+class Textbox(TEXTAREA, Flex):
+  def __init__(self, *l, placeholder='', name='', **kw):
+    Flex.__init__(self, *l, **kw)
+    
+    self.setAttribute('placeholder', placeholder)
+    self.setAttribute('name', name)
+
+    self.style['border-bottom'] = f'solid 2px rgba{tint(*(0, 0, 128, 1), self.opacities[6])}'
+
+    self.base_elevation = kw.get('elevation', 0)
+
+    self.bind('mouseenter', lambda ev: setattr(self, 'elevation', self.base_elevation + 2))
+    self.bind('mouseleave', lambda ev: setattr(self, 'elevation', self.base_elevation))
+
+    self.bind('focus', lambda ev: setattr(self, 'elevation', self.base_elevation + 2))
+    self.bind('blur', lambda ev: setattr(self, 'elevation', self.base_elevation))
+
+class Input(INPUT, Flex):
+  def __init__(self, text='', placeholder='', _list='', name='', _type='', force_list=False, *l, **kw):
+    Flex.__init__(self, *l, **kw)
+    
+    self.setAttribute('value', text)
+    self.setAttribute('placeholder', placeholder)
+    self.setAttribute('name', name)
+    self.setAttribute('type', _type)
+    self.setAttribute('list', _list)
+    self._list = _list
+    self.placeholder = placeholder
+
+    if not kw.get('flat', False):
+      self.style['border-bottom'] = f'solid 2px rgba{tint(*(0, 0, 128, 1), self.opacities[6])}'
+
+    self.base_elevation = kw.get('elevation', 0)
+
+    self.bind('mouseenter', lambda ev: setattr(self, 'elevation', self.base_elevation + 2))
+    self.bind('mouseleave', lambda ev: setattr(self, 'elevation', self.base_elevation))
+
+    self.bind('focus', lambda ev: setattr(self, 'elevation', self.base_elevation + 2))
+    self.bind('blur', lambda ev: setattr(self, 'elevation', self.base_elevation))
+
+    if force_list:
+      def erase(ev):
+        if self.value:
+          self.placeholder = self.value
+        self.value = ''
+      def force(ev):
+        dataset = doc.querySelector(f'#{self._list}').possibilities
+        if not self.value:
+          if self.placeholder in dataset:
+            self.value = self.placeholder
+          else:
+            self.value = dataset[0]
+        else:
+          for opt in dataset:
+            if self.value in opt:
+              self.value = opt
+              break
+          else:
+            self.value = dataset[0]
+      self.bind('focus', erase)
+      self.bind('click', erase)
+      self.bind('blur', force)
+      force(None)
+
+  @property
+  def placeholder(self):
+    return self.__placeholder
+  @placeholder.setter
+  def placeholder(self, value):
+    self.__placeholder = value
+    self.setAttribute('placeholder', value)
+
+class InputOptions(DATALIST):
+  def __init__(self, possibilities, *l, **kw):
+    self.possibilities = possibilities
+    super().__init__(*l, **kw)
+    self.update()
+
+  def update(self):
+    self.clear()
+    for opt in self.possibilities:
+      self <= OPTION(value=opt)
+
+  def __repr__(self):
+    return "{" + f"'possibilities': {repr(self.possibilities)}" + "}"
+
+class Edge(Flex):
+  def __init__(self, *l, **kw):
+    super().__init__(*l, **kw, padding='0px')
+    self.style['border-radius'] = '0px'
+    self.style['margin'] = '0px'
+
+class Menu(Flex):
+  def __init__(self, *l, **kw):
+    super().__init__(*l, **kw, elevation=8, flow='column wrap')
+    self.style['width'] = '300px'
+
+class Card(Flex):
+  pass
+
+class Button(Flex):
+  def __init__(self, *l, elevation=0, flat=False, raised=False, **kw):
+    if raised:
+      elevation = 2
+    else:
+      flat = True
+
+    super().__init__(*l, elevation=elevation, flat=flat, tabindex=0, **kw)
+
+    self.base_elevation = elevation
+
+    self.bind('mouseenter', lambda ev: setattr(self, 'elevation', self.base_elevation + 6))
+    self.bind('mouseleave', lambda ev: setattr(self, 'elevation', self.base_elevation))
+    self.bind('focus', lambda ev: setattr(self, 'elevation', self.base_elevation + 6))
+    self.bind('blur', lambda ev: setattr(self, 'elevation', self.base_elevation))
+    self.bind('keyup', self.on_enter)
+    
+  def on_enter(self, ev):
+    if ev.keyCode in (13, 32):
+      ev.preventDefault()
+      self.click()
+      
+
+class Fab(Button):
+  def __init__(self, icon, *l, **kw):
+    super().__init__(Icon(icon), elevation=6, raised=True, *l, **kw)
+    self.style['padding'] = '18px'
+    self.style['border-radius'] = '50%'
+    self.icon = icon
+
+  @property
+  def icon(self):
+    return self.__icon
+  @icon.setter
+  def icon(self, value):
+    self.__icon = value
+    self.children[0].icon = value
+
+  def __repr__(self):
+    return "{" + f"'icon': {repr(self.icon)}" + "}"
+
+class Snack(Card):
+  def __init__(self, *l, delay=5, **kw):
+    self.delay = delay
+    super().__init__(*l, **kw, elevation=6)
+    self.style['width'] = '100%'
+    self.style['border-radius'] = '0px'
+    self.style['position'] = 'fixed'
+    self.style['margin'] = '0px'
+
+  def show(self):
+    self.style['bottom'] = 0
+
+  def hide(self):
+    self.style['bottom'] = -getdim(self).height
+
+  def __repr__(self):
+    return "{" + f"'delay': {repr(self.delay)}" + "}"
+
+class Icon(I):
+  def __init__(self, icon, *l, **kw):
+    super().__init__(Class='material-icons', *l, **kw)
+    self.icon = icon
+
+  @property
+  def icon(self):
+    return self.__icon
+  @icon.setter
+  def icon(self, value):
+    self.__icon = value
+    self.innerHTML = value
+
+  def __repr__(self):
+    return "{" + f"'icon': {repr(self.icon)}" + "}"
 
 async def main():
   res = await aio.gather(snackbar())
