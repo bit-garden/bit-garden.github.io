@@ -81,8 +81,8 @@ def g_resize(self):
   gmap(self, 1, 2, doc['Householdbox'])
   gmap(self, 0, 3, doc['State'])
   gmap(self, 1, 3, doc['Statesbox'])
-  gmap(self, 2, 0, doc['Frequency'])
-  gmap(self, 2, 1, doc['Frequencybox'])
+  gmap(self, 0, 0, doc['Frequency'])
+  gmap(self, 1, 0, doc['Frequencybox'])
 
   gmap(self, 2, 3, doc['Calculate'])
   gmap(self, 2, 2, doc['Reset'])
@@ -90,27 +90,28 @@ def g_resize(self):
 async def ui():
   global g
 
-  g = Gridman(rows=[64]*4, cols=[150, 300, 150])
+  g = Gridman(rows=[64]*4, cols=[150, 300, 64])
 
   labels = ['Income', 'Household', 'State', 'Frequency']
   doc <= InputOptions(['Other', 'Alaska', 'Hawaii'], Id='states')
   doc <= InputOptions(['Weekly', 'Monthly', 'Yearly'], Id='frequencies')
 
   for label in labels:
-    doc <= Space(Flex(label), Id=label)
+    doc <= Space(Label(label), Id=label)
 
+  doc <= Space(Input(_list='frequencies', force_list=True), Id='Frequencybox')
   doc <= Space(Input(), Id='Incomebox')
   doc <= Space(Input(), Id='Householdbox')
   doc <= Space(Input(_list='states', force_list=True), Id='Statesbox')
-  doc <= Space(Input(_list='frequencies', force_list=True), Id='Frequencybox')
 
-  doc <= Space(Button('Calculate'), Id='Calculate')
-  doc <= Space(Button('Reset'), Id='Reset')
+  doc <= Space(Button(Icon('clear'), raised=True, color=(64, 32, 32, 1)), Id='Reset')
+  doc <= Space(Button(Icon('play_arrow'), raised=True, color=(32, 64, 32, 1)), Id='Calculate')
 
 
 
   g.bind(update=g_resize)
   on_resize(g)
+
 
 
   
@@ -340,7 +341,7 @@ class Input(INPUT, Flex):
     self.placeholder = placeholder
 
     if not kw.get('flat', False):
-      self.style['border-bottom'] = f'solid 2px rgba{tint(*(0, 0, 128, 1), self.opacities[6])}'
+      self.style['border-bottom'] = f'solid 2px rgba{tint(*(32, 32, 128, 1), self.opacities[6])}'
 
     self.base_elevation = kw.get('elevation', 0)
 
@@ -364,7 +365,7 @@ class Input(INPUT, Flex):
             self.value = dataset[0]
         else:
           for opt in dataset:
-            if self.value in opt:
+            if self.value.lower() in opt.lower():
               self.value = opt
               break
           else:
@@ -410,14 +411,25 @@ class Menu(Flex):
 class Card(Flex):
   pass
 
+class Label(Card):
+  def __init__(self, *l, flow='column', justify='center', **kw):
+    super().__init__(*l, flow=flow, justify=justify, **kw)
+
 class Button(Flex):
-  def __init__(self, *l, elevation=0, flat=False, raised=False, **kw):
+  def __init__(self, *l, elevation=0, flat=False, raised=False, flow='column', justify='center', align_items='center', **kw):
     if raised:
       elevation = 2
     else:
       flat = True
 
-    super().__init__(*l, elevation=elevation, flat=flat, tabindex=0, **kw)
+    super().__init__(*l,
+         elevation=elevation,
+         flat=flat,
+         tabindex=0,
+         justify=justify,
+         flow=flow,
+         align_items=align_items,
+         **kw)
 
     self.base_elevation = elevation
 
