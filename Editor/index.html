@@ -2231,7 +2231,17 @@ class Icon(I):
   def __repr__(self):
     return "{" + f"'icon': {repr(self.icon)}" + "}"
     
+def gmap(grid, x, y, obj, width=0, height=0):
+  obj.top = grid.cells[x][y].topleft.y
+  obj.left = grid.cells[x][y].topleft.x
+
+  obj.width = grid.cells[x+height][y+width].bottomright.x - obj.left
+  obj.height = grid.cells[x+height][y+width].bottomright.y - obj.top
+
 class Point:
+
+  __slots__ = 'x', 'y'
+
   def __init__(self, x=0, y=0):
     self.x = round(x)
     self.y = round(y)
@@ -2241,6 +2251,9 @@ class Point:
     
 
 class Cell:
+
+  __slots__ = '_Cell__topleft', '_Cell__bottomright', 'width', 'height', 'center', 'bottomleft', 'topright'
+
   def __init__(self, topleft={'x': 0, 'y': 0}, bottomright={'x': 0, 'y': 0}):
     self.__topleft = Point()
     self.__bottomright = Point()
@@ -2274,18 +2287,21 @@ class Cell:
   def __repr__(self):
     return "{" + f"'bottomright': {repr(self.bottomright)}, 'bottomleft': {repr(self.bottomleft)}, 'topright': {repr(self.topright)}, 'topleft': {repr(self.topleft)}, 'width': {repr(self.width)}, 'height': {repr(self.height)}, 'center': {repr(self.center)}" + "}"
     
-def gmap(grid, col, row, obj, width=0, height=0):
-  if col < 0:
-    col += len(grid.cols)
-  if row < 0:
-    row += len(grid.rows)
-  obj.top = grid.cells[row][col].topleft.y
-  obj.left = grid.cells[row][col].topleft.x
-
-  obj.width = grid.cells[row+height][col+width].bottomright.x - obj.left
-  obj.height = grid.cells[row+height][col+width].bottomright.y - obj.top
+#def gmap(grid, col, row, obj, width=0, height=0):
+#  if col < 0:
+#    col += len(grid.cols)
+#  if row < 0:
+#    row += len(grid.rows)
+#  obj.top = grid.cells[row][col].topleft.y
+#  obj.left = grid.cells[row][col].topleft.x
+#
+#  obj.width = grid.cells[row+height][col+width].bottomright.x - obj.left
+#  obj.height = grid.cells[row+height][col+width].bottomright.y - obj.top
     
 class Gridman:
+
+  __slots__ = 'cols', 'rows', 'width', 'height', 'left', 'top', '_cbs', 'cells'
+
   def __init__(self, cols=[], rows=[], width=0, height=0, left=0, top=0):
     self.cols = cols
     self.rows = rows
@@ -2300,9 +2316,9 @@ class Gridman:
     
   def update(self):
     self.cells.clear()
-    self.cells.extend(list() for i in range(len(self.rows)))
-    for row in self.cells:
-      row.extend(Cell() for i in range(len(self.cols)))
+    self.cells.extend(list() for i in range(len(self.cols)))
+    for col in self.cells:
+      col.extend(Cell() for i in range(len(self.rows)))
       
     widths = []
     for col in self.cols:
@@ -2352,8 +2368,8 @@ class Gridman:
       
     for ci, col in enumerate(lefts[:-1]):
       for ri, row in enumerate(tops[:-1]):
-        self.cells[ri][ci].topleft = Point(col, row)
-        self.cells[ri][ci].bottomright = Point(lefts[ci+1], tops[ri+1])
+        self.cells[ci][ri].topleft = Point(col, row)
+        self.cells[ci][ri].bottomright = Point(lefts[ci+1], tops[ri+1])
     self.dispatch('update')
         
   def bind(self, **kwargs):
@@ -2375,80 +2391,8 @@ class Gridman:
       for cb in self._cbs[prop]:
         cb(self, *l, **kw)
 
-  @property
-  def cols(self):
-    return self._cols
-  @cols.setter
-  def cols(self, value):
-    if not hasattr(self, "_cols"): self._cols = value
-    oldval = self._cols
-    self._cols = value
-    if oldval != value: 
-      self.dispatch("cols", oldval, value)
-      self.update()
-
-  @property
-  def rows(self):
-    return self._rows
-  @rows.setter
-  def rows(self, value):
-    if not hasattr(self, "_rows"): self._rows = value
-    oldval = self._rows
-    self._rows = value
-    if oldval != value: 
-      self.dispatch("rows", oldval, value)
-      self.update()
-
-  @property
-  def width(self):
-    return self._width
-  @width.setter
-  def width(self, value):
-    if not hasattr(self, "_width"): self._width = value
-    oldval = self._width
-    self._width = value
-    if oldval != value: 
-      self.dispatch("width", oldval, value)
-      self.update()
-
-  @property
-  def height(self):
-    return self._height
-  @height.setter
-  def height(self, value):
-    if not hasattr(self, "_height"): self._height = value
-    oldval = self._height
-    self._height = value
-    if oldval != value: 
-      self.dispatch("height", oldval, value)
-      self.update()
-
-  @property
-  def left(self):
-    return self._left
-  @left.setter
-  def left(self, value):
-    if not hasattr(self, "_left"): self._left = value
-    oldval = self._left
-    self._left = value
-    if oldval != value: 
-      self.dispatch("left", oldval, value)
-      self.update()
-
-  @property
-  def top(self):
-    return self._top
-  @top.setter
-  def top(self, value):
-    if not hasattr(self, "_top"): self._top = value
-    oldval = self._top
-    self._top = value
-    if oldval != value: 
-      self.dispatch("top", oldval, value)
-      self.update()
-
   def __repr__(self):
-    return "{" + f"'objs': {repr(self.objs)}, 'cols': {repr(self.cols)}, 'rows': {repr(self.rows)}, 'width': {repr(self.width)}, 'height': {repr(self.height)}, 'left': {repr(self.left)}, 'top': {repr(self.top)}, 'invert_y': {repr(self.invert_y)}" + "}"
+    return "{" + f"'cols': {repr(self.cols)}, 'rows': {repr(self.rows)}, 'width': {repr(self.width)}, 'height': {repr(self.height)}, 'left': {repr(self.left)}, 'top': {repr(self.top)}" + "}"
 
 async def main():
   res = await aio.gather(snackbar())
