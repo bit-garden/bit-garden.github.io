@@ -654,16 +654,6 @@ class Semaphore:
     
 aio.Semaphore = Semaphore
 
-
-# usefull for binding multiple buttons
-def parents_of(_tar):
-  parents = []
-  base = _tar
-  while(base):
-    parents.append(base)
-    base = base.parentNode
-    
-  return parents
   
 class Dimension:
   def __init__(self, bottom, height, left, right, top, width):
