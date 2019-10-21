@@ -93,13 +93,13 @@ def g_resize(self):
 async def ui():
   global g
 
-  g = Gridman(rows=[64, 'fill'], cols=[64, 236, 'fill', 172, 64, 64])
+  g = Gridman(rows=[56, 'fill'], cols=[56, 244, 'fill', 188, 56, 56])
 
 
   doc <= Space(Edge(Id='posts', flow='column nowrap'), Id='post_space')
 
   doc <= Space(Edge(elevation=4), Id='action_bar')
-  doc <= Space(IMG(src='rabbit.png', width=48, height=48), Id='icon')
+  doc <= Space(IMG(src='rabbit.png', width=40, height=40), Id='icon')
   doc <= Space(Label('Bit Garden', style={'font-size': '24px'}, padding='0px'), Id='title')
 
   doc <= Space(Button(Icon('person')), Id='about_me')
@@ -108,11 +108,14 @@ async def ui():
   g.bind(update=g_resize)
   on_resize(g)
 
+  class Post(Card):
+    def __init__(self, title, date, content):
+      super().__init__(Label(title, grow=0, padding='0px', style={'font-size': '24px'}) 
+                          + Edge(content, flat=True)
+                          + Edge(date, flat=True, grow=0, justify='flex-end'), elevation=2, flow='column nowrap', style={'min-height': '300px'})
 
-  doc['posts'] <= Card(Label('Post header', grow=0, padding='0px', style={'font-size': '24px'}) 
-                        + Edge('Post smosw sksksksks skssksmsk', flat=True)
-                        + Edge('date', flat=True, grow=0, justify='flex-end')
-                    , elevation=2, flow='column nowrap', style={'min-height': '300px'})
+
+  doc['posts'] <= Post('Hello world', '10/20/2019', 'This is a test post')
 
   with UIEvent(doc['about_me'], 'click') as am,\
        UIEvent(doc['more'], 'click') as mb:
@@ -120,7 +123,7 @@ async def ui():
       while not any([mb, am]):
         await aio.sleep(0)
       if am:
-        await popup(Card('Hello world', elevation=24))
+        await popup(Card('I haven\' finished this bit yet.', elevation=24))
 
       am.clear()
       mb.clear()
