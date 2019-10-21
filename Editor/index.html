@@ -805,35 +805,6 @@ async def gather(*coros, rate=0):
 aio.gather = gather
 aio.Task = Task
 
-aio.cancel = window.CustomEvent.new('cancel')
-
-async def select_event(el, events):
-  events += ' cancel'
-
-  def on_event(ev):
-    event['triggered'] = ev
-    for e in event['events'].split(' '):
-      el.unbind(e, event['on_event'])
-
-  event = {'events': events,
-            'triggered': None, # Should be the event that fires when done
-            'on_event': on_event}
-  
-  for e in events.split(' '):
-    el.bind(e, on_event)
-
-  while event['triggered'] is None:
-    await aio.sleep(0)
-    
-  return event['triggered']
-    
-def cancel_event(el):
-  el.dispatchEvent(aio.cancel)
-
-aio.select_event = select_event
-aio.cancel_event = cancel_event
-
-  
 class Dimension:
   def __init__(self, bottom, height, left, right, top, width):
     self.bottom = bottom
@@ -1596,245 +1567,66 @@ window.CodeMirror.Vim.defineEx("align_by_equals", None, run_align_by_equals)
 
 #--- async stuff
     
-snacks = []
-async def snackbar():
-  while True:
-    while snacks:
-      val = snacks.pop(0)
-      doc <= val
-      val.hide()
-
-      await aio.sleep(.05)
-
-      val.show()
-      await aio.sleep(val.delay + .3)
-
-      val.hide()
-
-      await aio.sleep(.3)
-
-      val.remove()
-      
-    await aio.sleep(0)
-
 
 class Popup:
+  lock = aio.Lock()
+
   def __init__(self, _root):
     self._root = _root
-    self.frame = DIV(Class='darken', style={
+    self.frame = DIV(Class='darken', Id='popupbg', style={
       'background': 'rgba(0, 0, 0, 0)',
-      'transition': 'background .4s',
+      'transition': 'background .3s',
       'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
       'width': '100%',
       'height': '100%',
       'position': 'fixed',
       'top': '0px',
       'left': '0px',
-      'z-index': '1'
+      'z-index': '1',
     })
 
     self.box = DIV(style={
-      'position': 'absolute',
-      #'left': '12.5%',
-      #'top': '25%',
+      'position': 'fixed',
       'opacity': 0,
-      #'width': '75%',
-      #'height': '75%',
-      'margin': '-16px',
-      'transition': 'opacity .4s, top .4s',
+      'transition': 'opacity .3s, top .3s',
       'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
       'border': 'none',
-      #'padding': '12px 18px',
-      'font-size': '16px',
-      'cursor': 'default',
       'color': 'white',
-      #'background-color': '#282828',
-      'outline': 'none'
+      'outline': 'none',
+      'z-index': '1',
+      'max-height': '100%',
+      'max-width': '100%',
     })
 
-    self.frame <= self.box
-    center(self.box)
-    self.box.top += 250
-    
-  async def _background(self):
-    # to allow clicks within the popup
-    while True:
-      ev = await aio.select_event(self.frame, 'click')
-      if ev.type == 'cancel' or ev.target == self.frame:
-        break
-        
-    # Try to break all awaiting UI.
-    for el in self.box.querySelectorAll('*'):
-      aio.cancel_event(el)
-      
-    self.frame.style['background'] = 'rgba(0, 0, 0, 0)'
-    self.box.style['opacity'] = 0
-    #self.box.style['top'] = '25%'
-    self.box.top += 250
-    await aio.sleep(.4)
-
-    self.frame.remove()
-    
   async def __aenter__(self):
+    await self.lock.acquire()
     self._root <= self.frame
+    self._root <= self.box
 
     await aio.sleep(.05)
     self.frame.style['background'] = 'rgba(0, 0, 0, .5)'
     self.box.style['opacity'] = 1
-    #self.box.style['top'] = '12.5%'
-    self.box.top -= 250
-
-    aio.run(self._background())
     
     return self.box
     
   async def __aexit__(self, type, value, traceback):
-    aio.cancel_event(self.frame)
-    
+    self.frame.style['background'] = 'rgba(0, 0, 0, 0)'
+    self.box.style['opacity'] = 0
+    await aio.sleep(.4)
+
+    self.frame.remove()
+    self.box.remove()
+    self.lock.release()
+
 async def popup(content):
-  frame = DIV(Class='darken', style={
-      'background': 'rgba(0, 0, 0, 0)',
-      'transition': 'background .4s',
-      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-      'width': '100%',
-      'height': '100%',
-      'position': 'fixed',
-      'top': '0px',
-      'left': '0px',
-      'z-index': '1'
-    })
-
-  box = DIV(content, style={
-      'position': 'absolute',
-      #'left': '12.5%',
-      #'top': '25%',
-      'opacity': 0,
-      #'width': '75%',
-      #'height': '75%',
-      'margin': '-16px',
-      'transition': 'opacity .4s, top .4s',
-      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-      'border': 'none',
-      #'padding': '12px 18px',
-      'font-size': '16px',
-      'cursor': 'default',
-      'color': 'white',
-      #'background-color': '#282828',
-      'outline': 'none'
-    })
-
-  frame <= box
-
-  doc <= frame
-  center(box)
-  box.top += 250
-
-  await aio.sleep(.05)
-  frame.style['background'] = 'rgba(0, 0, 0, .5)'
-  box.style['opacity'] = 1
-  box.top -= 250
-
-  # to allow clicks within the popup
-  while True:
-    ev = await aio.select_event(frame, 'click')
-    if ev.type == 'cancel' or ev.target == frame:
-      break
-
-  # Try to break all awaiting UI.
-  for el in box.querySelectorAll('*'):
-    aio.cancel_event(el)
-
-  frame.style['background'] = 'rgba(0, 0, 0, 0)'
-  box.style['opacity'] = 0
-  box.top += 250
-  await aio.sleep(.4)
-
-  frame.remove()
+  async with Popup(doc) as p:
+    p <= content
+    center(p)
+    with UIEvent(doc['popupbg'], 'click') as pbg:
+      while not pbg:
+        await aio.sleep(0)
 
     
-# General with El that you can be used like with Popup
-class El:
-  def __init__(self, _root, el):
-    self._root = _root
-    self.el = el
-        
-  async def _background(self):
-    # to allow clicks within the popup
-    while True:
-      ev = await aio.select_event(self.el, '')
-      if ev.type == 'cancel':
-        break
-        
-    # Try to break all awaiting UI.
-    for el in self.el.querySelectorAll('*'):
-      aio.cancel_event(el)
-
-    self.el.remove()
-    
-  def __enter__(self):
-    self._root <= self.el
-
-    aio.run(self._background())
-    
-    return self.el
-    
-  def __exit__(self, type, value, traceback):
-    aio.cancel_event(self.el)
-
-# Needs to be fixed
-async def keybind():
-  muted_events = ['Meta', 'Shift', 'Control', 'Alt']
-  
-  aio.cancel_event(doc)
-  ev = await aio.select_event(doc, 'keyup keydown')
-  while ev.type != 'cancel':
-    ctrl = ev.getModifierState('Control')
-    alt = ev.getModifierState('Alt')
-    shift = ev.getModifierState('Shift')
-
-    if ev.key not in muted_events and type(ev.target) not in (TEXTAREA, INPUT):
-      if ev.type == 'keyup':
-        #print(f'key up {ev.key}')
-        pass
-      elif ev.type == 'keydown':
-        #print(f'key down {ev.key}')
-        if ev.key == 'Escape':	
-          tar = doc.querySelectorAll('.darken')
-          if len(tar):
-            aio.cancel_event(tar[-1])#def on_down(ev):
-    if ev.key not in muted_events:
-      if ev.type == 'keyup':
-        #print(f'key up {ev.key}')
-        pass
-      elif ev.type == 'keydown':
-        if ev.which == 37 and ctrl:
-          if not cm_editbox.state.vim.insertMode:
-            ev.preventDefault()
-            ev.stopPropagation()
-            #cm_editbox.setOption('lineNumbers', False)
-            cm_editbox.setOption('lineWrapping', True)
-            cm_editbox.setOption('readOnly', True)
-        if ev.which == 39 and ctrl:
-          if not cm_editbox.state.vim.insertMode:
-            ev.preventDefault()
-            ev.stopPropagation()
-            #cm_editbox.setOption('lineNumbers', True)
-            cm_editbox.setOption('lineWrapping', False)
-            cm_editbox.setOption('readOnly', False)
-        if chr(ev.which)=='G' and ctrl:
-          ev.preventDefault()
-          ev.stopPropagation()
-          start = cm_editbox.getCursor(True).line
-          end = cm_editbox.getCursor(False).line
-          if start == end:
-            print(cm_editbox.getCursor().line + 1)
-          else:
-            diff = abs(start-end)
-            print('{}:{}({})'.format(start+1, end+1, diff+1))
-
-
-    ev = await aio.select_event(doc, 'keyup keydown')
-
 class Stagger:
   def __init__(self, base_delay, rate):
     self.delay = base_delay
@@ -2137,8 +1929,8 @@ class Card(Flex):
   pass
 
 class Label(Card):
-  def __init__(self, *l, flow='column', justify='center', **kw):
-    super().__init__(*l, flow=flow, justify=justify, **kw)
+  def __init__(self, *l, flow='column', justify='center', flat=True, **kw):
+    super().__init__(*l, flow=flow, justify=justify, flat=flat, **kw)
 
 class Button(Flex):
   def __init__(self, *l, elevation=0, flat=False, raised=False, flow='column', justify='center', align_items='center', **kw):
@@ -2188,20 +1980,33 @@ class Fab(Button):
   def __repr__(self):
     return "{" + f"'icon': {repr(self.icon)}" + "}"
 
-class Snack(Card):
+class Snack(Label):
+  lock = aio.Lock()
+
   def __init__(self, *l, delay=5, **kw):
     self.delay = delay
-    super().__init__(*l, **kw, elevation=6)
+    super().__init__(*l, **kw, elevation=6, flat=False)
     self.style['width'] = '100%'
     self.style['border-radius'] = '0px'
     self.style['position'] = 'fixed'
     self.style['margin'] = '0px'
+    self.style['bottom'] = '-48px'
+    self.style['height'] = '48px'
+    doc <= self
+    aio.run(self.show())
 
-  def show(self):
+  async def show(self):
+    await self.lock.acquire()
+    await aio.sleep(.05)
     self.style['bottom'] = 0
+    await aio.sleep(.3 + self.delay)
+    await self.hide()
 
-  def hide(self):
-    self.style['bottom'] = -getdim(self).height
+  async def hide(self):
+    self.style['bottom'] = '-48px'
+    await aio.sleep(.3)
+    self.remove()
+    self.lock.release()
 
   def __repr__(self):
     return "{" + f"'delay': {repr(self.delay)}" + "}"
@@ -2385,10 +2190,25 @@ class Gridman:
   def __repr__(self):
     return "{" + f"'cols': {repr(self.cols)}, 'rows': {repr(self.rows)}, 'width': {repr(self.width)}, 'height': {repr(self.height)}, 'left': {repr(self.left)}, 'top': {repr(self.top)}" + "}"
 
-async def main():
-  res = await aio.gather(snackbar())
+class UIEvent:
+  def __init__(self, tar, *events):
+    self.tar = tar
+    self.events = {e: lambda ev: self.out.append(ev) for e in events}
+    self.out = []
 
-aio.run(main())
+  def __enter__(self):
+    for k, v in self.events.items():
+      self.tar.bind(k, v)
+    return self.out
+
+  def __exit__(self, *l):
+    for k, v in self.events.items():
+      self.tar.unbind(k, v)
+
+#async def main():
+#  res = await aio.gather(snackbar())
+#
+#aio.run(main())
 
 
 </script>
