@@ -75,7 +75,7 @@ from browser.html import *
 g = None
 layout = 'portrait'
 
-def g_resize(self):
+def g_resize(self, *l, **kw):
   gmap(self, doc['action_bar'], 0, 0, -1)
   gmap(self, doc['icon'], 0, 0)
   doc['icon'].top += 8
@@ -93,7 +93,7 @@ def g_resize(self):
 async def ui():
   global g
 
-  g = Gridman(rows=[64, 'fill'], cols=[64, 236, 'fill', 172, 64, 64])
+  g = Gridman(rows=[64, ...], cols=[64, 236, ..., 172, 64, 64])
 
 
   doc <= Space(Edge(Id='posts', flow='column nowrap'), Id='post_space')
@@ -776,11 +776,13 @@ def gmap(grid, obj, x, y, endx=None, endy=None):
     endx = x
   if endy is None:
     endy = y
-  obj.top = grid.cells[x][y].topleft.y
-  obj.left = grid.cells[x][y].topleft.x
+  obj.left, obj.top = *grid.cells[x][y].topleft
 
-  obj.width = grid.cells[endx][endy].bottomright.x - obj.left
-  obj.height = grid.cells[endx][endy].bottomright.y - obj.top
+  obj.width, obj.height = *grid.cells[endx][endy].bottomright
+  obj.width -= obj.left
+  obj.height -= obj.top
+
+
 
 class Point:
 
@@ -789,6 +791,9 @@ class Point:
   def __init__(self, x=0, y=0):
     self.x = round(x)
     self.y = round(y)
+
+  def __iter__(self):
+    yield from (self.x, self.y)
     
   def __repr__(self):
     return "{" + f"'x': {repr(self.x)}, 'y': {repr(self.y)}" + "}"
@@ -866,18 +871,18 @@ class Gridman:
       
     widths = []
     for col in self.cols:
-      if col != 'fill':
+      if col != ...:
         if col < 1:
           widths.append(col*self.width)
         else:
           widths.append(col)
       else:
-        widths.append('fill')
+        widths.append(...)
     
-    remainder = max(0, self.width - sum(i for i in widths if i!='fill'))
+    remainder = max(0, self.width - sum(i for i in widths if i!=...))
     buffs = 0
-    if 'fill' in widths:
-      widths[widths.index('fill')] = remainder
+    if ... in widths:
+      widths[widths.index(...)] = remainder
     else:
       buffs = remainder/2
       
@@ -889,18 +894,18 @@ class Gridman:
       
     heights = []
     for row in self.rows:
-      if row != 'fill':
+      if row != ...:
         if row < 1:
           heights.append(row*self.height)
         else:
           heights.append(row)
       else:
-        heights.append('fill')
+        heights.append(...)
     
-    remainder = max(0, self.height - sum(i for i in heights if i!='fill'))
+    remainder = max(0, self.height - sum(i for i in heights if i!=...))
     buffs = 0
-    if 'fill' in heights:
-      heights[heights.index('fill')] = remainder
+    if ... in heights:
+      heights[heights.index(...)] = remainder
     else:
       buffs = remainder/2
       
@@ -930,15 +935,36 @@ class Gridman:
 
   def dispatch(self, prop, *l, **kw):
     if getattr(self, f'on_{prop}', None):
-      getattr(self, f'on_{prop}')(*l, **kw)
+      getattr(self, f'on_{prop}')(prop, *l, **kw)
     if prop in self._cbs:
       for cb in self._cbs[prop]:
-        cb(self, *l, **kw)
+        cb(self, prop, *l, **kw)
 
   def __repr__(self):
     return "{" + f"'cols': {repr(self.cols)}, 'rows': {repr(self.rows)}, 'width': {repr(self.width)}, 'height': {repr(self.height)}, 'left': {repr(self.left)}, 'top': {repr(self.top)}" + "}"
 
+class Event:
+
+  __slots__ = 'tar', 'events', 'out'
+
+  def __init__(self, tar, *events):
+    self.tar = tar
+    self.events = {e: lambda _self, *l, **kw: self.out.append((_self, l, kw)) for e in events}
+    self.out = []
+
+  def __enter__(self):
+    for k, v in self.events.items():
+      self.tar.bind(**{k: v})
+    return self.out
+
+  def __exit__(self, *l):
+    for k, v in self.events.items():
+      self.tar.unbind(**{k: v})
+    
 class UIEvent:
+
+  __slots__ = 'tar', 'events', 'out'
+
   def __init__(self, tar, *events):
     self.tar = tar
     self.events = {e: lambda ev: self.out.append(ev) for e in events}
@@ -952,6 +978,27 @@ class UIEvent:
   def __exit__(self, *l):
     for k, v in self.events.items():
       self.tar.unbind(k, v)
+      
+async def _any(_iterable):
+  'Await for any(_iterable) to be true'
+
+  while not any(_iterable):
+    await aio.sleep(0)
+
+class Any:
+  'With version of _any. Auto flushes the lists on exit'
+
+  __slots__ = '_iterable'
+
+  def __init__(self, _iterable):
+    self._iterable = _iterable
+
+  async def __aenter__(self):
+    await _any(self._iterable)
+
+  async def __aexit__(self, *l):
+    for i in self._iterable:
+      i.clear()
 
 aio.run(main())
 
