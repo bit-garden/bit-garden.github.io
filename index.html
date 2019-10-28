@@ -8,9 +8,32 @@
   src: url("lib/Roboto-Regular.ttf") format("truetype");
 }
 
+@font-face {
+  font-family: Roboto-mono;
+  src: url("lib/RobotoMono-Light.ttf") format("truetype");
+}
+
 * {
         font-family: Roboto;
         color:white;
+}
+pre, code, pre > * {
+        font-family: Roboto-mono;
+}
+
+h1, h2, h3, h4{
+  font-weight: normal;
+}
+
+
+hr { 
+  border: 0; 
+  height: 1px; 
+  background-image: -webkit-linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
+  background-image: -moz-linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
+  background-image: -ms-linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
+  background-image: -o-linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
+  background-image: linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
 }
 
 @font-face {
@@ -60,7 +83,24 @@ input::-webkit-calendar-picker-indicator {
     background: transparent;  /* Optional: just make scrollbar invisible */
 }
 </style>
-<body onload="brython({indexedDB: false})"></body>
+
+<body onload="brython({indexedDB: false})"><pre>
+Bit Garden
+================================================================================
+
+Restarting again x.x - 19/10/27 <a name='restarting-again'></a>
+---
+
+Restarting with Markdown. Hopefully this will be _much_ easier to maintain than 
+my last endeavours.
+
+About Me
+================================================================================
+
+I haven't finished this bit yet.
+
+</pre></body>
+
 <script src="lib/brython_aio.js"></script>
 <script type="text/python">
 from browser import document as doc
@@ -70,6 +110,8 @@ from browser.html import *
 # storage is like dictionary
 #from browser.local_storage import storage
 
+# markdown.mark -> (html, (scripts, ...))
+from browser import markdown
 
 
 g = None
@@ -96,7 +138,7 @@ async def ui():
   g = Gridman(rows=[56, ...], cols=[56, 244, ..., 188, 56, 56])
 
 
-  doc <= Space(Edge(Id='posts', flow='column nowrap'), Id='post_space')
+  doc <= Space(Edge(Id='posts', flow='column nowrap', marked=True), Id='post_space')
 
   doc <= Space(Edge(elevation=4), Id='action_bar')
   doc <= Space(IMG(src='rabbit.png', width=40, height=40), Id='icon')
@@ -108,21 +150,24 @@ async def ui():
   g.bind(update=g_resize)
   on_resize(g)
 
-  class Post(Card):
-    def __init__(self, title, date, content):
-      super().__init__(Label(title, grow=0, style={'font-size': '24px'}) 
-                          + Edge(content, flat=True)
-                          + Edge(date, flat=True, grow=0, justify='flex-end'), elevation=1, flow='column nowrap', style={'min-height': '300px'})
+  page = doc.querySelector('body > pre').innerHTML
+  doc.querySelector('body > pre').remove()
 
+  page = page.split('='*80)
+  _pages = {}
+  for idx, i in enumerate(page):
+    if idx == 0:
+      continue
+    _pages[page[idx-1].splitlines()[-1]] = markdown.mark('\n'.join(i.splitlines()[:-1]))[0]
 
-  doc['posts'] <= Post('Hello world', '10/20/2019', 'This is a test post')
+  doc['posts'] <= Card(_pages['Bit Garden'], marked=True, elevation=1, grow=0)
 
   with UIEvent(doc['about_me'], 'click') as am,\
        UIEvent(doc['more'], 'click') as mb:
     while True:
       async with Any([mb, am]):
         if am:
-          await popup(Card('I haven\'t finished this bit yet.', elevation=24))
+          await popup(Card(_pages['About Me'], elevation=24, style={'display': 'block'}))
 
 
 
@@ -176,7 +221,7 @@ class Flex(DIV):
               16: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.20)',
               24: '0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20)',}
 
-  def __init__(self, *l, color=(18, 18, 18, 1), padding='12px 18px', elevation=0, flow='row wrap', justify='flex-start', align_items='stretch', align_content='stretch', grow=1, flat=False, style={}, **kw):
+  def __init__(self, *l, color=(18, 18, 18, 1), padding='12px 18px', elevation=0, flow='row wrap', justify='flex-start', align_items='stretch', align_content='stretch', grow=1, flat=False, style={}, marked=False, **kw):
     base_style = {
       #'position': 'absolute',
       'border': 'none',
@@ -187,7 +232,7 @@ class Flex(DIV):
       'color': 'white',
       'outline': 'none',
       #'background': f'rgba{color}',
-      'display': 'flex',
+      'display': 'flex' if not marked else 'block',
       'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
       'transition': 'all 0.3s',
       'box-sizing': 'border-box',
