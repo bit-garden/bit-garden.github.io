@@ -15,7 +15,6 @@
 
 * {
         font-family: Roboto;
-        color:white;
 }
 pre, code, pre > * {
         font-family: Roboto-mono;
@@ -29,11 +28,11 @@ h1, h2, h3, h4{
 hr { 
   border: 0; 
   height: 1px; 
-  background-image: -webkit-linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
-  background-image: -moz-linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
-  background-image: -ms-linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
-  background-image: -o-linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
-  background-image: linear-gradient(left, rgba(255, 255, 255, 0), rgba(255, 255, 255, .32), rgba(255, 255, 255, 0));
+  background-image: -webkit-linear-gradient(left, rgba(0, 0, 0, 0), rgba(0, 0, 0, .32), rgba(0, 0, 0, 0));
+  background-image: -moz-linear-gradient(left, rgba(0, 0, 0, 0), rgba(0, 0, 0, .32), rgba(0, 0, 0, 0));
+  background-image: -ms-linear-gradient(left, rgba(0, 0, 0, 0), rgba(0, 0, 0, .32), rgba(0, 0, 0, 0));
+  background-image: -o-linear-gradient(left, rgba(0, 0, 0, 0), rgba(0, 0, 0, .32), rgba(0, 0, 0, 0));
+  background-image: linear-gradient(left, rgba(0, 0, 0, 0), rgba(0, 0, 0, .32), rgba(0, 0, 0, 0));
 }
 
 @font-face {
@@ -69,7 +68,7 @@ hr {
 }
 
 body{
-  background:#121212;
+  background:#ffffff;
   padding:0px;
   margin:0px;
 }
@@ -82,14 +81,118 @@ input::-webkit-calendar-picker-indicator {
     width: 0px;  /* Remove scrollbar space */
     background: transparent;  /* Optional: just make scrollbar invisible */
 }
+
+a { color: inherit}
 </style>
 
 <body onload="brython({indexedDB: false})"><pre>
 Bit Garden
 ================================================================================
 
-Restarting again x.x - 19/10/27 <a name='restarting-again'></a>
+Practical async in Python UI  - 19/11/02 <a name='practical-async'></a>
+----------------------------------------
+
+Async has a lot of hype, but there are some blank spots in terms of usability.
+One spot that I find could use some help is async with UI elements.
+
+[Brython](https://brython.info) has an implementation of html functions that 
+feel pythonic as well as some basic async ways of waiting for events. While 
+this is a good start, it has some limitations like waiting for a specific 
+element to fire it's event, but only that element and not being cancellable.
+
+[Kivy](https://kivy.org) has recently made the step into the async world, but
+also seems to lack the async events to working with UI elements.
+
+Async event handling can sometimes provide a more natural flow to how the code 
+is read.
+
 ---
+
+Enter `with` and `async`
+---
+
+Let's take an example of a number guessing game. You would make 
+an input of some sort, wait for the person to make a guess, then reply of they 
+guessed correctly.
+
+Traditionally you would make textbox and a button to submit. The button would
+be bound to a function and that function would be called when clicked.
+
+```
+# python 3.8 (click to run)
+import random
+
+def on_click(ev):
+  picked_num = str(random.randint(1, 10))
+  if guess.text == str(random.randint(1, 10)):
+    snack('You won!')
+  else:
+    snack(f'You lost :( I picked {picked_num}')
+
+p = card((guess := textbox(placeholder='Guess 1-10', multiline=False))
+          + (guess_button := button(icon('play_arrow'), 
+                                    color=(32, 96, 32, 1), 
+                                    raised=True)))
+
+guess_button.bind('click', on_click)
+
+await popup(p)
+```
+
+This works but doesn't read naturally. `Make function on_click. Make texbox.`
+`Make button. Bind button click to on_click.`
+
+This could be redone in a more straight forward fashion with async and a 
+context manager to handle the binding and unbinding.
+
+```
+tb = textbox(placeholder='Make a guess')
+submit = button('Submit')
+
+with UIEventStream([submit, 'click']) as stream:
+  await _any(stream)
+
+  # check guess
+```
+
+Now we aren't making once off functions and it flows top to bottom instead of
+jumping to another spot logically.
+
+In this case `UIEventStream` just does binding and unbinding in the background
+and doesn't actually invent the wheel, but allows the events to be streamed
+inline and manipulated(like throttle or debouncing).
+
+---
+
+Here's the result.
+
+```
+# python 3.8 (click to run)
+import random
+from browser import aio
+
+async with Popup(doc) as p:
+  p <= card((guess := textbox(placeholder='Guess 1-10', multiline=False))
+            + (guess_button := button(icon('play_arrow'), 
+                                      color=(32, 96, 32, 1), 
+                                      raised=True)))
+
+  center(p)
+  with UIEventStream([guess_button, 'click']) as stream:
+    await _any(stream)
+    picked_num = str(random.randint(1, 10))
+    if guess.text == str(random.randint(1, 10)):
+      snack('You won!')
+    else:
+      snack(f'You lost :( I picked {picked_num}')
+```
+      
+
+
+--------------------------------------------------------------------------------
+
+Restarting again x.x - 19/10/27 <a name='restarting-again'></a>
+-------------------------------
 
 Restarting with Markdown. Hopefully this will be _much_ easier to maintain than 
 my last endeavours.
@@ -114,438 +217,102 @@ from browser.html import *
 from browser import markdown
 
 
-g = None
-layout = 'portrait'
-
-def g_resize(self, *l, **kw):
-  gmap(self, doc['action_bar'], 0, 0, -1)
-  gmap(self, doc['icon'], 0, 0)
-  doc['icon'].top += 8
-  doc['icon'].left += 8
-
-  gmap(self, doc['title'], 1, 0, 3)
-  gmap(self, doc['about_me'], -2, 0)
-  gmap(self, doc['more'], -1, 0)
-  if layout == 'landscape':
-    gmap(self, doc['post_space'], 2, -1)
-  else:
-    gmap(self, doc['post_space'], 0, -1, -1)
-    
-
 async def ui():
-  global g
+  doc <= space(edge(Id='posts', flow='column nowrap', marked=True), Id='post_space')
 
-  g = Gridman(rows=[56, ...], cols=[56, 244, ..., 188, 56, 56])
+  doc <= space(action_bar := edge(elevation=0, flat=False), Id='action_bar')
+  doc <= space(IMG(src='rabbit.png', width=40, height=40), Id='icon')
+  doc <= space(label('Bit Garden', style={'font-size': '24px'}, padding='0px'), Id='title')
 
+  doc <= space(about_me := button(icon('person')), Id='about_me')
+  doc <= space(more := button(icon('more_vert')), Id='more')
 
-  doc <= Space(Edge(Id='posts', flow='column nowrap', marked=True), Id='post_space')
-
-  doc <= Space(Edge(elevation=4), Id='action_bar')
-  doc <= Space(IMG(src='rabbit.png', width=40, height=40), Id='icon')
-  doc <= Space(Label('Bit Garden', style={'font-size': '24px'}, padding='0px'), Id='title')
-
-  doc <= Space(Button(Icon('person')), Id='about_me')
-  doc <= Space(Button(Icon('more_vert')), Id='more')
-
-  g.bind(update=g_resize)
-  on_resize(g)
+  
 
   page = doc.querySelector('body > pre').innerHTML
   doc.querySelector('body > pre').remove()
 
+  page = page.replace('&lt;', '<')
+  page = page.replace('&gt;', '>')
+
   page = page.split('='*80)
+  posts = page[1]
   _pages = {}
   for idx, i in enumerate(page):
     if idx == 0:
       continue
     _pages[page[idx-1].splitlines()[-1]] = markdown.mark('\n'.join(i.splitlines()[:-1]))[0]
 
-  doc['posts'] <= Card(_pages['Bit Garden'], marked=True, elevation=1, grow=0)
+  posts = posts.split('-'*80)
 
-  with UIEvent(doc['about_me'], 'click') as am,\
-       UIEvent(doc['more'], 'click') as mb:
-    while True:
-      async with Any([mb, am]):
-        if am:
-          await popup(Card(_pages['About Me'], elevation=24, style={'display': 'block'}))
+  for p in posts:
+    doc['posts'] <= card(markdown.mark(p)[0], marked=True, elevation=2, grow=0)
 
-
-
-
+  codes = [i for i in doc.querySelectorAll('pre') if i.text.startswith('# python')]
   
-def on_resize(*l, **kw):
-  global g, layout
-  g.width = getdim(doc.querySelector('body')).width
-  g.height = getdim(doc.querySelector('body')).height
-  layout = 'landscape' if g.width > 900 else 'portrait'
-  g.update()
-  # do layout changes with this
-  
-window.addEventListener('resize', on_resize);
+  def run_code(ev):
+    box = ev.currentTarget.text
+    box = '\n'.join([f'  {i}' for i in box.splitlines()])
+    box = 'async def uuui():\n' + box + '\naio.run(uuui())'
+    exec(box)
 
-def on_scroll(self, *l, **kw):
-  if window.pageYOffset == 0:
-    pass
-  else:
-    pass
-  # do layout changes with this
-window.addEventListener('scroll', on_scroll);
+  for c in codes:
+    c.bind('click', run_code)
 
-
-def tint(r, g, b, a, val):
-  '''Tints rgb values to apply 'white' layer to materials'''
-
-  rt = r + (val * (255 - r))
-  gt = g + (val * (255 - g))
-  bt = b + (val * (255 - b))
-  return (rt, gt, bt, a)
-
-class Space(DIV):
-  def __init__(self, *l, **kw):
-    super().__init__(*l, style={'position': 'absolute', 'margin': '0px', 'padding': '0px',
-      'display': 'flex',
-      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-      'transition': 'all 0.3s',
-      'box-sizing': 'border-box',}, **kw)
-
-class Flex(DIV):
-  opacities = {0:  0, 1: .05, 2: .07, 3: .08, 4: .09, 6: .11, 8: .12, 12: .14, 16: .15, 24: .16}
-  shadows = {0: 'none', 
-              1: '0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20)',
-              2: '0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20)',
-              3: '0 3px 4px 0 rgba(0,0,0,0.14), 0 3px 3px -2px rgba(0,0,0,0.12), 0 1px 8px 0 rgba(0,0,0,0.20)',
-              4: '0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)',
-              6: '0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12), 0 3px 5px -1px rgba(0,0,0,0.20)',
-              8: '0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.20)',
-              12: '0 12px 17px 2px rgba(0,0,0,0.14), 0 5px 22px 4px rgba(0,0,0,0.12), 0 7px 8px -4px rgba(0,0,0,0.20)',
-              16: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.20)',
-              24: '0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20)',}
-
-  def __init__(self, *l, color=(18, 18, 18, 1), padding='12px 18px', elevation=0, flow='row wrap', justify='flex-start', align_items='stretch', align_content='stretch', grow=1, flat=False, style={}, marked=False, **kw):
-    base_style = {
-      #'position': 'absolute',
-      'border': 'none',
-      #'margin': '8px',
-      #'border-radius': '5px',
-      'font-size': '16px',
-      'cursor': 'default',
-      'color': 'white',
-      'outline': 'none',
-      #'background': f'rgba{color}',
-      'display': 'flex' if not marked else 'block',
-      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-      'transition': 'all 0.3s',
-      'box-sizing': 'border-box',
-      'overflow': 'auto',
-    }
-    base_style.update(style)
-
-    super().__init__(*l, style=base_style, **kw)
-
-    self.__color = color
-    self.__elevation = elevation
-    self.flat = flat
-    self.color = color
-    self.padding = padding
-    self.elevation = elevation
-    self.flow = flow
-    self.justify = justify
-    self.align_items = align_items
-    self.align_content = align_content
-    self.grow = grow
-
-
-  @property
-  def color(self):
-    return self.__color
-  @color.setter
-  def color(self, value):
-    self.__color = value
-    if not self.flat:
-      self.style['background'] = f'rgba{tint(*value, self.opacities[self.elevation])}'
-    else:
-      self.style['background'] = f'rgba(255, 255, 255, {self.opacities[self.elevation]})'
-
-  @property
-  def padding(self):
-    return self.__padding
-  @padding.setter
-  def padding(self, value):
-    self.__padding = value
-    self.style['padding'] = value
-
-  @property
-  def elevation(self):
-    return self.__elevation
-  @elevation.setter
-  def elevation(self, value):
-    self.__elevation = value
-    if not self.flat:
-      self.style['background'] = f'rgba{tint(*self.color, self.opacities[value])}'
-      #self.style['box-shadow'] = self.shadows[value]
-    else:
-      self.style['background'] = f'rgba(255, 255, 255, {self.opacities[value]})'
-
-  @property
-  def flow(self):
-    '''
-      row (default): left to right in ltr; right to left in rtl
-      row-reverse: right to left in ltr; left to right in rtl
-      column: same as row but top to bottom
-      column-reverse: same as row-reverse but bottom to top
-      nowrap (default): all flex items will be on one line
-      wrap: flex items will wrap onto multiple lines, from top to bottom.
-      wrap-reverse: flex items will wrap onto multiple lines from bottom to top.
-    '''
-    return self.__flow
-  @flow.setter
-  def flow(self, value):
-    self.__flow = value
-    self.style['flex-flow'] = value
-
-  @property
-  def justify(self):
-    '''
-      flex-start (default): items are packed toward the start of the flex-direction.
-      flex-end: items are packed toward the end of the flex-direction.
-      start: items are packed toward the start of the writing-mode direction.
-      end: items are packed toward the end of the writing-mode direction.
-      left: items are packed toward left edge of the container, unless that doesn't make sense with the flex-direction, then it behaves like start.
-      right: items are packed toward right edge of the container, unless that doesn't make sense with the flex-direction, then it behaves like start.
-      center: items are centered along the line
-      space-between: items are evenly distributed in the line; first item is on the start line, last item on the end line
-      space-around: items are evenly distributed in the line with equal space around them. Note that visually the spaces aren't equal, since all the items have equal space on both sides. The first item will have one unit of space against the container edge, but two units of space between the next item because that next item has its own spacing that applies.
-      space-evenly: items are distributed so that the spacing between any two items (and the space to the edges) is equal.
-    '''
-    return self.__justify
-  @justify.setter
-  def justify(self, value):
-    self.__justify = value
-    self.style['justify-content'] = value
-
-  @property
-  def align_items(self):
-    '''
-      stretch (default): stretch to fill the container (still respect min-width/max-width)
-      flex-start / start / self-start: items are placed at the start of the cross axis. The difference between these is subtle, and is about respecting the flex-direction rules or the writing-mode rules.
-      flex-end / end / self-end: items are placed at the end of the cross axis. The difference again is subtle and is about respecting flex-direction rules vs. writing-mode rules.
-      center: items are centered in the cross-axis
-      baseline: items are aligned such as their baselines align
-    '''
-    return self.__align_items
-  @align_items.setter
-  def align_items(self, value):
-    self.__align_items = value
-    self.style['align-items'] = value
-
-  @property
-  def align_content(self):
-    '''
-      flex-start / start: items packed to the start of the container. The (more supported) flex-start honors the flex-direction while start honors the writing-mode direction.
-      flex-end / end: items packed to the end of the container. The (more support) flex-end honors the flex-direction while end honors the writing-mode direction.
-      center: items centered in the container
-      space-between: items evenly distributed; the first line is at the start of the container while the last one is at the end
-      space-around: items evenly distributed with equal space around each line
-      space-evenly: items are evenly distributed with equal space around them
-      stretch (default): lines stretch to take up the remaining space
-    '''
-    return self.__align_content
-  @align_content.setter
-  def align_content(self, value):
-    self.__align_content = value
-    self.style['align-content'] = value
-
-  @property
-  def grow(self):
-    return self.__grow
-  @grow.setter
-  def grow(self, value):
-    self.__grow = value
-    self.style['flex-grow'] = value
-
-  def __repr__(self):
-    return "{" + f"'flat': {repr(self.flat)}, 'color': {repr(self.color)}, 'padding': {repr(self.padding)}, 'elevation': {repr(self.elevation)}, 'flow': {repr(self.flow)}, 'justify': {repr(self.justify)}, 'align_items': {repr(self.align_items)}, 'align_content': {repr(self.align_content)}" + "}"
-
-class Textbox(TEXTAREA, Flex):
-  def __init__(self, *l, placeholder='', name='', **kw):
-    Flex.__init__(self, *l, **kw)
-    
-    self.setAttribute('placeholder', placeholder)
-    self.setAttribute('name', name)
-
-    self.style['border-bottom'] = f'solid 2px rgba{tint(*(0, 0, 128, 1), self.opacities[6])}'
-
-    self.base_elevation = kw.get('elevation', 0)
-
-    self.bind('mouseenter', lambda ev: setattr(self, 'elevation', self.base_elevation + 2))
-    self.bind('mouseleave', lambda ev: setattr(self, 'elevation', self.base_elevation))
-
-    self.bind('focus', lambda ev: setattr(self, 'elevation', self.base_elevation + 2))
-    self.bind('blur', lambda ev: setattr(self, 'elevation', self.base_elevation))
-
-class Input(INPUT, Flex):
-  def __init__(self, text='', placeholder='', _list='', name='', _type='', force_list=False, *l, **kw):
-    Flex.__init__(self, *l, **kw)
-    
-    self.setAttribute('value', text)
-    self.setAttribute('placeholder', placeholder)
-    self.setAttribute('name', name)
-    self.setAttribute('type', _type)
-    self.setAttribute('list', _list)
-    self._list = _list
-    self.placeholder = placeholder
-
-    if not kw.get('flat', False):
-      self.style['border-bottom'] = f'solid 2px rgba{tint(*(32, 32, 128, 1), self.opacities[6])}'
-
-    self.base_elevation = kw.get('elevation', 0)
-
-    self.bind('mouseenter', lambda ev: setattr(self, 'elevation', self.base_elevation + 2))
-    self.bind('mouseleave', lambda ev: setattr(self, 'elevation', self.base_elevation))
-
-    self.bind('focus', lambda ev: setattr(self, 'elevation', self.base_elevation + 2))
-    self.bind('blur', lambda ev: setattr(self, 'elevation', self.base_elevation))
-
-    if force_list:
-      def erase(ev):
-        if self.value:
-          self.placeholder = self.value
-        self.value = ''
-      def force(ev):
-        dataset = doc.querySelector(f'#{self._list}').possibilities
-        if not self.value:
-          if self.placeholder in dataset:
-            self.value = self.placeholder
-          else:
-            self.value = dataset[0]
+  with UIEventStream([about_me, 'click'],
+                        [more, 'click'],
+                        [window, 'resize'],
+                        [doc['posts'], 'scroll'], 
+                        join=[[None, 'resize', ()]]) as stream:
+    while ev := (await _any(stream)).pop(0):
+      if ev[1] == 'scroll':
+        if ev[0].scrollTop == 0:
+          elevate(action_bar, 0)
         else:
-          for opt in dataset:
-            if self.value.lower() in opt.lower():
-              self.value = opt
-              break
-          else:
-            self.value = dataset[0]
-      self.bind('focus', erase)
-      self.bind('click', erase)
-      self.bind('blur', force)
-      force(None)
+          elevate(action_bar, 4)
+          
+      if ev[1] == 'resize':
+        width = getdim(doc.querySelector('body')).width
+        height = getdim(doc.querySelector('body')).height
+        layout = 'landscape' if width > 1200 else 'portrait'
 
-  @property
-  def placeholder(self):
-    return self.__placeholder
-  @placeholder.setter
-  def placeholder(self, value):
-    self.__placeholder = value
-    self.setAttribute('placeholder', value)
+        g = grid2tracks([56, 244, ..., 188, 56, 56], [56, ...], width, height)
 
-class InputOptions(DATALIST):
-  def __init__(self, possibilities, *l, **kw):
-    self.possibilities = possibilities
-    super().__init__(*l, **kw)
-    self.update()
+        gmap(*g, doc['action_bar'], 0, 0, -1)
+        gmap(*g, doc['icon'], 0, 0)
+        doc['icon'].top += 8
+        doc['icon'].left += 8
 
-  def update(self):
-    self.clear()
-    for opt in self.possibilities:
-      self <= OPTION(value=opt)
+        gmap(*g, doc['title'], 1, 0, 3)
+        gmap(*g, doc['about_me'], -2, 0)
+        gmap(*g, doc['more'], -1, 0)
+        if layout == 'landscape':
+          gmap(*g, doc['post_space'], 2, -1)
+        else:
+          gmap(*g, doc['post_space'], 0, -1, -1)
 
-  def __repr__(self):
-    return "{" + f"'possibilities': {repr(self.possibilities)}" + "}"
+        # go to anchor after resize
+        if ev[0] == None:
+          anchor = (sp := window.location.href.split('#'))[-1]
+          if len(sp) > 1:
+            window.location.replace("#" + anchor)
 
-class Edge(Flex):
-  def __init__(self, *l, **kw):
-    super().__init__(*l, **kw, padding='0px')
-    self.style['border-radius'] = '0px'
-    self.style['margin'] = '0px'
-
-class Menu(Flex):
-  def __init__(self, *l, **kw):
-    super().__init__(*l, **kw, elevation=8, flow='column wrap')
-    self.style['width'] = '300px'
-
-class Card(Flex):
-  pass
-
-class Label(Card):
-  def __init__(self, *l, flow='column', justify='center', flat=True, **kw):
-    super().__init__(*l, flow=flow, justify=justify, flat=flat, **kw)
-
-class Button(Flex):
-  def __init__(self, *l, elevation=0, flat=False, raised=False, flow='column', justify='center', align_items='center', **kw):
-    if raised:
-      elevation = 2
-    else:
-      flat = True
-
-    super().__init__(*l,
-         elevation=elevation,
-         flat=flat,
-         tabindex=0,
-         justify=justify,
-         flow=flow,
-         align_items=align_items,
-         **kw)
-
-    self.base_elevation = elevation
-
-    self.bind('mouseenter', lambda ev: setattr(self, 'elevation', self.base_elevation + 6))
-    self.bind('mouseleave', lambda ev: setattr(self, 'elevation', self.base_elevation))
-    self.bind('focus', lambda ev: setattr(self, 'elevation', self.base_elevation + 6))
-    self.bind('blur', lambda ev: setattr(self, 'elevation', self.base_elevation))
-    self.bind('keyup', self.on_enter)
-    
-  def on_enter(self, ev):
-    if ev.keyCode in (13, 32):
-      ev.preventDefault()
-      self.click()
-      
-
-class Fab(Button):
-  def __init__(self, icon, *l, **kw):
-    super().__init__(Icon(icon), elevation=6, raised=True, *l, **kw)
-    self.style['padding'] = '18px'
-    self.style['border-radius'] = '50%'
-    self.icon = icon
-
-  @property
-  def icon(self):
-    return self.__icon
-  @icon.setter
-  def icon(self, value):
-    self.__icon = value
-    self.children[0].icon = value
-
-  def __repr__(self):
-    return "{" + f"'icon': {repr(self.icon)}" + "}"
+        stream[:] = [i for i in stream if i[1] != 'resize']
+          
+      if ev[0] == about_me:
+        await popup(card(_pages['About Me'], elevation=24, style={'display': 'block'}))
+        stream[:] = [i for i in stream if i[0] != about_me] # flush extra clicks
 
 
-class Icon(I):
-  def __init__(self, icon, *l, **kw):
-    super().__init__(Class='material-icons', *l, **kw)
-    self.icon = icon
-
-  @property
-  def icon(self):
-    return self.__icon
-  @icon.setter
-  def icon(self, value):
-    self.__icon = value
-    self.innerHTML = value
-
-  def __repr__(self):
-    return "{" + f"'icon': {repr(self.icon)}" + "}"
 
 
-anim = {'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-        'transition': 'all 0.3s'}
+  
+  
 
 
-def center(el):
-  'bottom height left right top width'
-  root = getdim(doc.querySelector('body'))
-  eldim = getdim(el)
-  el.left = int(root.center[0] - eldim.width//2)
-  el.top = int(root.center[1] - eldim.height//2)
+
+
+
 
   
 # ready the aio tasks
@@ -661,37 +428,6 @@ class Semaphore:
     self.release()
     
 aio.Semaphore = Semaphore
-
-class Snack(Label):
-  lock = aio.Lock()
-
-  def __init__(self, *l, delay=5, **kw):
-    self.delay = delay
-    super().__init__(*l, **kw, elevation=6, flat=False)
-    self.style['width'] = '100%'
-    self.style['border-radius'] = '0px'
-    self.style['position'] = 'fixed'
-    self.style['margin'] = '0px'
-    self.style['bottom'] = '-48px'
-    self.style['height'] = '48px'
-    doc <= self
-    aio.run(self.show())
-
-  async def show(self):
-    await self.lock.acquire()
-    await aio.sleep(.05)
-    self.style['bottom'] = 0
-    await aio.sleep(.3 + self.delay)
-    await self.hide()
-
-  async def hide(self):
-    self.style['bottom'] = '-48px'
-    await aio.sleep(.3)
-    self.remove()
-    self.lock.release()
-
-  def __repr__(self):
-    return "{" + f"'delay': {repr(self.delay)}" + "}"
   
 class Dimension:
   def __init__(self, bottom, height, left, right, top, width):
@@ -811,225 +547,460 @@ async def popup(content):
   async with Popup(doc) as p:
     p <= content
     center(p)
-    with UIEvent(doc['popupbg'], 'click') as pbg:
-      while not pbg:
-        await aio.sleep(0)
-
-def gmap(grid, obj, x, y, endx=None, endy=None):
-  if endx is None:
-    endx = x
-  if endy is None:
-    endy = y
-  obj.left, obj.top = *grid.cells[x][y].topleft
-
-  obj.width, obj.height = *grid.cells[endx][endy].bottomright
-  obj.width -= obj.left
-  obj.height -= obj.top
-
-class Point:
-
-  __slots__ = 'x', 'y'
-
-  def __init__(self, x=0, y=0):
-    self.x = round(x)
-    self.y = round(y)
-
-  def __iter__(self):
-    yield from (self.x, self.y)
-    
-  def __repr__(self):
-    return "{" + f"'x': {repr(self.x)}, 'y': {repr(self.y)}" + "}"
-    
-
-class Cell:
-
-  __slots__ = '_Cell__topleft', '_Cell__bottomright', 'width', 'height', 'center', 'bottomleft', 'topright'
-
-  def __init__(self, topleft={'x': 0, 'y': 0}, bottomright={'x': 0, 'y': 0}):
-    self.__topleft = Point()
-    self.__bottomright = Point()
-    self.topleft = topleft
-    self.bottomright = bottomright
-
-  @property
-  def topleft(self):
-    return self.__topleft
-  @topleft.setter
-  def topleft(self, value):
-    self.__topleft = value if type(value) is Point else Point(**value)
-    self.width = self.bottomright.x - self.topleft.x
-    self.height = self.bottomright.y - self.topleft.y
-    self.center = Point(self.topleft.x + round(self.width/2.0), self.topleft.y + round(self.height/2.0))
-    self.bottomleft = Point(self.topleft.x, self.bottomright.y)
-    self.topright = Point(self.bottomright.x, self.topleft.y)
-
-  @property
-  def bottomright(self):
-    return self.__bottomright
-  @bottomright.setter
-  def bottomright(self, value):
-    self.__bottomright = value if type(value) is Point else Point(**value)
-    self.width = self.bottomright.x - self.topleft.x
-    self.height = self.bottomright.y - self.topleft.y
-    self.center = Point(self.topleft.x + round(self.width/2.0), self.topleft.y + round(self.height/2.0))
-    self.bottomleft = Point(self.topleft.x, self.bottomright.y)
-    self.topright = Point(self.bottomright.x, self.topleft.y)
-
-  def __repr__(self):
-    return "{" + f"'bottomright': {repr(self.bottomright)}, 'bottomleft': {repr(self.bottomleft)}, 'topright': {repr(self.topright)}, 'topleft': {repr(self.topleft)}, 'width': {repr(self.width)}, 'height': {repr(self.height)}, 'center': {repr(self.center)}" + "}"
-    
-class Gridman:
-
-  __slots__ = 'cols', 'rows', 'width', 'height', 'left', 'top', '_cbs', 'cells'
-
-  def __init__(self, cols=[], rows=[], width=0, height=0, left=0, top=0):
-    self.cols = cols
-    self.rows = rows
-    self.width = width
-    self.height = height
-    self.left = left
-    self.top = top
-    self._cbs = {}
-    
-    self.cells = []
-    self.update()
-    
-  def update(self):
-    self.cells.clear()
-    self.cells.extend(list() for i in range(len(self.cols)))
-    for col in self.cells:
-      col.extend(Cell() for i in range(len(self.rows)))
-      
-    widths = []
-    for col in self.cols:
-      if col != ...:
-        if col < 1:
-          widths.append(col*self.width)
-        else:
-          widths.append(col)
-      else:
-        widths.append(...)
-    
-    remainder = max(0, self.width - sum(i for i in widths if i!=...))
-    buffs = 0
-    if ... in widths:
-      widths[widths.index(...)] = remainder
-    else:
-      buffs = remainder/2
-      
-    last = buffs + self.left
-    lefts = [buffs + self.left]
-    for width in widths:
-      lefts.append(width + last)
-      last += width
-      
-    heights = []
-    for row in self.rows:
-      if row != ...:
-        if row < 1:
-          heights.append(row*self.height)
-        else:
-          heights.append(row)
-      else:
-        heights.append(...)
-    
-    remainder = max(0, self.height - sum(i for i in heights if i!=...))
-    buffs = 0
-    if ... in heights:
-      heights[heights.index(...)] = remainder
-    else:
-      buffs = remainder/2
-      
-    last = buffs + self.top
-    tops = [buffs + self.top]
-    for height in heights:
-      tops.append(height + last)
-      last += height
-      
-    for ci, col in enumerate(lefts[:-1]):
-      for ri, row in enumerate(tops[:-1]):
-        self.cells[ci][ri].topleft = Point(col, row)
-        self.cells[ci][ri].bottomright = Point(lefts[ci+1], tops[ri+1])
-    self.dispatch('update')
+    with UIEventStream([doc['popupbg'], 'click']) as stream:
+      await _any(stream)
         
-  def bind(self, **kwargs):
-    for k, v in kwargs.items():
-      if k not in self._cbs:
-        self._cbs[k] = []
-      self._cbs[k].append(v)
+def hilo(a, b, c):
+  if c < b: b, c = c, b
+  if b < a: a, b = b, a
+  if c < b: b, c = c, b
+  return a + c
 
-  def unbind(self, **kwargs):
-    for k, v in kwargs.items():
-      self._cbs[k].remove(v)
-      if not self._cbs[k]:
-        del self._cbs[k]
+def complement(r, g, b, a):
+  k = hilo(r, g, b)
+  return (*tuple(k - u for u in (r, g, b)), a)
+  
+def tint(r, g, b, a, val):
+  '''Tints rgb values to apply 'white' layer to materials'''
 
-  def dispatch(self, prop, *l, **kw):
-    if getattr(self, f'on_{prop}', None):
-      getattr(self, f'on_{prop}')(prop, *l, **kw)
-    if prop in self._cbs:
-      for cb in self._cbs[prop]:
-        cb(self, prop, *l, **kw)
+  rt = r + (val * (255 - r))
+  gt = g + (val * (255 - g))
+  bt = b + (val * (255 - b))
+  return (rt, gt, bt, a)
+  
+def shade(r, g, b, a, val):
+  rt = r - r*val
+  gt = g - g*val
+  bt = b - b*val
+  return (rt, gt, bt, a)
+  
+def is_dark(color):
+  # determine color too dark
+  # HSP (Highly Sensitive Poo) equation from http://alienryderflex.com/hsp.html
+  r, g, b, _ = color
+  hsp =  0.299 * r**2 + 0.587 * g**2 + 0.114 * b**2
+  return 127.5 >= hsp**(1/2.0)
+
+
+base_color = (18, 18, 18, 1)
+base_color = (255, 255, 255, 1)
+doc.querySelector('body').style['background'] = f'rgba{base_color}'
+
+def space(*l, **kw):
+  return DIV(*l, style={'position': 'absolute', 'margin': '0px', 'padding': '0px',
+      'display': 'flex',
+      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+      'transition': 'all 0.3s',
+      'box-sizing': 'border-box',}, **kw)
+      
+
+opacities = {0:  0, 1: .05, 2: .07, 3: .08, 4: .09, 6: .11, 8: .12, 12: .14, 16: .15, 24: .16}
+shadows = {0: 'none', 
+            1: '0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20)',
+            2: '0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20)',
+            3: '0 3px 4px 0 rgba(0,0,0,0.14), 0 3px 3px -2px rgba(0,0,0,0.12), 0 1px 8px 0 rgba(0,0,0,0.20)',
+            4: '0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)',
+            6: '0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12), 0 3px 5px -1px rgba(0,0,0,0.20)',
+            8: '0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.20)',
+            12: '0 12px 17px 2px rgba(0,0,0,0.14), 0 5px 22px 4px rgba(0,0,0,0.12), 0 7px 8px -4px rgba(0,0,0,0.20)',
+            16: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.20)',
+            24: '0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20)',}
+            
+'''
+High-emphasis text has an opacity of 87%
+Medium-emphasis text and hint text have opacities of 60%
+Disabled text has an opacity of 38%
+Default error helper text: This text uses a hex value of #B00020 at 100% opacity
+'''
+
+font_dark = (0, 0, 0)
+font_light = (255, 255, 255)
+font_error = (176, 0, 32, 1) #B00020
+
+#material design specs
+font_opacities = {'high': .87, 'medium': .6, 'disabled': .38}
+def font_color(dark=True, emphasis='high'):
+  if emphasis == 'error':
+    return font_error
+  if dark:
+    return *font_light, font_opacities[emphasis]
+  return *font_dark, font_opacities[emphasis]
+            
+def elevate(self, value, color=base_color, flat=False):
+  # tint and shadows
+  if not flat:
+    if color == base_color:
+      self.style['background'] = f'rgba{tint(*color, opacities[value])}'
+    else:
+      self.style['background'] = f'rgba{tint(*color, opacities[value]*2)}'
+    self.style['box-shadow'] = shadows[value]
+  else:
+    if is_dark(color):
+      self.style['background'] = f'rgba(255, 255, 255, {opacities[value]})'
+    else:
+      self.style['background'] = f'rgba(0, 0, 0, {opacities[value]})'
+    self.style['box-shadow'] = shadows[0]
+
+      
+
+def flex(*l, base=DIV, color=base_color, padding='12px 18px', elevation=0, flow='row wrap', justify='flex-start', align_items='stretch', align_content='stretch', grow=1, flat=False, style={}, marked=False, emphasis='high', **kw):
+  dark = is_dark(color)
+  
+  base_style = {
+        # commented for flatter look
+        'margin': '8px',
+        'border-radius': '5px',
+        
+        'border': 'none',
+        'font-size': '16px',
+        'cursor': 'default',
+        'color': f'rgba{font_color(dark, emphasis)}',
+        'outline': 'none',
+        'display': 'flex' if not marked else 'block',
+        'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+        'transition': 'all 0.3s',
+        'box-sizing': 'border-box',
+        'overflow': 'auto',
+      }
+  base_style.update(style)
+
+  self = base(*l, style=base_style, **kw)
+  
+  # tint and shadows
+  elevate(self, elevation, color, flat)
+  #if not flat:
+  #  self.style['background'] = f'rgba{tint(*color, opacities[elevation])}'
+  #  self.style['box-shadow'] = shadows[elevation]
+  #else:
+  #  self.style['background'] = f'rgba(255, 255, 255, {opacities[elevation]})'
+    
+  self.style['padding'] = padding
+  
+  # row (default)   : left to right in ltr; right to left in rtl
+  # row-reverse     : right to left in ltr; left to right in rtl
+  # column          : same as row but top to bottom
+  # column-reverse  : same as row-reverse but bottom to top
+  # nowrap (default): all flex items will be on one line
+  # wrap            : flex items will wrap onto multiple lines, from top to bottom.
+  # wrap-reverse    : flex items will wrap onto multiple lines from bottom to top.
+  self.style['flex-flow'] = flow
+  
+  # flex-start (default): items are packed toward the start of the flex-direction.
+  # flex-end            : items are packed toward the end of the flex-direction.
+  # start               : items are packed toward the start of the writing-mode direction.
+  # end                 : items are packed toward the end of the writing-mode direction.
+  # left                : items are packed toward left edge of the container, unless that doesn't make sense with the flex-direction, then it behaves like start.
+  # right               : items are packed toward right edge of the container, unless that doesn't make sense with the flex-direction, then it behaves like start.
+  # center              : items are centered along the line
+  # space-between       : items are evenly distributed in the line; first item is on the start line, last item on the end line
+  # space-around        : items are evenly distributed in the line with equal space around them. Note that visually the spaces aren't equal, since all the items have equal space on both sides. The first item will have one unit of space against the container edge, but two units of space between the next item because that next item has its own spacing that applies.
+  # space-evenly        : items are distributed so that the spacing between any two items (and the space to the edges) is equal.
+  self.style['justify-content'] = justify
+  
+  # stretch (default)              : stretch to fill the container (still respect min-width/max-width)
+  # flex-start / start / self-start: items are placed at the start of the cross axis. The difference between these is subtle, and is about respecting the flex-direction rules or the writing-mode rules.
+  # flex-end / end / self-end      : items are placed at the end of the cross axis. The difference again is subtle and is about respecting flex-direction rules vs. writing-mode rules.
+  # center                         : items are centered in the cross-axis
+  # baseline                       : items are aligned such as their baselines align
+  self.style['align-items'] = align_items
+  
+  # flex-start / start: items packed to the start of the container. The (more supported) flex-start honors the flex-direction while start honors the writing-mode direction.
+  # flex-end / end    : items packed to the end of the container. The (more support) flex-end honors the flex-direction while end honors the writing-mode direction.
+  # center            : items centered in the container
+  # space-between     : items evenly distributed; the first line is at the start of the container while the last one is at the end
+  # space-around      : items evenly distributed with equal space around each line
+  # space-evenly      : items are evenly distributed with equal space around them
+  # stretch (default) : lines stretch to take up the remaining space
+  self.style['align-content'] = align_content
+  
+  self.style['flex-grow'] = grow
+    
+  return self
+  
+def textbox(text='', placeholder='', name='', _list='', _type='', force_list=False, multiline=True, *l, **kw):
+  if multiline:
+    self = flex(text, *l, base=TEXTAREA, placeholder=placeholder, name=name, **kw)
+  else:
+    self = flex(*l, base=INPUT, placeholder=placeholder, name=name, **kw)
+    self.value = text
+    self.setAttribute('type', _type)
+    self.setAttribute('list', _list)
+  
+  self.style['border-bottom'] = f'solid 2px rgba{tint(*(0, 0, 128, 1), opacities[6])}'
+  
+  base_elevation = kw.get('elevation', 0)
+  color = kw.get('color', base_color)
+  flat = kw.get('flat', False)
+  
+  self.bind('mouseenter', lambda ev: elevate(self, base_elevation + 2, color, flat))
+  self.bind('mouseleave', lambda ev: elevate(self, base_elevation, color, flat))
+
+  self.bind('focus', lambda ev: elevate(self, base_elevation + 2, color, flat))
+  self.bind('blur', lambda ev: elevate(self, base_elevation, color, flat))
+  
+  if force_list:
+    def erase(ev):
+      if self.value:
+        self.setAttribute('placeholder', self.value)
+      self.value = ''
+    def force(ev):
+      dataset = doc.querySelector(f'#{_list}').possibilities
+      if not self.value:
+        if ph := self.getAttribute('placeholder') in dataset:
+          self.value = ph
+        else:
+          self.value = dataset[0]
+      else:
+        for opt in dataset:
+          if self.value.lower() in opt.lower():
+            self.value = opt
+            break
+        else:
+          self.value = dataset[0]
+    self.bind('focus', erase)
+    self.bind('click', erase)
+    self.bind('blur', force)
+    force(None)
+  
+  return self
+  
+class InputOptions(DATALIST):
+  def __init__(self, possibilities, *l, **kw):
+    self.possibilities = possibilities
+    super().__init__(*l, **kw)
+    self.update()
+
+  def update(self):
+    self.clear()
+    for opt in self.possibilities:
+      self <= OPTION(value=opt)
 
   def __repr__(self):
-    return "{" + f"'cols': {repr(self.cols)}, 'rows': {repr(self.rows)}, 'width': {repr(self.width)}, 'height': {repr(self.height)}, 'left': {repr(self.left)}, 'top': {repr(self.top)}" + "}"
+    return "{" + f"'possibilities': {repr(self.possibilities)}" + "}"
+  
+def edge(*l, flat=True, **kw):
+  return flex(*l, **kw, flat=flat, padding='0px', style={'border-radius': '0px', 'margin': '0px'})
 
-class Event:
+def card(*l, **kw):
+  return flex(*l, **kw)
+  
+def label(*l, flow='column', justify='center', flat=True, **kw):
+  return card(*l, flow=flow, justify=justify, flat=flat, **kw)
+  
 
-  __slots__ = 'tar', 'events', 'out'
+def button(*l, elevation=0, flat=False, raised=False, flow='column', justify='center', align_items='center', **kw):
+  if raised:
+    elevation = 2
+  else:
+    flat = True
 
-  def __init__(self, tar, *events):
-    self.tar = tar
-    self.events = {e: lambda _self, *l, **kw: self.out.append((_self, l, kw)) for e in events}
-    self.out = []
+  self = flex(*l,
+       elevation=elevation,
+       flat=flat,
+       tabindex=0,
+       justify=justify,
+       flow=flow,
+       align_items=align_items,
+       **kw)
+  
+  base_elevation = elevation
+  color = kw.get('color', base_color)
+  flat = flat
+
+  self.bind('mouseenter', lambda ev: elevate(self, base_elevation + 6, color, flat))
+  self.bind('mouseleave', lambda ev: elevate(self, base_elevation, color, flat))
+
+  self.bind('focus', lambda ev: elevate(self, base_elevation + 6, color, flat))
+  self.bind('blur', lambda ev: elevate(self, base_elevation, color, flat))
+
+
+  def on_enter(ev):
+    if ev.type=='mouseup':
+      elevate(self, base_elevation + 6, color, flat)
+    elif ev.keyCode in (13, 32):
+      ev.preventDefault()
+      elevate(self, base_elevation + 6, color, flat)
+      self.click()
+      
+  self.bind('keyup', on_enter)
+  self.bind('mouseup', on_enter)
+  
+  def on_keydown(ev):
+    if ev.type=='mousedown' or ev.keyCode in (13, 32):
+      ev.preventDefault()
+      elevate(self, base_elevation, color, flat)
+      
+  self.bind('keydown', on_keydown)
+  self.bind('mousedown', on_keydown)
+  
+  return self
+  
+def fab(_icon, *l, **kw):
+  return button(icon(_icon), elevation=6, raised=True, style={'padding': '18px', 'border-radius': '50%'})
+    
+def icon(_icon, *l, **kw):
+  return I(_icon, *l, Class='material-icons', **kw)
+  
+class snack:
+  lock = aio.Lock()
+
+  def __init__(self, *l, delay=5, **kw):
+    self.delay = delay
+    self.el = label(*l, **kw, elevation=6, flat=False, color=(18, 18, 18, 1),
+                                style={'width': '100%',
+                                  'border-radius': '0px',
+                                  'position': 'fixed',
+                                  'margin': '0px',
+                                  'bottom': '-48px',
+                                  'height': '48px',})
+    doc <= self.el
+    aio.run(self.show())
+
+  async def show(self):
+    await self.lock.acquire()
+    await aio.sleep(.05)
+    self.el.style['bottom'] = 0
+    await aio.sleep(.3 + self.delay)
+    await self.hide()
+
+  async def hide(self):
+    self.el.style['bottom'] = '-48px'
+    await aio.sleep(.3)
+    self.el.remove()
+    self.lock.release()
+
+  def __repr__(self):
+    return "{" + f"'delay': {repr(self.delay)}" + "}"
+
+
+anim = {'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+        'transition': 'all 0.3s'}
+
+
+def center(el):
+  'bottom height left right top width'
+  root = getdim(doc.querySelector('body'))
+  eldim = getdim(el)
+  el.left = int(root.center[0] - eldim.width//2)
+  el.top = int(root.center[1] - eldim.height//2)
+
+def grid2tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
+  _width = width
+  _cols = [0]
+  for c in cols:
+    if c == ...:
+      _cols.append(c)
+    elif c < 1:
+      _cols.append(_width - width + _width * c)
+      width -= _width * c
+    else:
+      _cols.append(_width - width + c)
+      width -= c
+      
+  _height = height
+  _rows = [0]
+  for c in rows:
+    if c == ...:
+      _rows.append(c)
+    elif c < 1:
+      _rows.append(_height - height + _height * c)
+      height -= _height * c
+    else:
+      _rows.append(_height - height + c)
+      height -= c
+  
+  if ... in _cols:
+    idx = _cols.index(...)
+    _cols[idx:idx+1] = [_cols[idx-1]]
+    _cols[idx:] = [i+width for i in _cols[idx:]]
+    width = 0
+    
+  if ... in _rows:
+    idx = _rows.index(...)
+    _rows[idx:idx+1] = [_rows[idx-1]]
+    _rows[idx:] = [i+height for i in _rows[idx:]]
+    height = 0
+  
+  _cols = [round(i+offx+width//2) for i in _cols]
+  _rows = [round(i+offy+height//2) for i in _rows]
+      
+  return _cols, _rows
+
+def gmap(c, r, obj, x=0, y=0, ex=None, ey=None):
+  if ex is None:
+    ex = x
+  if ey is None:
+    ey = y
+
+  obj.left, obj.top = c[:-1][x], r[:-1][y]
+  obj.width, obj.height = c[1:][ex] - obj.left, r[1:][ey] - obj.top
+
+class EventStream:
+  def __init__(self, *selects, join=None):
+    # select = [obj, *events]
+    if join is not None:
+      self.out
+    else:
+      self.out = []
+    self.selects = selects
+    self.binds = []
 
   def __enter__(self):
-    for k, v in self.events.items():
-      self.tar.bind(**{k: v})
+    for o, *evs in self.selects:
+      for ev in evs:
+        on_event = self._on_event(o, ev, self.out)
+        o.bind(**{ev: on_event})
+        self.binds.append((o, ev, on_event))
     return self.out
 
   def __exit__(self, *l):
-    for k, v in self.events.items():
-      self.tar.unbind(**{k: v})
+    for o, ev, fun in self.binds:
+      o.unbind(**{ev: fun})
 
-class UIEvent:
-
-  __slots__ = 'tar', 'events', 'out'
-
-  def __init__(self, tar, *events):
-    self.tar = tar
-    self.events = {e: lambda ev: self.out.append(ev) for e in events}
-    self.out = []
-
+  @staticmethod
+  def _on_event(o, ev, out):
+    def on_event(*l, **kw):
+      out.append((o, ev, (l, kw)))
+    return on_event
+    
+class UIEventStream:
+  def __init__(self, *selects, join=None):
+    # select = [obj, *events]
+    if join is not None:
+      self.out = join
+    else:
+      self.out = []
+    self.selects = selects
+    self.binds = []
+    
   def __enter__(self):
-    for k, v in self.events.items():
-      self.tar.bind(k, v)
+    for o, *evs in self.selects:
+      for ev in evs:
+        on_event = self._on_event(o, ev, self.out)
+        o.bind(ev, on_event)
+        self.binds.append((o, ev, on_event))
     return self.out
 
   def __exit__(self, *l):
-    for k, v in self.events.items():
-      self.tar.unbind(k, v)
+    for o, ev, fun in self.binds:
+      o.unbind(ev, fun)
+
+  @staticmethod
+  def _on_event(o, ev, out):
+    def on_event(*l, **kw):
+      l[0].preventDefault()
+      l[0].stopPropagation()
+      out.append((o, ev, (l, kw)))
+    return on_event
+
 
 async def _any(_iterable):
   'Await for any(_iterable) to be true'
 
   while not any(_iterable):
     await aio.sleep(0)
-
-class Any:
-  'With version of _any. Auto flushes the lists on exit'
-
-  __slots__ = '_iterable'
-
-  def __init__(self, _iterable):
-    self._iterable = _iterable
-
-  async def __aenter__(self):
-    await _any(self._iterable)
-
-  async def __aexit__(self, *l):
-    for i in self._iterable:
-      i.clear()
+  
+  return _iterable
 
 aio.run(main())
 
