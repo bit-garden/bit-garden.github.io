@@ -107,7 +107,8 @@
   }
   .CodeMirror-activeline-gutter > .CodeMirror-linenumber {
 	    color: white !important;
-	      width: auto !important;
+	    width: auto !important;
+      display:none;
 	    }
   .CodeMirror-linenumber{
   color:#888888 !important;
@@ -183,7 +184,7 @@ String.prototype.replaceAll = function(search, replacement) {
 	  
 {regex: /#(\S|\s\s).*$/, token: "comments"}, // darklights comments
 {regex: /#(\s\S.*|\s*$)/, token: "deco"}, // highlights comments
-{regex: /\s*\@\w+/, token: "decorator"}, // highlights comments
+//{regex: /\s*\@\w+/, token: "decorator"}, // highlights comments
 	  
 {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:\}.$ ?])/, token: "strings"}, // single quote strings code
 {regex: /(^| )'([^']|'\w)*'( |$)/, token: "strings"}, // single quote strings speech
@@ -212,80 +213,46 @@ CodeMirror.Vim.unmap(',')
 CodeMirror.Vim.map('jk', '<Esc>', 'insert')
 CodeMirror.Vim.map('<C-e>', ':js null', 'normal')
 CodeMirror.Vim.map('kj', ':js cm_editbox.showHint()', 'insert')
-CodeMirror.Vim.map(',/', ':js timediff()', 'normal')
-CodeMirror.Vim.map('fd', '<Esc>', 'insert')
-CodeMirror.Vim.map('vb','<Esc>T|<C-v>t|','insert')
-CodeMirror.Vim.map(',/', '<Esc>/i', 'insert')
-CodeMirror.Vim.map(',?', '<Esc>?i', 'insert')
-CodeMirror.Vim.map(',a', '<Esc>A', 'insert')
-CodeMirror.Vim.map(',i', '<Esc>I', 'insert')
 CodeMirror.Vim.map(',l','<Esc>f|la','insert')
 CodeMirror.Vim.map(',h','<Esc>2F|la','insert')
 CodeMirror.Vim.map(',j','<Esc>F|lja','insert')
 CodeMirror.Vim.map(',k','<Esc>F|lka','insert')
-CodeMirror.Vim.map(';;','<Esc>:','insert')
-CodeMirror.Vim.map('cw','<Esc>lciwi','insert')
 CodeMirror.Vim.map('vw', '<Esc>viwygv', 'insert')
 CodeMirror.Vim.map(',l','f|ll','normal')
 CodeMirror.Vim.map(',h','2F|ll','normal')
 CodeMirror.Vim.map(',j','F|ljl','normal')
 CodeMirror.Vim.map(',k','F|lkl','normal')
-//CodeMirror.Vim.map(';;',':','normal')
-CodeMirror.Vim.map(',<Space>', ':noh', 'normal')
-//CodeMirror.Vim.map(',e', '@e', 'normal') //Short mapping to e macro
-//more maps?
-//CodeMirror.Vim.map('<C-t>', "mzyy'tP`zdd", 'normal')
-//CodeMirror.Vim.map('Y', '"Ay', 'visual')
 
-//CodeMirror.Vim.map('zv', ":vdo ?---|jmx|/---|kmz'xV'zo", 'normal')
-CodeMirror.Vim.map('zv', "[-jmx]-kmz'xV'zo", 'normal')
+CodeMirror.Vim.map('zv', "vi[kojV", 'normal')
 CodeMirror.Vim.map('zb', ":vblock", 'normal')
 
 CodeMirror.Vim.map('<C-e>', ':vdo :kpos|:do_table|:rpos|zzl', 'normal')
 CodeMirror.Vim.map('<C-e>', ':vdo :kpos|:do_table|:rpos|zza', 'insert')
 CodeMirror.Vim.map('<C-e>', ':do_py', 'visual')
-CodeMirror.Vim.map(',e', ':vdo :kpos|vip,\\|:rpos|zzl', 'normal')
-CodeMirror.Vim.map(',e', ':vdo :kpos|vip,\\|:rpos|zza', 'insert')
-CodeMirror.Vim.map(',o', ':vdo oi', 'insert')
-CodeMirror.Vim.map(',O', ':vdo Oi', 'insert')
+
+CodeMirror.Vim.map(',e', ':vdo :kpos|vip|:align_by_pipe|:rpos|zzl', 'normal')
+CodeMirror.Vim.map(',e', ':vdo :kpos|vip|:align_by_pipe|:rpos|zza', 'insert')
+CodeMirror.Vim.map(',e', ':vdo :align_by_pipe', 'visual')
+
+CodeMirror.Vim.map(',t', ':vdo :kpos|vip|:do_tp|:rpos|zzl', 'normal')
+CodeMirror.Vim.map(',t', ':vdo :do_tp', 'visual')
+
 CodeMirror.Vim.map('<C-k>', ':runup', 'normal')
 CodeMirror.Vim.map('<C-j>', ':rundown', 'normal')
 CodeMirror.Vim.map('<C-y>', ':vdo l|:kpos|vip|:better_sort|:rpos', 'normal')
 CodeMirror.Vim.map('<C-y>', ':better_sort', 'visual')
 CodeMirror.Vim.map(',y', ':js sort_by()', 'visual')
-CodeMirror.Vim.map(',,', ':align_by', 'visual')
-CodeMirror.Vim.map(',;', ':align_by_colin', 'visual')
-CodeMirror.Vim.map(',=', ':align_by_equals', 'visual')
-CodeMirror.Vim.map(',\\', ':align_by_pipe', 'visual')
+//CodeMirror.Vim.map(',,', ':align_by', 'visual')
+//CodeMirror.Vim.map(',;', ':align_by_colin', 'visual')
+//CodeMirror.Vim.map(',=', ':align_by_equals', 'visual')
+//CodeMirror.Vim.map(',\\', ':align_by_pipe', 'visual')
 
-CodeMirror.Vim.map(']-', ':vdo :js move_to("---")|_', 'normal')
-CodeMirror.Vim.map('[-', ':vdo :js move_to("---", false)|_', 'normal')
-
-//CodeMirror.Vim.map("''", ':vdo :js put(\'"\')|a', 'insert')
-
-//CodeMirror.Vim.map('cb', ':vdo :js put("[\'")|a', 'insert')
-//CodeMirror.Vim.map('bc', ':vdo :js put("\']")|a', 'insert')
-
-//CodeMirror.Vim.map('..', ':DoubleD', 'insert')
-
-CodeMirror.Vim.map('gt', ':vdo /--- Cal|/\\[TODAY\\]|zb', 'normal')
+//CodeMirror.Vim.map(']-', ':vdo :js move_to("---")|_', 'normal')
+//CodeMirror.Vim.map('[-', ':vdo :js move_to("---", false)|_', 'normal')
 
 CodeMirror.Vim.map(',r', ':js alignRight()', 'visual')
 CodeMirror.Vim.map(',l', ':js alignLeft()', 'visual')
 CodeMirror.Vim.map(',c', ':js alignCenter()', 'visual')
-
-CodeMirror.Vim.unmap('s', 'visual')
-CodeMirror.Vim.map("s'" , ":js surround(\"'\", \"'\")", 'visual')
-CodeMirror.Vim.map('s"' , ":js surround('\"' , '\"')" , 'visual')
-CodeMirror.Vim.map("s\\", ":js surround('|'  , '|')"  , 'visual')
-
-CodeMirror.Vim.map("sd", ":js surround(\"['\"  , \"']\")"  , 'visual')
-CodeMirror.Vim.map("s[", ":js surround('['  , ']')"  , 'visual')
-CodeMirror.Vim.map("s{", ":js surround('{'  , '}')"  , 'visual')
-CodeMirror.Vim.map("s(", ":js surround('('  , ')')"  , 'visual')
-
-CodeMirror.Vim.map("s_", ":js surround('_'  , '_')"  , 'visual')
-CodeMirror.Vim.map("s<", ":js surround('<'  , '>')"  , 'visual')
 
 
 
@@ -828,6 +795,101 @@ async def gather(*coros, rate=0):
 aio.gather = gather
 aio.Task = Task
 
+def dot_product(u, v):
+  return sum([i*j for i,j in zip(u,v)])
+
+def multiplication(M, N):
+  assert isinstance(M, (mat, int, float)) and isinstance(N, (mat, int, float))
+  if isinstance(M, mat) and isinstance(N, mat):
+    if M.width == N.height:
+      res = mat([[0] * N.width for _ in range(M.height)])
+      for i in range(M.height):
+        for j in range(N.width):
+          res[i][j] = dot_product(M[i], [N[k][j] for k in range(N.height)])
+      return res
+    raise TypeError("M and N should be either a compatible mat object, or a constant")
+  left, right = (M, N) if isinstance(M, mat) else (N, M)
+  return mat(
+    [
+      [left[j][i] * right for i in range(left.width)]
+      for j in range(left.height)
+    ]
+  )
+
+class mat(list):
+  def __init__(self, the_list):
+    super().__init__(the_list)
+
+  @property
+  def height(self):
+    return len(self)
+
+  @property
+  def width(self):
+    return len(self[0])
+
+  def get_dim(self):
+    return self.width, self.height
+
+  def __add__(self, M):
+    if isinstance(M, mat):
+      return mat([[sum(x) for x in zip(*rows)] for rows in zip(self, M)])
+    return mat(
+      [[self[j][i] + M for i in range(self.width)]
+        for j in range(self.height)])
+  def __radd__(self, M):
+    return mat(
+      [[M + self[j][i] for i in range(self.width)]
+        for j in range(self.height)])
+
+  def __sub__(self, M):
+    return self + M@-1
+
+  def __matmul__(self, M):
+    return multiplication(self, M)
+  def __rmatmul__(self, M):
+    return multiplication(M, self)
+
+  def __getitem__(self, _slice):
+    if isinstance(_slice, tuple):
+      return self[_slice[1]][_slice[0]]
+    elif isinstance(_slice, slice):
+      if isinstance(_slice.start, tuple) or isinstance(_slice.stop, tuple):
+        if _slice.start is None:
+          _slice = slice((None, None), _slice.stop)
+        if _slice.stop is None:
+          _slice = slice(_slice.start, (None, None))
+        return mat(
+              [i[_slice.start[0]: _slice.stop[0]] for i in self[_slice.start[1]: _slice.stop[1]]])
+      elif _slice.start is None and _slice.stop is None:
+        return mat([[j for j in i] for i in self])
+    return super().__getitem__(_slice)
+
+  def __setitem__(self, _slice, value):
+    if isinstance(_slice, tuple):
+      x = _slice[0] if _slice[0] > -1 else (_slice[0] + self.width)
+      y = _slice[1] if _slice[1] > -1 else (_slice[1] + self.height)
+      width = len(value[0])
+      while value:
+        self[y][x:x+width] = value.pop(0)
+        y += 1
+    else:
+      super().__setitem__(_slice, value)
+
+  def map(self, fun, start=(0,0), end=None):
+    self[start] = [list(map(fun, i)) for i in self[start:end]]
+    return self
+
+  @property
+  def flat(self):
+    return sum((i for i in self), [])
+
+  @property
+  def T(self):
+    # transpose
+    return mat(map(list, zip(*self)))
+
+
 class Dimension:
   def __init__(self, bottom, height, left, right, top, width):
     self.bottom = bottom
@@ -997,15 +1059,17 @@ def align_by(_dat, _char=',', _glue='', _code=''):
     #_tempGlobals = dict(globals())
     #_tempGlobals['dat'] = dat
     #exec(_code, _tempGlobals)
+    dat = mat(dat)
     exec(_code)
     dat = [[str(j) for j in i] for i in dat]
     
   def is_label(item):
-    if item.startswith('---'):
+    idx, item = item
+    if item.startswith('---') and idx:
       return 0
     else:
       return len(item)
-  widths = [max(map(is_label, col)) for col in zip(*dat)]
+  widths = [max(map(is_label, enumerate(col))) for col in zip(*dat)]
   total_width = '{:-<' + str(sum(widths) + len(_glue)*(max_len - 1)) + '}'
 
   if len(dat) > 2:
@@ -1043,7 +1107,12 @@ _options['so'] = 6*12
 _options['center'] = True
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
-_options['limelight'] = True
+_options['limelight'] = False
+
+def line_numbers(state=False):
+  cm_editbox.setOption('lineNumbers', state)
+  
+_options['line_numbers'] = line_numbers
 
 def on_down(ev):
   global ctrl, tables
@@ -1081,19 +1150,19 @@ window.bind('keydown', on_down)
 
 def do_table() -> None:
   try:
-    window.vdo("?_table_|jmx|/_table_|kmz'xV'zo")
+    #window.vdo("?_table_|jmx|/_table_|kmz'xV'zo")
+    window.vdo("vi[kojV")
     data = cm_editbox.getSelection()
 
     code = ''
     if '\n#__code__\n' in data:
       data, code = data.split('\n#__code__\n')
-
-    out = align_by(data, '|', ' | ', code)
-    if code:
-      out += f'\n#__code__\n{code.strip()}'
-    cm_editbox.replaceSelection(out)
-    #window.reg('"', str(tab))
-    #window.vdo('gvp')
+      out = align_by(data, '|', ' | ', code)
+      if code:
+        out += f'\n#__code__\n{code.strip()}'
+      cm_editbox.replaceSelection(out)
+    else:
+      exec(data)
   except Exception as e:
     import traceback
     window.make_popup(traceback.format_exc())
@@ -1102,19 +1171,43 @@ def run_table(cm, params):
   do_table()
 window.CodeMirror.Vim.defineEx("do_table", None, run_table)
 
-
 def do_py() -> None:
   try:
     window.vdo("gv")
-    tab = exec(cm_editbox.getSelection())
+    data = cm_editbox.getSelection()
+
+    code = ''
+    if '\n#__code__\n' in data:
+      data, code = data.split('\n#__code__\n')
+      out = align_by(data, '|', ' | ', code)
+      if code:
+        out += f'\n#__code__\n{code.strip()}'
+      cm_editbox.replaceSelection(out)
+    else:
+      exec(data)
   except Exception as e:
     import traceback
     window.make_popup(traceback.format_exc())
-
         
 def run_py(cm, params):
   do_py()
 window.CodeMirror.Vim.defineEx("do_py", None, run_py)
+
+def do_tp() -> None:
+  try:
+    window.vdo("gv")
+    data = cm_editbox.getSelection()
+
+    code = 'dat[:] = dat.T'
+    out = align_by(data, '|', ' | ', code)
+    cm_editbox.replaceSelection(out.strip('\n'))
+  except Exception as e:
+    import traceback
+    window.make_popup(traceback.format_exc())
+        
+def run_tp(cm, params):
+  do_tp()
+window.CodeMirror.Vim.defineEx("do_tp", None, run_tp)
 
 def gen(cmd, sel):
   if 'res' in cmd:
@@ -1315,7 +1408,7 @@ window.CodeMirror.Vim.defineEx("gen", None, run_gen)
 #doc.get(selector='.CodeMirror')[0].bind('keydown', on_down)
 
 def showRelativeLines(cm):
-  cm.setOption('lineNumbers', cm.state.vim.visualMode)
+  #cm.setOption('lineNumbers', cm.state.vim.visualMode)
   lineNum = cm.getCursor().line + 1;
 
   
@@ -1381,8 +1474,8 @@ def showRelativeLines(cm):
     doc.querySelector('.CodeMirror').CodeMirror.setOption('cursorScrollMargin',_options['so'])
 doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', showRelativeLines)
 
-for i in range(len(cm_editbox.getTextArea().value.splitlines())):
-  cm_editbox.addLineClass(i, 'text', 'CodeMirror-activeline')
+#for i in range(len(cm_editbox.getTextArea().value.splitlines())):
+#  cm_editbox.addLineClass(i, 'text', 'CodeMirror-activeline')
 
 def runpy(cm, params):
   exec(params.argString, _options)
@@ -1432,6 +1525,7 @@ def rundown(cm, params):
 window.CodeMirror.Vim.defineEx("rundown", None, rundown)
 
 def better_sort():
+  #import re
   oldpos = cm_editbox.getCursor()
   if not cm_editbox.state.vim.visualLine:
     window.CodeMirror.Vim.exitInsertMode(cm_editbox)
@@ -1446,7 +1540,7 @@ def better_sort():
     if ns:
       return dat
     sets = re.split(r'\n(\s+)?\n+', dat)
-    sets = [s for s in sets if s and s.strip()]
+    sets = [s if s is not None and s.split() else '' for s in sets]
     for i in range(len(sets)):
       lines = sets[i].splitlines()
       for line in range(len(lines)):
@@ -1462,7 +1556,7 @@ def better_sort():
       for j in locked:
         lines.insert(j[0], j[1])
       sets[i] = '\n'.join(lines)
-    return '\n\n'.join(sets)
+    return '\n'.join(sets)
   cm_editbox.replaceSelection(do_stuff(dat))
   window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(oldpos.line)+", 'ch':"+str(oldpos.ch)+"})")
   window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
