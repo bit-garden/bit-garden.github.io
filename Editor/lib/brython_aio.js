@@ -7744,7 +7744,7 @@ slice.__setattr__=function(self,attr,value){throw _b_.AttributeError.$factory("r
 function conv_slice(self){
 var attrs=["start","stop","step"],res=[]
 for(var i=0;i < attrs.length;i++){var val=self[attrs[i]]
-if(val===_b_.None){res.push(val)}else{try{res.push($B.PyNumber_Index(val))}catch(err){throw _b_.TypeError.$factory("slice indices must be "+
+if(val===_b_.None){res.push(val)}else{try{res.push(val)}catch(err){throw _b_.TypeError.$factory("slice indices must be "+
 "integers or None or have an __index__ method")}}}
 return res}
 slice.$conv_for_seq=function(self,len){
