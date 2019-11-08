@@ -799,7 +799,7 @@ def dot_product(u, v):
   return sum([i*j for i,j in zip(u,v)])
 
 def multiplication(M, N):
-  assert isinstance(M, (mat, int, float)) and isinstance(N, (mat, int, float))
+  #assert isinstance(M, (mat, int, float)) and isinstance(N, (mat, int, float))
   if isinstance(M, mat) and isinstance(N, mat):
     if M.width == N.height:
       res = mat([[0] * N.width for _ in range(M.height)])
@@ -808,13 +808,44 @@ def multiplication(M, N):
           res[i][j] = dot_product(M[i], [N[k][j] for k in range(N.height)])
       return res
     raise TypeError("M and N should be either a compatible mat object, or a constant")
-  left, right = (M, N) if isinstance(M, mat) else (N, M)
-  return mat(
-    [
-      [left[j][i] * right for i in range(left.width)]
-      for j in range(left.height)
-    ]
-  )
+  if isinstance(N, list):
+    return mat([[x*y for x, y in zip(*rows)] for rows in zip(M,N)])
+  return mat([[x*N for x in rows] for rows in M])
+  
+def getMatrixMinor(m,i,j):
+  return [row[:j] + row[j+1:] for row in (m[:i]+m[i+1:])]
+
+def getMatrixDeternminant(m):
+  #base case for 2x2 matrix
+  if len(m) == 2:
+    return m[0][0]*m[1][1]-m[0][1]*m[1][0]
+
+  determinant = 0
+  for c in range(len(m)):
+    determinant += ((-1)**c)*m[0][c]*getMatrixDeternminant(getMatrixMinor(m,0,c))
+  return determinant
+
+def getMatrixInverse(m):
+  determinant = getMatrixDeternminant(m)
+  #special case for 2x2 matrix:
+  if len(m) == 2:
+    return mat([[m[1][1]/determinant, -1*m[0][1]/determinant],
+        [-1*m[1][0]/determinant, m[0][0]/determinant]])
+
+  #find matrix of cofactors
+  cofactors = []
+  for r in range(len(m)):
+    cofactorRow = []
+    for c in range(len(m)):
+      minor = getMatrixMinor(m,r,c)
+      cofactorRow.append(((-1)**(r+c)) * getMatrixDeternminant(minor))
+    cofactors.append(cofactorRow)
+  cofactors = mat(cofactors).T #transposeMatrix(cofactors)
+  for r in range(len(cofactors)):
+    for c in range(len(cofactors)):
+      cofactors[r][c] = cofactors[r][c]/determinant
+  return cofactors
+
 
 class mat(list):
   def __init__(self, the_list):
@@ -832,33 +863,53 @@ class mat(list):
     return self.width, self.height
 
   def __add__(self, M):
-    if isinstance(M, mat):
+    if isinstance(M, list):
       return mat([[sum(x) for x in zip(*rows)] for rows in zip(self, M)])
-    return mat(
-      [[self[j][i] + M for i in range(self.width)]
-        for j in range(self.height)])
+    return mat([[x+M for x in rows] for rows in self])
   def __radd__(self, M):
-    return mat(
-      [[M + self[j][i] for i in range(self.width)]
-        for j in range(self.height)])
+    return mat([[M+x for x in rows] for rows in self])
 
   def __sub__(self, M):
-    return self + M@-1
+    if isinstance(M, mat):
+      return self + M@-1
+    return mat([[x-M for x in rows] for rows in self])
+    
+  def __truediv__(self, M):
+    if isinstance(M, mat):
+      return self @ M.inv
+    if isinstance(M, list):
+      return mat([[x/y for x, y in zip(*rows)] for rows in zip(self, M)])
+    return mat([[x/M for x in rows] for rows in self])
+        
+  def __floordiv__(self, M):
+    if isinstance(M, list):
+      return mat([[x//y for x, y in zip(*rows)] for rows in zip(self, M)])
+    return mat([[x//M for x in rows] for rows in self])
+        
+  def __mod__(self, M):
+    if isinstance(M, list):
+      return mat([[x%y for x, y in zip(*rows)] for rows in zip(self, M)])
+    return mat([[x%M for x in rows] for rows in self])
 
   def __matmul__(self, M):
     return multiplication(self, M)
-  def __rmatmul__(self, M):
-    return multiplication(M, self)
+  
+  def __mul__(self, M):
+    return multiplication(self, M)
 
   def __getitem__(self, _slice):
     if isinstance(_slice, tuple):
       return self[_slice[1]][_slice[0]]
     elif isinstance(_slice, slice):
       if isinstance(_slice.start, tuple) or isinstance(_slice.stop, tuple):
+        start, stop = _slice.start, _slice.stop
         if _slice.start is None:
-          _slice = slice((None, None), _slice.stop)
+          start = (None, None)
         if _slice.stop is None:
-          _slice = slice(_slice.start, (None, None))
+          stop = (None, None)
+        start = tuple(None if i==... else i for i in start)
+        stop = tuple(None if i==... else i for i in stop)
+        _slice = slice(start, stop)
         return mat(
               [i[_slice.start[0]: _slice.stop[0]] for i in self[_slice.start[1]: _slice.stop[1]]])
       elif _slice.start is None and _slice.stop is None:
@@ -879,6 +930,16 @@ class mat(list):
   def map(self, fun, start=(0,0), end=None):
     self[start] = [list(map(fun, i)) for i in self[start:end]]
     return self
+    
+  def reduce(self, fun, start=None):
+    _list = self.flat
+    if start is None:
+      l = _list.pop(0)
+    else:
+      l = start
+    while _list:
+      l = fun(l, _list.pop(0))
+    return l
 
   @property
   def flat(self):
@@ -888,6 +949,10 @@ class mat(list):
   def T(self):
     # transpose
     return mat(map(list, zip(*self)))
+    
+  @property
+  def inv(self):
+    return getMatrixInverse(self)
 
 
 class Dimension:
@@ -1593,11 +1658,12 @@ def align_by2(_char = ',', _glue = ''):
     i.extend(['']*(max_len-len(i)))
 
   def is_label(item):
-    if item.startswith('---'):
+    idx, item = item
+    if item.startswith('---') and idx:
       return 0
     else:
       return len(item)
-  widths = [max(map(is_label, col)) for col in zip(*dat)]
+  widths = [max(map(is_label, enumerate(col))) for col in zip(*dat)]
   total_width = '{:-<' + str(sum(widths) + len(_glue)*(max_len - 1)) + '}'
 
   if len(dat) > 2:
