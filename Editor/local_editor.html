@@ -212,8 +212,10 @@ CodeMirror.Vim.map('<C-e>', ':js null', 'normal')
 CodeMirror.Vim.map('kj', ':js cm_editbox.showHint()', 'insert')
 CodeMirror.Vim.map('vw', '<Esc>viwygv', 'insert')
 
-CodeMirror.Vim.map('<C-e>', ':vdo :kpos|vi[|:do_py|:rpos|l', 'normal')
-CodeMirror.Vim.map('<C-e>', ':vdo :kpos|vi[|:do_py|:rpos|a', 'insert')
+//CodeMirror.Vim.map('<C-e>', ':vdo :kpos|vi[|:do_py|:rpos|l', 'normal')
+//CodeMirror.Vim.map('<C-e>', ':vdo :kpos|vi[|:do_py|:rpos|a', 'insert')
+CodeMirror.Vim.map('<C-e>', ':run_file', 'normal')
+CodeMirror.Vim.map('<C-e>', ':run_file', 'insert')
 CodeMirror.Vim.map('<C-e>', ':do_py', 'visual')
 
 CodeMirror.Vim.map('<Tab>e', ':vdo :kpos|vip|:align|:rpos|l', 'normal')
@@ -230,6 +232,8 @@ CodeMirror.Vim.map('<C-y>', ':better_sort', 'visual')
 CodeMirror.Vim.map('<Tab>y', ':js sort_by()', 'visual')
 
 CodeMirror.Vim.map('<Tab><Space>', ':noh', 'normal')
+CodeMirror.Vim.map('ZA', ':py save_me.append(True)', 'normal')
+CodeMirror.Vim.map('ZA', ':py save_me.append(True)', 'insert')
 
 
 
@@ -869,7 +873,7 @@ _options['window'] = window
 _options['limelight'] = True
 
 def temp(l):
-  return abs(cm_editbox.getCursor().line-l+1)
+  return min(abs(cm_editbox.getCursor().line-l+1), 99)
 cm_editbox.setOption('lineNumberFormatter', temp);
 
 def showRelativeLines(cm):
@@ -932,6 +936,14 @@ def do_py() -> None:
 def run_py(cm, params):
   do_py()
 window.CodeMirror.Vim.defineEx("do_py", None, run_py)
+
+def run_file(cm, params):
+  try:
+    exec(cm_editbox.getValue())
+  except Exception as e:
+    import traceback
+    window.make_popup(traceback.format_exc())
+window.CodeMirror.Vim.defineEx("run_file", None, run_file)
 
 def do_tp() -> None:
   try:
@@ -1561,15 +1573,19 @@ async def _any(_iterable):
     await aio.sleep(0)
   return _iterable
 
+
+save_me = []
+_options['save_me'] = save_me
 async def auto_saver():
   await popup('Click to load')
   async with fopen() as f:
     cm_editbox.setValue(f.text)
-    await aio.sleep(1)
     while True:
+      await _any(save_me)
       cm_editbox.save()
       await f.write(re.sub(r' +$', '', editbox.value, flags=re.M))
-      await aio.sleep(5)
+      save_me.clear()
+      snack('Saved')
       
 
   
@@ -1582,13 +1598,13 @@ aio.run(main())
 
 </script>
 <script>
-      var _logger = function(msg){
-	if(msg != "using indexedDB for stdlib modules cache" && msg != 'empty stack'){
-          cm_editbox.openNotification('<pre>'+msg+'</pre>')
-	}
+  var _logger = function(msg){
+    if(msg != "using indexedDB for stdlib modules cache" && msg != 'empty stack'){
+      cm_editbox.openNotification('<pre>'+msg+'</pre>')
+      }
       //cm_editbox.openNotification('<p>'+msg.split('\n').join('<br>')+'</p>')
       }
-      
+
       console.log=_logger
       console.error=make_popup
       console.warning=make_popup
