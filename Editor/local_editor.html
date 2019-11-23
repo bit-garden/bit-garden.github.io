@@ -609,7 +609,8 @@ class fopen():
   async def __aexit__(self, *l):
     pass
     
-
+def ii(predicate, *i):
+  return (j for j in i if predicate)
 
 
 import _jsre as re
@@ -873,7 +874,7 @@ _options['window'] = window
 _options['limelight'] = True
 
 def temp(l):
-  return min(abs(cm_editbox.getCursor().line-l+1), 99)
+  return abs(cm_editbox.getCursor().line-l+1)
 cm_editbox.setOption('lineNumberFormatter', temp);
 
 def showRelativeLines(cm):
@@ -926,7 +927,7 @@ window.bind('keydown', on_down)
 
 def do_py() -> None:
   try:
-    window.vdo("gvo")
+    window.vdo("gv")
     data = cm_editbox.getSelection()
     exec(data)
   except Exception as e:
@@ -1585,7 +1586,7 @@ async def auto_saver():
       cm_editbox.save()
       await f.write(re.sub(r' +$', '', editbox.value, flags=re.M))
       save_me.clear()
-      snack('Saved')
+      print('Saved')
       
 
   
