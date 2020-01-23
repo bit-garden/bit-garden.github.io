@@ -51,7 +51,7 @@
   /* Support for IE. */
   font-feature-settings: 'liga';
 }
-    
+
 @font-face {
   font-family: Mono;
   src: url("lib/RobotoMono-Thin.ttf") format("truetype");
@@ -79,19 +79,19 @@
  .cm-nums{color: #ffaaaa;}
 
  .cm-numss{color: #afafff;}
- 
+
  .CodeMirror, .CodeMirror * {font-family: Mono !important;}
 
       .editbox + .CodeMirror{
         font-family: Mono !important;
         height:auto;
-        line-height:14px;
+        line-height:18px;
         font-size:14px;
         z-index:0;
       }
       body{padding:0px;margin:0px;}
   .CodeMirror-activeline > span, .CodeMirror-activeline > span > span{
-	     color: #999999 !important;  
+	     color: #888888 !important;
 	}
   .CodeMirror-scrollbar-filler{display:none !important;}
   .CodeMirror-hscrollbar, .CodeMirror-vscrollbar{
@@ -106,15 +106,10 @@
   color:#888888;
   font-family: Mono;
   }
-  .CodeMirror-activeline-gutter > .CodeMirror-linenumber {
-	    color: white !important;
-	    width: auto !important;
-      display:none;
-	    }
   .CodeMirror-linenumber{
   color:#888888 !important;
   }
-  
+
 
 input::-webkit-calendar-picker-indicator {
   display: none;
@@ -153,16 +148,16 @@ h1, h2, h3, h4{
 }
 
 
-hr { 
-  border: 0; 
-  height: 1px; 
+hr {
+  border: 0;
+  height: 1px;
   background-image: -webkit-linear-gradient(left, rgba(128, 128, 128, 0), rgba(128, 128, 128, .32), rgba(128, 128, 128, 0));
   background-image: -moz-linear-gradient(left, rgba(128, 128, 128, 0), rgba(128, 128, 128, .32), rgba(128, 128, 128, 0));
   background-image: -ms-linear-gradient(left, rgba(128, 128, 128, 0), rgba(128, 128, 128, .32), rgba(128, 128, 128, 0));
   background-image: -o-linear-gradient(left, rgba(128, 128, 128, 0), rgba(128, 128, 128, .32), rgba(128, 128, 128, 0));
   background-image: linear-gradient(left, rgba(128, 128, 128, 0), rgba(128, 128, 128, .32), rgba(128, 128, 128, 0));
 }
-  
+
 </style>
 <script>
 // Returns if a value is a string
@@ -181,25 +176,25 @@ String.prototype.replaceAll = function(search, replacement) {
   // The start state contains the rules that are intially used
   start: [
     // The regex matches the token, the token property contains the type
-{regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
-	  
-{regex: /#(\S|\s\s).*$/, token: "comments"}, // darklights comments
-{regex: /#(\s\S.*|\s*$)/, token: "deco"}, // highlights comments
+{regex: /\w?"([^"\\]|\\.)*("|$)/, token: "strings"}, // Double quote
+	
+//{regex: /#(\S|\s\s).*$/, token: "comments"}, // darklights comments
+//{regex: /#(\s\S.*|\s*$)/, token: "deco"}, // highlights comments
+{regex: /#.*$/, token: "comments"}, // darklights comments
 //{regex: /\s*\@\w+/, token: "decorator"}, // highlights comments
-	  
+	
 {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:\}.$ ?])/, token: "strings"}, // single quote strings code
 {regex: /(^| )'([^']|'\w)*'( |$)/, token: "strings"}, // single quote strings speech
 //{regex: /[-+]?[0-9]*\.?[0-9]+/, token: "nums"}, // numbers
 //{regex: /(__)(.*?)\1/, token: "under"},
 //{regex: /(~~)(.*?)\1/, token: "strike"},
 //{regex: / \|( |$)/, token: "nums"},
-	  
   ]
 });
 	  CodeMirror.defineSimpleMode("simplermode", {
   // The start state contains the rules that are intially used
   start: [
-{regex: /(\#|\/\/).*$/, token: "comments"}, // darklight comments
+{regex: /#.*$/, token: "comments"}, // darklights comments
   ]
 });
 </script>
@@ -235,6 +230,14 @@ CodeMirror.Vim.map('<Tab><Space>', ':noh', 'normal')
 CodeMirror.Vim.map('ZA', ':py save_me.append(True)', 'normal')
 CodeMirror.Vim.map('ZA', ':py save_me.append(True)', 'insert')
 
+CodeMirror.Vim.map('<C-k>', ':runup', 'normal')
+CodeMirror.Vim.map('<C-j>', ':rundown', 'normal')
+
+CodeMirror.Vim.map('<Tab>r', ':js alignRight()', 'visual')
+CodeMirror.Vim.map('<Tab>l', ':js alignLeft()', 'visual')
+CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
+
+CodeMirror.Vim.map('zv', ':vblock', 'normal')
 
 
 
@@ -259,23 +262,23 @@ CodeMirror.Vim.map('ZA', ':py save_me.append(True)', 'insert')
   cm_editbox.addKeyMap({'Ctrl-C': false})
   CodeMirror.Vim.defineEx("insertSoftTab", null, tab_to_space)
   //cm_editbox.addKeyMap({'Tab': tab_to_space})
-  
+
   //function on_change(cm, _change){
   //  cm_editbox.save()
   //  localStorage.setItem('data', editbox.value.replace(/ +$/mgi, ""));
   //}
   //
   //cm_editbox.on('change',on_change)
-  
+
   function ac_hint(cm){
     cm.showHint({'hint': CodeMirror.hint.anyword})
   }
   CodeMirror.commands.autocomplete = ac_hint
-  
+
   function runjs(cm, params){
     eval(params.argString)
   }
-  
+
   CodeMirror.Vim.defineEx("js", null, runjs)
 
 function put(_text, pre=false){
@@ -298,7 +301,7 @@ function reg(_reg, _new = null){
   }
   return CodeMirror.Vim.getRegisterController().getRegister(_reg).keyBuffer[0]
 }
-  
+
 function natsort(arr){ // ignores excessive spacing
   //arr = arr.map((i)=>i.trim().replace(/\s\s+/g, ' '))
   //arr.foreach((i)=>i=i.split().join(' '))
@@ -354,7 +357,7 @@ function move_to(tar, _forward = true) {
   var startch       = cm_editbox.getCursor().ch
   var last          = 0
   var lastch        = 0
-  
+
   for (var i = 0; i < allLines.length; i++) {
     //match = allLines[i].match(pattern)
     match = pattern.exec(allLines[i])
@@ -422,7 +425,56 @@ function runvdo(cm, params){
   vdo(params.argString)
 }
 CodeMirror.Vim.defineEx("vdo", null, runvdo)
+CodeMirror.Vim.defineEx("normal", null, runvdo)
 
+function vblock(cm, params){
+  cm_editbox.save()
+  char_at = cm_editbox.getCursor().ch + 1
+  vdo("?^\\s*(#<bar>$)|j")
+  line1 = cm.getCursor().line + 1
+  vdo("/^\\s*(#<bar>$)|k")
+  line2 = cm.getCursor().line + 1
+  vdo(line2 + "gg" + char_at + "<bar>t<bar>v" + line1 + "gg" + char_at + "<bar>T<bar>")
+  CodeMirror.Vim.handleKey(cm_editbox, '<C-v>', 'macro')
+}
+CodeMirror.Vim.defineEx('vblock', null, vblock)
+
+function alignRight(){
+    vdo('gvy')
+    sel = CodeMirror.Vim.getRegisterController().getRegister('"').keyBuffer[0]
+    sel = sel.split('\n')
+    width = sel[0].length
+    sel = sel.map((i)=>{
+      return i.trim().padStart(width, ' ');
+    })
+    CodeMirror.Vim.getRegisterController().getRegister('"').keyBuffer[0] = sel.join('\n')
+    vdo('gvp')
+}
+function alignLeft(){
+    vdo('gvy')
+    sel = CodeMirror.Vim.getRegisterController().getRegister('"').keyBuffer[0]
+    sel = sel.split('\n')
+    width = sel[0].length
+    sel = sel.map((i)=>{
+      return i.trim().padEnd(width, ' ');
+    })
+    CodeMirror.Vim.getRegisterController().getRegister('"').keyBuffer[0] = sel.join('\n')
+    vdo('gvp')
+}
+function alignCenter(){
+    vdo('gvy')
+    sel = CodeMirror.Vim.getRegisterController().getRegister('"').keyBuffer[0]
+    sel = sel.split('\n')
+    width = sel[0].length
+    sel = sel.map((i)=>{
+      base = width - i.trim().length
+      left = Math.floor(base/2)
+      right = base - left
+      return ''.padEnd(left, ' ') + i.trim() + ''.padStart(right, ' ');
+    })
+    CodeMirror.Vim.getRegisterController().getRegister('"').keyBuffer[0] = sel.join('\n')
+    vdo('gvp')
+}
 
 
 
@@ -451,6 +503,29 @@ function sort_by(){
 }
 
 
+//testing char skipping, not space skipping exclusively.
+function findMatches(text, tar, start=1) {
+  var matchingLines = [];
+  var allLines = text.split("\n");
+  //console.log(allLines[start].charAt(tar))
+  var character = allLines[start].charAt(tar)
+	var pattern = RegExp("(?<=^.{"+tar+"})\[^"+character+"]")
+	var last = 0
+    for (var i = 0; i < allLines.length; i++) {
+        if (allLines[i].match(pattern)) {
+			if (i >= start)
+              matchingLines.push(last);
+			if (i > start){
+			  matchingLines.push(i);
+			  break;}
+			else
+			  last = i
+        }
+    }
+    return matchingLines;
+}
+
+
 function kpos(cm, params){
   window.lastscroll = cm_editbox.getScrollInfo()
   window.lastline = cm_editbox.getCursor().line
@@ -470,7 +545,7 @@ finds between _table_ markers(or visual) and runs as table
 
 ,\\ visual
 aligns by |
-,, ,= visual 
+,, ,= visual
 aligns by , or = respectively
 ,; visual
 aligns by :
@@ -515,7 +590,7 @@ kj insert normal
 auto complete based on file contents
 
 jk fd insert
-escape 
+escape
 
 ,/ ,? insert
 search forward or backward and drop back to insert
@@ -546,7 +621,7 @@ place "
 # non complete calendar events
 \| (?!-)\S[^\|]+
 
-# find by surrounding 
+# find by surrounding
 (__)(.*?)\\1
 
 # shuffle search
@@ -563,6 +638,12 @@ for i in t._indices: r[i] = Row(**r[i]).to_dict()
 }
 CodeMirror.Vim.defineEx('notes', null, notes)
 
+function uuid4() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  );
+}
+
 </script>
 <script src="lib/brython_aio.js"></script>
 <script src="lib/brython_stdlib.js"></script>
@@ -574,6 +655,8 @@ from browser import document as doc
 from browser.html import *
 #import time
 #import traceback
+
+alert, prompt, confirm = window.alert, window.prompt, window.confirm
 
 class fopen():
   def __init__(self, new_file=False):
@@ -608,9 +691,128 @@ class fopen():
 
   async def __aexit__(self, *l):
     pass
-    
-def ii(predicate, *i):
-  return (j for j in i if predicate)
+
+
+
+def slot(name, slots='', *defaults, verbose=False):
+  'Slot class generator. Similar to named tuple, but mutable.'
+
+  args = tuple(slots.split(' '))
+  largs = ', '.join(args[:-len(defaults)] if defaults else args)
+  kwargs = ', '.join(f'{k}={repr(v)}' for k, v in zip(args[-len(defaults):], defaults))
+  all_args = ', '.join(i for i in [largs, kwargs] if i)
+  sargs = ', '.join(f'self.{i}' for i in args) + ' = ' + ', '.join(args)
+  rargs = ', '.join(f'"{k}": self.{k}' for k in args if not k.startswith('_'))
+  slot_template = f'''
+class {name}:
+  __slots__ = {repr(args)}
+
+  def __init__(self, {all_args}):
+    {sargs}
+
+  def __repr__(self):
+    return str({{{rargs}}})
+
+  def __call__(self, **kw):
+    return self.__class__(**dict({{{rargs}}}, **kw))
+
+  def to_dict(self):
+    return {{{rargs}}}
+
+'''.strip()
+  if verbose:
+    return(slot_template)
+  local = {}
+  exec(slot_template, local)
+  return local[name]
+
+
+def prop(name, slots='', *defaults, verbose=False):
+  'Slot class generator. Similar to named tuple, but mutable.'
+
+  args = tuple(slots.split(' '))
+
+  binds = ', '.join(f'"{i}": []' for i in args)
+  unders = tuple([f'_{i}' for i in args])
+
+  largs = ', '.join(args[:-len(defaults)] if defaults else args)
+  kwargs = ', '.join(f'{k}={repr(v)}' for k, v in zip(args[-len(defaults):], defaults))
+  all_args = ', '.join(i for i in [largs, kwargs] if i)
+  sargs = ', '.join(f'self._{i}' for i in args) + ' = ' + ', '.join(args)
+  rargs = ', '.join(f'"{k}": self._{k}' for k in args if not k.startswith('_'))
+
+  prop_temp = '''  @property
+  def {_prop}(self):
+    return self._{_prop}
+
+  @{_prop}.setter
+  def {_prop}(self, value):
+    if self._{_prop} != value:
+      last = self._{_prop}
+      self._{_prop} = value
+
+      for c in self._callbacks['{_prop}']:
+        c(self, last, value)
+
+  @classmethod
+  def on_{_prop}(cls, f):
+    cls._callbacks['{_prop}'].append(f)
+    return f
+'''
+  gen_props = '\n'.join(prop_temp.format(_prop=a) for a in args)
+
+  slot_template = f'''
+class {name}:
+  __slots__ = {repr(unders)}
+
+  _callbacks = {{{binds}}}
+
+  def __init__(self, {all_args}):
+    {sargs}
+
+  def __repr__(self):
+    return str({{{rargs}}})
+
+  def __call__(self, **kw):
+    return self.__class__(**dict({{{rargs}}}, **kw))
+
+  def to_dict(self):
+    return {{{rargs}}}
+
+  @classmethod
+  def bind(cls, **kw):
+    for k, v in kw.items():
+      cls._callbacks[k].append(v)
+
+  @classmethod
+  def unbind(cls, **kw):
+    for k, v in kw.items():
+      cls._callbacks[k].remove(v)
+
+{gen_props}
+
+'''.strip()
+  if verbose:
+    return(slot_template)
+  local = {}
+  exec(slot_template, local)
+  return local[name]
+
+
+def compose(cfg, base=prop, verbose=False):
+  entities = {}
+
+  for cls, props in cfg['cls'].items():
+    mixed = {'cls': cls, 'uuid': ''}
+
+    for c in props['_components']:
+      mixed.update(cfg['components'][c])
+
+    mixed.update(props)
+
+    entities[cls] = base(cls, ' '.join(mixed.keys()), *mixed.values(), verbose=verbose)
+
+  return entities
 
 
 import _jsre as re
@@ -636,7 +838,7 @@ def Task(coro, Id, block):
       block[Id] = await coro
     except Exception as e:
       block[Id] = e
-    
+
     if not block[Id]:
       del block[Id]
   return _task()
@@ -650,7 +852,7 @@ async def gather(*coros, rate=0):
   while not all(dones.values()):
     await aio.sleep(rate)
   return dones
-  
+
 aio.gather = gather
 aio.Task = Task
 
@@ -663,7 +865,7 @@ class Dimension:
     self.top = top
     self.width = width
     self.center = (left + (width/2), top + (height/2))
-    
+
   def __repr__(self):
     return "{" + f"'top': {repr(self.top)}, 'bottom': {repr(self.bottom)}, 'left': {repr(self.left)}, 'right': {repr(self.right)}, 'height': {repr(self.height)}, 'width': {repr(self.width)}, 'center': {repr(self.center)}" + "}"
 
@@ -678,29 +880,29 @@ def getdim(el):
           'width': br.width
           }
   return Dimension(**out)
-  
+
 class Event:
-  ''' 
+  '''
   Asyncio primitive, Event.
   https://docs.python.org/3/library/asyncio-sync.html
   '''
-  
+
   def __init__(self, *):
     self._set = False
-    
+
   async def wait(self):
     while not self._set:
       await aio.sleep(0)
-      
+
   def is_set(self):
     return self._set
-    
+
   def set(self):
     self._set = True
-    
+
   def clear(self):
     self._set = False
-    
+
 aio.Event = Event
 
 class Lock:
@@ -752,7 +954,7 @@ class Semaphore:
 
   async def __aexit__(self, *l):
     self.release()
-    
+
 aio.Semaphore = Semaphore
 
 def itemgetter(*items):
@@ -832,10 +1034,10 @@ def partial(func, *args, **keywords):
   return newfunc
 
 def s2m(s, *types, fillvalue='', filltype=str, ignorecomment=True):
-  return [[t(j.strip() or fillvalue) for j, t in zip_longest(i.split('|'), types, fillvalue=filltype)] 
-      for i in s.strip().splitlines() 
+  return [[t(j.strip() or fillvalue) for j, t in zip_longest(i.split('|'), types, fillvalue=filltype)]
+      for i in s.strip().splitlines()
       if (ignorecomment and not i.strip().startswith('#') or not ignorecomment)]
-      
+
 def is_num(_in):
   try:
     float(_in)
@@ -843,19 +1045,19 @@ def is_num(_in):
   except:
     return False
 
-def align(_dat, transpose=False):  
+def align(_dat, transpose=False):
   dat = [[str(j) for j in i] for i in _dat]
   if transpose:
     dat = list(map(list, zip(*dat)))
-    
+
   max_len = max(len(i) for i in dat)
   for i in dat:
     i.extend(['']*(max_len-len(i)))
   widths = [max(map(len, col)) for col in zip(*dat)]
   _out = ''
   for row in dat:
-    _out += ' | '.join((val.ljust(width) if not is_num(val) else val.rjust(width) 
-      for val, width in zip(row, widths))) + '\n'
+    _out += ' | '.join((val.ljust(width) if not is_num(val) else val.rjust(width)
+      for val, width in zip(row, widths))).rstrip() + '\n'
   return _out
 
 # --- end focus
@@ -871,13 +1073,81 @@ _options['so'] = 6*12
 _options['center'] = True
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
-_options['limelight'] = True
+_options['limelight'] = None
+_options['printer'] = 'quick'
+_options['relative_number'] = True
 
-def temp(l):
-  return abs(cm_editbox.getCursor().line-l+1)
-cm_editbox.setOption('lineNumberFormatter', temp);
+def runup(cm, params):
+  cm_editbox.save()
+  tar = window.findMatches(cm_editbox.getTextArea().value, cm_editbox.getCursor().ch, cm_editbox.getCursor().line)[0]
+  window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(tar)+", 'ch':"+str(_options['editbox'].getCursor().ch)+"})")
+window.CodeMirror.Vim.defineEx("runup", None, runup)
+def rundown(cm, params):
+  cm_editbox.save()
+  tar = window.findMatches(_options['editbox'].getTextArea().value, _options['editbox'].getCursor().ch, _options['editbox'].getCursor().line)[-1]
+  window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(tar)+", 'ch':"+str(_options['editbox'].getCursor().ch)+"})")
+window.CodeMirror.Vim.defineEx("rundown", None, rundown)
 
 def showRelativeLines(cm):
+  #cm.setOption('lineNumbers', cm.state.vim.visualMode)
+  lineNum = cm.getCursor().line + 1;
+
+  if _options['limelight'] is not None:
+    look_at = int(doc.querySelector('.CodeMirror').scrollHeight/12)
+    last_line = cm.lastLine()
+    if len(cm_editbox.getSelections()) > 1:
+      cur_line = cm_editbox.listSelections()[0].anchor.line
+      cur_line_bot = cm_editbox.listSelections()[-1].anchor.line
+    else:
+      cur_line = cm.getCursor(True).line
+      cur_line_bot = cm.getCursor(False).line
+    line_range = range(cur_line, cur_line_bot+1)
+    up = True
+    down = True
+    for i in range(look_at):
+      if _options['limelight']:
+        if cm_editbox.state.vim.visualMode:
+          if cur_line-i in line_range:
+            cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+          else:
+            cm.addLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+          if cur_line+i in line_range:
+            cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+          else:
+            cm.addLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+        else:
+          #going down
+          if cur_line+i <= last_line and down and cm.getLine(cur_line+i).strip():
+            cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+          elif cur_line+i <= last_line and i:
+            cm.addLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+            down = False
+
+          #going up
+          if cur_line-i >= 0 and up and cm.getLine(cur_line-i).strip():
+            cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+          elif cur_line-i >= 0 and i:
+            cm.addLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+            up = False
+      else:
+        cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+        cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+      cm.removeLineClass(lineNum-1-i, 'gutter', 'CodeMirror-activeline-gutter')
+      cm.removeLineClass(lineNum-1+i, 'gutter', 'CodeMirror-activeline-gutter')
+    cm.addLineClass(lineNum-1, 'gutter', 'CodeMirror-activeline-gutter')
+
+    if (cm.getCursor().line == lineNum):
+      #cm.addLineClass(l, 'gutter', 'CodeMirror-activeline-gutter')
+      #cm.removeLineClass(l, 'gutter', 'CodeMirror-activeline-gutter')
+      return
+
+
+    #cm.getCursor().line = lineNum
+  def temp(l):
+    if _options['relative_number']:
+      return abs(lineNum-l)
+    else:
+      return l
   cm.setOption('lineNumberFormatter', temp);
   if _options['center'] and not cm_editbox.state.vim.insertMode and not cm_editbox.state.vim.visualMode:
     doc.querySelector('.CodeMirror').CodeMirror.setOption('cursorScrollMargin',doc.querySelector('.CodeMirror').scrollHeight/2)
@@ -887,9 +1157,12 @@ doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', showRelativeLin
 
 
 
+
+_options['_line_numbers'] = True
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
-  
+  _options['_line_numbers'] = state
+
 _options['line_numbers'] = line_numbers
 
 def on_down(ev):
@@ -903,14 +1176,16 @@ def on_down(ev):
     if not cm_editbox.state.vim.insertMode:
       ev.preventDefault()
       ev.stopPropagation()
-      cm_editbox.setOption('lineNumbers', False)
+      if _options['_line_numbers']:
+        cm_editbox.setOption('lineNumbers', False)
       cm_editbox.setOption('lineWrapping', True)
       cm_editbox.setOption('readOnly', True)
   if ev.which == 39 and ctrl:
     if not cm_editbox.state.vim.insertMode:
       ev.preventDefault()
       ev.stopPropagation()
-      cm_editbox.setOption('lineNumbers', True)
+      if _options['_line_numbers']:
+        cm_editbox.setOption('lineNumbers', True)
       cm_editbox.setOption('lineWrapping', False)
       cm_editbox.setOption('readOnly', False)
   if chr(ev.which)=='G' and ctrl:
@@ -927,19 +1202,23 @@ window.bind('keydown', on_down)
 
 def do_py() -> None:
   try:
+    def print(*objects, sep=' ', end='\n'):
+      pstack.append(sep.join(str(o) for o in objects) + end)
     window.vdo("gv")
     data = cm_editbox.getSelection()
     exec(data)
   except Exception as e:
     import traceback
     window.make_popup(traceback.format_exc())
-        
+
 def run_py(cm, params):
   do_py()
 window.CodeMirror.Vim.defineEx("do_py", None, run_py)
 
 def run_file(cm, params):
   try:
+    def print(*objects, sep=' ', end='\n'):
+      pstack.append(sep.join(str(o) for o in objects) + end)
     exec(cm_editbox.getValue())
   except Exception as e:
     import traceback
@@ -950,32 +1229,36 @@ def do_tp() -> None:
   try:
     window.vdo("gvo")
     data = cm_editbox.getSelection()
+    lpad = min(len(i) - len(i.lstrip()) for i in data.splitlines())
     out = align(s2m(data, ignorecomment=False), True)
+    out = '\n'.join(f'{" "*lpad}{i}' for i in out.splitlines())
     cm_editbox.replaceSelection(out.strip('\n'))
   except Exception as e:
     import traceback
     window.make_popup(traceback.format_exc())
-        
+
 def run_tp(cm, params):
   do_tp()
 window.CodeMirror.Vim.defineEx("do_tp", None, run_tp)
 
 def runpy(cm, params):
-  exec(params.argString, _options)
+  #g = globals()
+  #g.update(_options)
+  exec(params.argString, globals(), _options)
 
 window.CodeMirror.Vim.defineEx("py", None, runpy)
 
 
 def do_reg(_do = "sum(n)", _reg = '"') -> dict:
   args = _do.split(';')
-  
+
   sel = window.CodeMirror.Vim.getRegisterController().getRegister(_reg).keyBuffer[0]
-  
+
   l  = re.split(r'\s+', sel)
   li = re.split(r'\s*\n\s*', sel)
   n  = [float(i) for i in re.findall(r'[-+]?[0-9]*\.?[0-9]+', sel)]
   w  = re.findall(r'\w+', sel)
-  
+
   outs = []
   for i in args:
     outs.append(eval(i))
@@ -998,6 +1281,37 @@ def compare(cm, params):
 window.CodeMirror.Vim.defineEx("compare", None, compare)
 window.CodeMirror.Vim.defineEx("diff", None, compare)
 
+def groupby_text(predicate=''):
+  predicate = predicate.strip()
+  window.vdo('gv')
+  dat = cm_editbox.getSelection().splitlines()
+  #gb = groupby(dat, key=lambda i: predicate in i)
+  gb = groupby(dat, key=partial(re.findall, predicate, flags=re.I))
+  gb = '\n\n'.join('\n'.join(v) for k, v in gb)
+  window.vdo('gv')
+  cm_editbox.replaceSelection(gb)
+def run_groupby_text(cm, params):
+  try:
+    groupby_text(params.argString)
+  except Exception as e:
+    window.make_popup(str(e))
+window.CodeMirror.Vim.defineEx("gb", None, run_groupby_text)
+
+def groupby_column(predicate=''):
+  predicate = predicate.strip()
+  window.vdo('gv')
+  dat = cm_editbox.getSelection().splitlines()
+  gb = groupby(dat, key=partial(re.findall, r'(?<=^([^\|]+\|){' + predicate + r'})[^\|]+', flags=re.I))
+  gb = '\n\n'.join('\n'.join(v) for k, v in gb)
+  window.vdo('gv')
+  cm_editbox.replaceSelection(gb)
+def run_groupby_column(cm, params):
+  try:
+    groupby_column(params.argString)
+  except Exception as e:
+    window.make_popup(str(e))
+window.CodeMirror.Vim.defineEx("gbc", None, run_groupby_column)
+
 def better_sort():
   #import re
   oldpos = cm_editbox.getCursor()
@@ -1008,30 +1322,24 @@ def better_sort():
 
   # Genius snippet.
   def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
-    return [int(text) if text.isdigit() else text.lower()
-            for text in _nsre.split(s)]    
-  def do_stuff(dat, ns = False):
-    if ns:
-      return dat
-    sets = re.split(r'\n(\s+)?\n+', dat)
-    sets = [s if s is not None and s.split() else '' for s in sets]
-    for i in range(len(sets)):
-      lines = sets[i].splitlines()
-      for line in range(len(lines)):
-        lines[line] = lines[line].rstrip()
-      locked = []
-      for j in range(len(lines)):
-        if lines[j].strip().startswith('#'):
-          locked.append((j, lines[j]))
-      for j in reversed(locked):
-        del lines[j[0]]
-      #lines = sorted(lines)#, key = natural_sort_key)
-      lines = window.natsort(lines)
-      for j in locked:
-        lines.insert(j[0], j[1])
-      sets[i] = '\n'.join(lines)
-    return '\n'.join(sets)
-  cm_editbox.replaceSelection(do_stuff(dat))
+    return [int(text) if text.isdigit() else re.sub(r'\s\s+', ' ', text.strip().lower())
+            for text in _nsre.split(s)]
+
+  def if_comment(i):
+    if i.lstrip().startswith('#'):
+      return i
+    if i.strip() == '':
+      return ''
+    return False
+
+  def better_sort(s):
+    gb = groupby(s.splitlines(), key=if_comment)
+    gb = [list(v) for k, v in gb]
+    #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
+    gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
+    return(gb)
+
+  cm_editbox.replaceSelection(better_sort(dat))
   window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(oldpos.line)+", 'ch':"+str(oldpos.ch)+"})")
   window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
 def run_better_sort(cm, params):
@@ -1045,15 +1353,77 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
+  lpad = min(len(i) - len(i.lstrip()) for i in data.splitlines())
   out = align(s2m(data,  ignorecomment=False))
+  out = '\n'.join(f'{" "*lpad}{i}' for i in out.splitlines())
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
+def run_stack(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  if data[0] == '{':
+    out = sstack(eval(data))
+  else:
+    out = str(stack(data))
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("stack", None, run_stack)
 
+def run_ts(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+
+  try:
+    main = int(params.argString)
+  except:
+    main = None
+
+  data = data.lstrip().lstrip('#')
+  out = sstack(m2stack(s2m(data), main))
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("ts", None, run_ts)
+
+def run_tt(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+
+  try:
+    main = params.argString
+  except:
+    main = None
+
+  temp_m = stack2m(stack(data), main)
+  temp_m[0][0] = '#' + temp_m[0][0]
+  out = align(temp_m)
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("tt", None, run_tt)
+
+def move(cm, params):
+  window.vdo('gv')
+  if not cm_editbox.state.vim.visualLine:
+    window.vdo('V')
+  window.vdo('d')
+  where = params.argString.strip()
+  cur_line = cm.getCursor().line
+  if where[0] == '+':
+    temp_int = int(where[1:]) - len(window.reg('"').splitlines())
+    window.vdo(f'{temp_int}jp')
+  elif where[0] == '-':
+    window.vdo(f'{where[1:]}kp')
+  else:
+    temp_int = int(where) - len(window.reg('"').splitlines())
+    if cur_line < int(where):
+      window.vdo(f'{temp_int}Gp')
+    else:
+      window.vdo(f'{where}Gp')
+window.CodeMirror.Vim.defineEx("move", None, move)
 
 #--- async stuff
-    
+
 
 class Popup:
   lock = aio.Lock()
@@ -1093,9 +1463,9 @@ class Popup:
     await aio.sleep(.05)
     self.frame.style['background'] = 'rgba(0, 0, 0, .5)'
     self.box.style['opacity'] = 1
-    
+
     return self.box
-    
+
   async def __aexit__(self, type, value, traceback):
     self.frame.style['background'] = 'rgba(0, 0, 0, 0)'
     self.box.style['opacity'] = 0
@@ -1112,27 +1482,27 @@ async def popup(content):
     with UIEventStream([doc['popupbg'], 'click']) as stream:
       await _any(stream)
 
-    
+
 class Stagger:
   def __init__(self, base_delay, rate):
     self.delay = base_delay
     self.rate = rate
-    
+
   async def delay_fun(self, fun, delay):
     await aio.sleep(delay)
     fun()
-    
+
   def stagger(self, fun):
     aio.run(self.delay_fun(fun, self.delay))
     self.delay += self.rate
-    
+
   def __enter__(self):
     return self.stagger
-    
+
   def __exit__(self, *_):
     pass
 
-      
+
 def center(el):
   'bottom height left right top width'
   root = getdim(doc.querySelector('body'))
@@ -1141,7 +1511,7 @@ def center(el):
   el.top = int(root.center[1] - eldim.height//2)
 
 
-  
+
 def hilo(a, b, c):
   if c < b: b, c = c, b
   if b < a: a, b = b, a
@@ -1151,7 +1521,7 @@ def hilo(a, b, c):
 def complement(r, g, b, a):
   k = hilo(r, g, b)
   return (*tuple(k - u for u in (r, g, b)), a)
-  
+
 def tint(r, g, b, a, val):
   '''Tints rgb values to apply 'white' layer to materials'''
 
@@ -1159,32 +1529,32 @@ def tint(r, g, b, a, val):
   gt = g + (val * (255 - g))
   bt = b + (val * (255 - b))
   return (rt, gt, bt, a)
-  
+
 def shade(r, g, b, a, val):
   rt = r - r*val
   gt = g - g*val
   bt = b - b*val
   return (rt, gt, bt, a)
-  
+
 def is_dark(color):
   # determine color too dark
   # HSP (Highly Sensitive Poo) equation from http://alienryderflex.com/hsp.html
   r, g, b, _ = color
   hsp =  0.299 * r**2 + 0.587 * g**2 + 0.114 * b**2
   return 127.5 >= hsp**(1/2.0)
-  
+
 base_color = [18, 18, 18, 1]
-  
+
 def space(*l, **kw):
   return DIV(*l, style={'position': 'absolute', 'margin': '0px', 'padding': '0px',
       'display': 'flex',
       'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
       'transition': 'all 0.3s',
       'box-sizing': 'border-box',}, **kw)
-      
+
 
 opacities = {0:  0, 1: .05, 2: .07, 3: .08, 4: .09, 6: .11, 8: .12, 12: .14, 16: .15, 24: .16}
-shadows = {0: 'none', 
+shadows = {0: 'none',
             1: '0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20)',
             2: '0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20)',
             3: '0 3px 4px 0 rgba(0,0,0,0.14), 0 3px 3px -2px rgba(0,0,0,0.12), 0 1px 8px 0 rgba(0,0,0,0.20)',
@@ -1232,12 +1602,12 @@ def elevate(self, value, color=base_color, flat=False):
 
 def flex(*l, base=DIV, color=base_color, padding='12px 18px', elevation=0, flow='row wrap', justify='flex-start', align_items='stretch', align_content='stretch', grow=1, flat=False, style={}, marked=False, emphasis='high', **kw):
   dark = is_dark(color)
-  
+
   base_style = {
         # commented for flatter look
         'margin': '8px',
         'border-radius': '5px',
-        
+
         'border': 'none',
         'font-size': '16px',
         'cursor': 'default',
@@ -1252,7 +1622,7 @@ def flex(*l, base=DIV, color=base_color, padding='12px 18px', elevation=0, flow=
   base_style.update(style)
 
   self = base(*l, style=base_style, **kw)
-  
+
   # tint and shadows
   elevate(self, elevation, color, flat)
   #if not flat:
@@ -1260,9 +1630,9 @@ def flex(*l, base=DIV, color=base_color, padding='12px 18px', elevation=0, flow=
   #  self.style['box-shadow'] = shadows[elevation]
   #else:
   #  self.style['background'] = f'rgba(255, 255, 255, {opacities[elevation]})'
-    
+
   self.style['padding'] = padding
-  
+
   # row (default)   : left to right in ltr; right to left in rtl
   # row-reverse     : right to left in ltr; left to right in rtl
   # column          : same as row but top to bottom
@@ -1271,7 +1641,7 @@ def flex(*l, base=DIV, color=base_color, padding='12px 18px', elevation=0, flow=
   # wrap            : flex items will wrap onto multiple lines, from top to bottom.
   # wrap-reverse    : flex items will wrap onto multiple lines from bottom to top.
   self.style['flex-flow'] = flow
-  
+
   # flex-start (default): items are packed toward the start of the flex-direction.
   # flex-end            : items are packed toward the end of the flex-direction.
   # start               : items are packed toward the start of the writing-mode direction.
@@ -1283,14 +1653,14 @@ def flex(*l, base=DIV, color=base_color, padding='12px 18px', elevation=0, flow=
   # space-around        : items are evenly distributed in the line with equal space around them. Note that visually the spaces aren't equal, since all the items have equal space on both sides. The first item will have one unit of space against the container edge, but two units of space between the next item because that next item has its own spacing that applies.
   # space-evenly        : items are distributed so that the spacing between any two items (and the space to the edges) is equal.
   self.style['justify-content'] = justify
-  
+
   # stretch (default)              : stretch to fill the container (still respect min-width/max-width)
   # flex-start / start / self-start: items are placed at the start of the cross axis. The difference between these is subtle, and is about respecting the flex-direction rules or the writing-mode rules.
   # flex-end / end / self-end      : items are placed at the end of the cross axis. The difference again is subtle and is about respecting flex-direction rules vs. writing-mode rules.
   # center                         : items are centered in the cross-axis
   # baseline                       : items are aligned such as their baselines align
   self.style['align-items'] = align_items
-  
+
   # flex-start / start: items packed to the start of the container. The (more supported) flex-start honors the flex-direction while start honors the writing-mode direction.
   # flex-end / end    : items packed to the end of the container. The (more support) flex-end honors the flex-direction while end honors the writing-mode direction.
   # center            : items centered in the container
@@ -1299,11 +1669,11 @@ def flex(*l, base=DIV, color=base_color, padding='12px 18px', elevation=0, flow=
   # space-evenly      : items are evenly distributed with equal space around them
   # stretch (default) : lines stretch to take up the remaining space
   self.style['align-content'] = align_content
-  
+
   self.style['flex-grow'] = grow
-    
+
   return self
-  
+
 def textbox(text='', placeholder='', name='', _list='', _type='', force_list=False, multiline=True, *l, **kw):
   if multiline:
     self = flex(text, *l, base=TEXTAREA, placeholder=placeholder, name=name, **kw)
@@ -1312,19 +1682,19 @@ def textbox(text='', placeholder='', name='', _list='', _type='', force_list=Fal
     self.value = text
     self.setAttribute('type', _type)
     self.setAttribute('list', _list)
-  
+
   self.style['border-bottom'] = f'solid 2px rgba{tint(*(0, 0, 128, 1), opacities[6])}'
-  
+
   base_elevation = kw.get('elevation', 0)
   color = kw.get('color', base_color)
   flat = kw.get('flat', False)
-  
+
   self.bind('mouseenter', lambda ev: elevate(self, base_elevation + 2, color, flat))
   self.bind('mouseleave', lambda ev: elevate(self, base_elevation, color, flat))
 
   self.bind('focus', lambda ev: elevate(self, base_elevation + 2, color, flat))
   self.bind('blur', lambda ev: elevate(self, base_elevation, color, flat))
-  
+
   if force_list:
     def erase(ev):
       if self.value:
@@ -1348,9 +1718,9 @@ def textbox(text='', placeholder='', name='', _list='', _type='', force_list=Fal
     self.bind('click', erase)
     self.bind('blur', force)
     force(None)
-  
+
   return self
-  
+
 class InputOptions(DATALIST):
   def __init__(self, possibilities, *l, **kw):
     self.possibilities = possibilities
@@ -1364,16 +1734,16 @@ class InputOptions(DATALIST):
 
   def __repr__(self):
     return "{" + f"'possibilities': {repr(self.possibilities)}" + "}"
-  
+
 def edge(*l, flat=True, **kw):
   return flex(*l, **kw, flat=flat, padding='0px', style={'border-radius': '0px', 'margin': '0px'})
 
 def card(*l, **kw):
   return flex(*l, **kw)
-  
+
 def label(*l, flow='column', justify='center', flat=True, **kw):
   return card(*l, flow=flow, justify=justify, flat=flat, **kw)
-  
+
 
 def button(*l, elevation=0, flat=False, raised=False, flow='column', justify='center', align_items='center', **kw):
   if raised:
@@ -1389,7 +1759,7 @@ def button(*l, elevation=0, flat=False, raised=False, flow='column', justify='ce
        flow=flow,
        align_items=align_items,
        **kw)
-  
+
   base_elevation = elevation
   color = kw.get('color', base_color)
   flat = flat
@@ -1408,26 +1778,26 @@ def button(*l, elevation=0, flat=False, raised=False, flow='column', justify='ce
       ev.preventDefault()
       elevate(self, base_elevation + 6, color, flat)
       self.click()
-      
+
   self.bind('keyup', on_enter)
   self.bind('mouseup', on_enter)
-  
+
   def on_keydown(ev):
     if ev.type=='mousedown' or ev.keyCode in (13, 32):
       ev.preventDefault()
       elevate(self, base_elevation, color, flat)
-      
+
   self.bind('keydown', on_keydown)
   self.bind('mousedown', on_keydown)
-  
+
   return self
-  
+
 def fab(_icon, *l, **kw):
   return button(icon(_icon), elevation=6, raised=True, style={'padding': '18px', 'border-radius': '50%'})
-    
+
 def icon(_icon, *l, **kw):
   return I(_icon, *l, Class='material-icons', **kw)
-  
+
 class snack:
   lock = aio.Lock()
 
@@ -1457,7 +1827,7 @@ class snack:
 
   def __repr__(self):
     return "{" + f"'delay': {repr(self.delay)}" + "}"
-    
+
 def grid2tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
   _width = width
   _cols = [0]
@@ -1470,7 +1840,7 @@ def grid2tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
     else:
       _cols.append(_width - width + c)
       width -= c
-      
+
   _height = height
   _rows = [0]
   for c in rows:
@@ -1482,22 +1852,22 @@ def grid2tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
     else:
       _rows.append(_height - height + c)
       height -= c
-  
+
   if ... in _cols:
     idx = _cols.index(...)
     _cols[idx:idx+1] = [_cols[idx-1]]
     _cols[idx:] = [i+width for i in _cols[idx:]]
     width = 0
-    
+
   if ... in _rows:
     idx = _rows.index(...)
     _rows[idx:idx+1] = [_rows[idx-1]]
     _rows[idx:] = [i+height for i in _rows[idx:]]
     height = 0
-  
+
   _cols = [round(i+offx+width//2) for i in _cols]
   _rows = [round(i+offy+height//2) for i in _rows]
-      
+
   return _cols, _rows
 
 def gmap(c, r, obj, x=0, y=0, ex=None, ey=None):
@@ -1518,7 +1888,7 @@ class UIEventStream:
       self.out = []
     self.selects = selects
     self.binds = []
-    
+
   def __enter__(self):
     for o, *evs in self.selects:
       for ev in evs:
@@ -1538,7 +1908,7 @@ class UIEventStream:
       l[0].stopPropagation()
       out.append((o, ev, (l, kw)))
     return on_event
-  
+
 class EventStream:
   def __init__(self, *selects, join=None):
     # select = [obj, *events]
@@ -1566,7 +1936,7 @@ class EventStream:
     def on_event(*l, **kw):
       out.append((o, ev, (l, kw)))
     return on_event
-      
+
 async def _any(_iterable):
   'Await for any(_iterable) to be true'
 
@@ -1575,23 +1945,145 @@ async def _any(_iterable):
   return _iterable
 
 
+
+def try_cast(s):
+  try:
+    return eval(s)
+  except:
+    return s
+
+def stack(s):
+  out = {}
+  last_depth = -1
+  stack = [out]
+
+  for l in s.strip('\n').splitlines():
+    if not l.strip() or l.lstrip().startswith('#'):
+      continue
+
+    depth = (len(l) - len(l.lstrip())) // 2
+
+    left = l.partition(':')[0].strip()
+    right = l.partition(':')[2].strip()
+
+    if depth < last_depth:
+      if depth:
+        stack = stack[:depth+1]
+      else:
+        stack = [stack[0]]
+      last_depth = depth
+
+
+    if depth > last_depth:
+      if right == '[':
+        stack[-1][left] = []
+        stack.append(stack[-1][left])
+      elif isinstance(stack[-1], list):
+        if l.strip() != ']':
+          stack[-1].append(try_cast(l.strip()))
+      elif right:
+        stack[-1][left] = try_cast(right)
+      else:
+        stack[-1][left] = {}
+
+        stack.append(stack[-1][left])
+      last_depth = depth
+
+    else:
+      if right == '[':
+        stack[-1][left] = []
+        stack.append(stack[-1][left])
+      elif isinstance(stack[-1], list):
+        if l.strip() != ']':
+          stack[-1].append(try_cast(l.strip()))
+      elif right:
+        stack[-1][left] = try_cast(right)
+      else:
+        stack[-1][left] = {}
+
+        stack.append(stack[-1][left])
+
+  return out
+
+def _stack(d, out=[], depth=0):
+  for k, v in d.items():
+    if isinstance(v, dict):
+      out.append(' '*depth + f'{k}:')
+      _stack(v, out, depth+2)
+    elif isinstance(v, list):
+      out.append(' '*depth + f'{k}: [')
+      for i in v:
+        out.append(' '*(depth+2) + f'{i!r}')
+      out.append(' '*(depth+2) + ']')
+    else:
+      out.append(' '*depth + f'{k}: {v!r}')
+
+def sstack(d, depth=0):
+  out = []
+  _stack(d, out, depth)
+  return '\n'.join(out)
+
+def stack2m(s, main=None):
+  if main is not None:
+    keys = [main]
+  else:
+    keys = []
+  for i in s.values():
+    for k in i.keys():
+      if k not in keys:
+        keys.append(k)
+  if main is not None:
+    out = [keys] + [[_k] + [i.get(k, '') for k in keys[1:]] for _k, i in s.items()]
+  else:
+    out = [keys] + [[i.get(k, '') for k in keys] for i in s.values()]
+  return out
+
+
+def m2stack(m, main=None, keys=[]):
+  if not keys:
+    keys = m.pop(0)
+  if main is None:
+    return {str(idx): {k: i[idk] for idk, k in enumerate(keys) if i[idk]} for idx, i in enumerate(m)}
+  else:
+    return {i[main]: {k: i[idk] for idk, k in enumerate(keys) if i[idk]} for idx, i in enumerate(m)}
+
+
 save_me = []
+loaded = False
 _options['save_me'] = save_me
+
+def save_on_blur(*l, **kw):
+  if loaded:
+    save_me.append(True)
+
+window.onblur = save_on_blur
+
 async def auto_saver():
+  global loaded
   await popup('Click to load')
   async with fopen() as f:
     cm_editbox.setValue(f.text)
+    loaded = True
     while True:
       await _any(save_me)
       cm_editbox.save()
       await f.write(re.sub(r' +$', '', editbox.value, flags=re.M))
       save_me.clear()
       print('Saved')
-      
 
-  
+pstack = []
+async def printer():
+  while True:
+    if pstack:
+      if _options['printer'] == 'quick':
+        cm_editbox.openNotification('<pre>' + ''.join(pstack).replace('<', '&lt;').replace('>', '&gt;').strip('\n').replace('\n', '<br>') + '</pre>')
+      else:
+        window.make_popup(''.join(pstack).strip('\n'))
+      pstack.clear()
+    await aio.sleep(1)
+
 async def main():
-  res = await aio.gather(auto_saver())
+  res = await aio.gather(auto_saver(), printer())
   window.alert(str(res))
 
 aio.run(main())
