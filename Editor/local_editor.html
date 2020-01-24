@@ -1056,7 +1056,7 @@ def align(_dat, transpose=False):
     fill(_dat)
     _heads = list(_dat[0].keys())
     ig = itemgetter(*_heads)
-    dat = [_heads, *[list(ig(i)) for i in _dat]]
+    dat = [_heads, *[[str(j) for j in ig(i)] for i in _dat]]
   else:
     dat = [[str(j) for j in i] for i in _dat]
   if transpose:
