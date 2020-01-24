@@ -1038,6 +1038,12 @@ def s2m(s, *types, fillvalue='', filltype=str, ignorecomment=True):
       for i in s.strip().splitlines()
       if (ignorecomment and not i.strip().startswith('#') or not ignorecomment)]
 
+def s2d(s, *types, fillvalue='', filltype=str, ignorecomment=True):
+  _headers = [i.strip() for i in s.strip().splitlines()[0].lstrip('#').split('|')]
+  return [dict(zip(_headers, [t(j.strip() or fillvalue) for j, t in zip_longest(i.split('|'), types, fillvalue=filltype)]))
+      for i in s.strip().splitlines()[1:]
+      if (ignorecomment and not i.strip().startswith('#') or not ignorecomment)]
+
 def is_num(_in):
   try:
     float(_in)
@@ -1046,7 +1052,13 @@ def is_num(_in):
     return False
 
 def align(_dat, transpose=False):
-  dat = [[str(j) for j in i] for i in _dat]
+  if isinstance(_dat[0], dict):
+    fill(_dat)
+    _heads = list(_dat[0].keys())
+    ig = itemgetter(*_heads)
+    dat = [_heads, *[list(ig(i)) for i in _dat]]
+  else:
+    dat = [[str(j) for j in i] for i in _dat]
   if transpose:
     dat = list(map(list, zip(*dat)))
 
@@ -1070,7 +1082,7 @@ editbox = window.editbox
 cm_editbox = window.cm_editbox
 _options['editbox'] = cm_editbox
 _options['so'] = 6*12
-_options['center'] = False
+_options['center'] = True
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = None
@@ -1370,37 +1382,6 @@ def run_stack(cm, params):
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("stack", None, run_stack)
-
-def run_ts(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-
-  try:
-    main = int(params.argString)
-  except:
-    main = None
-
-  data = data.lstrip().lstrip('#')
-  out = sstack(m2stack(s2m(data), main))
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("ts", None, run_ts)
-
-def run_tt(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-
-  try:
-    main = params.argString
-  except:
-    main = None
-
-  temp_m = stack2m(stack(data), main)
-  temp_m[0][0] = '#' + temp_m[0][0]
-  out = align(temp_m)
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("tt", None, run_tt)
 
 def move(cm, params):
   window.vdo('gv')
@@ -2020,33 +2001,26 @@ def _stack(d, out=[], depth=0):
 
 def sstack(d, depth=0):
   out = []
+  if isinstance(d, list):
+    d = dict(enumerate(d))
   _stack(d, out, depth)
   return '\n'.join(out)
 
-def stack2m(s, main=None):
-  if main is not None:
-    keys = [main]
+def fill(s, default=''):
+  if isinstance(s, dict):
+    keys = {k for i in s.values() for k in i.keys()}
+    #out = [keys] + [[i.get(k, '') for k in keys] for i in s.values()]
+    for i in s.values():
+      for k in keys:
+        if k not in i:
+          i[k] = default
   else:
-    keys = []
-  for i in s.values():
-    for k in i.keys():
-      if k not in keys:
-        keys.append(k)
-  if main is not None:
-    out = [keys] + [[_k] + [i.get(k, '') for k in keys[1:]] for _k, i in s.items()]
-  else:
-    out = [keys] + [[i.get(k, '') for k in keys] for i in s.values()]
-  return out
-
-
-def m2stack(m, main=None, keys=[]):
-  if not keys:
-    keys = m.pop(0)
-  if main is None:
-    return {str(idx): {k: i[idk] for idk, k in enumerate(keys) if i[idk]} for idx, i in enumerate(m)}
-  else:
-    return {i[main]: {k: i[idk] for idk, k in enumerate(keys) if i[idk]} for idx, i in enumerate(m)}
-
+    keys = {k for i in s for k in i.keys()}
+    for i in s:
+      for k in keys:
+        if k not in i:
+          i[k] = default
+  return s
 
 save_me = []
 loaded = False
