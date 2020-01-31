@@ -1033,12 +1033,24 @@ def partial(func, *args, **keywords):
   newfunc.keywords = keywords
   return newfunc
 
-def s2m(s, *types, fillvalue='', filltype=str, ignorecomment=True):
+def try_cast(s):
+  try:
+    return eval(s)
+  except:
+    try:
+      return int(s)
+    except:
+      try:
+        return float(s)
+      except:
+        return s
+
+def s2m(s, *types, fillvalue='', filltype=try_cast, ignorecomment=True):
   return [[t(j.strip() or fillvalue) for j, t in zip_longest(i.split('|'), types, fillvalue=filltype)]
       for i in s.strip().splitlines()
       if (ignorecomment and not i.strip().startswith('#') or not ignorecomment)]
 
-def s2d(s, *types, fillvalue='', filltype=str, ignorecomment=True):
+def s2d(s, *types, fillvalue='', filltype=try_cast, ignorecomment=True):
   _headers = [i.strip() for i in s.strip().splitlines()[0].lstrip('#').split('|')]
   return [dict(zip(_headers, [t(j.strip() or fillvalue) for j, t in zip_longest(i.split('|'), types, fillvalue=filltype)]))
       for i in s.strip().splitlines()[1:]
@@ -1082,7 +1094,7 @@ editbox = window.editbox
 cm_editbox = window.cm_editbox
 _options['editbox'] = cm_editbox
 _options['so'] = 6*12
-_options['center'] = False
+_options['center'] = True
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = None
@@ -1373,12 +1385,30 @@ def run_align(cm, params):
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
 def run_stack(cm, params):
+  from pprint import pformat
+
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  if data[0] == '{':
-    out = sstack(eval(data))
+  try:
+    params = params.argString.strip()
+    params = [i.strip() for i in params.split(',')]
+  except:
+    params = []
+
+  if '' in params:
+    params.remove('')
+  if data[0] == '[':
+    out = align(eval(data))
+  elif data[0] == '{':
+    #out = sstack(eval(data))
+    out = align(list(eval(data).values()))
   else:
-    out = str(stack(data))
+    if params:
+      ig = itemgetter(*params)
+      out = pformat({ig(i): i for i in s2d(data)})
+    else:
+      out = pformat(s2d(data))
+    #out = str(stack(data))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("stack", None, run_stack)
@@ -1927,84 +1957,7 @@ async def _any(_iterable):
 
 
 
-def try_cast(s):
-  try:
-    return eval(s)
-  except:
-    return s
 
-def stack(s):
-  out = {}
-  last_depth = -1
-  stack = [out]
-
-  for l in s.strip('\n').splitlines():
-    if not l.strip() or l.lstrip().startswith('#'):
-      continue
-
-    depth = (len(l) - len(l.lstrip())) // 2
-
-    left = l.partition(':')[0].strip()
-    right = l.partition(':')[2].strip()
-
-    if depth < last_depth:
-      if depth:
-        stack = stack[:depth+1]
-      else:
-        stack = [stack[0]]
-      last_depth = depth
-
-
-    if depth > last_depth:
-      if right == '[':
-        stack[-1][left] = []
-        stack.append(stack[-1][left])
-      elif isinstance(stack[-1], list):
-        if l.strip() != ']':
-          stack[-1].append(try_cast(l.strip()))
-      elif right:
-        stack[-1][left] = try_cast(right)
-      else:
-        stack[-1][left] = {}
-
-        stack.append(stack[-1][left])
-      last_depth = depth
-
-    else:
-      if right == '[':
-        stack[-1][left] = []
-        stack.append(stack[-1][left])
-      elif isinstance(stack[-1], list):
-        if l.strip() != ']':
-          stack[-1].append(try_cast(l.strip()))
-      elif right:
-        stack[-1][left] = try_cast(right)
-      else:
-        stack[-1][left] = {}
-
-        stack.append(stack[-1][left])
-
-  return out
-
-def _stack(d, out=[], depth=0):
-  for k, v in d.items():
-    if isinstance(v, dict):
-      out.append(' '*depth + f'{k}:')
-      _stack(v, out, depth+2)
-    elif isinstance(v, list):
-      out.append(' '*depth + f'{k}: [')
-      for i in v:
-        out.append(' '*(depth+2) + f'{i!r}')
-      out.append(' '*(depth+2) + ']')
-    else:
-      out.append(' '*depth + f'{k}: {v!r}')
-
-def sstack(d, depth=0):
-  out = []
-  if isinstance(d, list):
-    d = dict(enumerate(d))
-  _stack(d, out, depth)
-  return '\n'.join(out)
 
 def fill(s, default=''):
   if isinstance(s, dict):
