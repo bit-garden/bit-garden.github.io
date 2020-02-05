@@ -698,16 +698,20 @@ def slot(name, slots='', *defaults, verbose=False):
   'Slot class generator. Similar to named tuple, but mutable.'
 
   args = tuple(slots.split(' '))
-  largs = ', '.join(args[:-len(defaults)] if defaults else args)
-  kwargs = ', '.join(f'{k}={repr(v)}' for k, v in zip(args[-len(defaults):], defaults))
-  all_args = ', '.join(i for i in [largs, kwargs] if i)
-  sargs = ', '.join(f'self.{i}' for i in args) + ' = ' + ', '.join(args)
-  rargs = ', '.join(f'"{k}": self.{k}' for k in args if not k.startswith('_'))
+  largs = ', \n      '.join(args[:-len(defaults)] if defaults else args)
+  collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
+      if type(v) in (list, tuple, dict, set)}
+  kwargs = ', \n      '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
+  all_args = ', \n      '.join(i for i in [largs, kwargs] if i)
+  sargs = ', \\\n    '.join(f'self.{i}' for i in args) + ' = \\\n    ' + \
+      ', \\\n    '.join(f'({collections[i]} if {i} is None else {i})' if i in collections else i for i in args)
+  rargs = ', \n      '.join(f'"{k}": self.{k}' for k in args if not k.startswith('_'))
   slot_template = f'''
 class {name}:
   __slots__ = {repr(args)}
 
-  def __init__(self, {all_args}):
+  def __init__(self,
+      {all_args}):
     {sargs}
 
   def __repr__(self):
@@ -719,77 +723,12 @@ class {name}:
   def to_dict(self):
     return {{{rargs}}}
 
-'''.strip()
-  if verbose:
-    return(slot_template)
-  local = {}
-  exec(slot_template, local)
-  return local[name]
+  def __getitem__(self, key):
+    return (getattr(self, i) for i in key.split(' '))
 
-
-def prop(name, slots='', *defaults, verbose=False):
-  'Slot class generator. Similar to named tuple, but mutable.'
-
-  args = tuple(slots.split(' '))
-
-  binds = ', '.join(f'"{i}": []' for i in args)
-  unders = tuple([f'_{i}' for i in args])
-
-  largs = ', '.join(args[:-len(defaults)] if defaults else args)
-  kwargs = ', '.join(f'{k}={repr(v)}' for k, v in zip(args[-len(defaults):], defaults))
-  all_args = ', '.join(i for i in [largs, kwargs] if i)
-  sargs = ', '.join(f'self._{i}' for i in args) + ' = ' + ', '.join(args)
-  rargs = ', '.join(f'"{k}": self._{k}' for k in args if not k.startswith('_'))
-
-  prop_temp = '''  @property
-  def {_prop}(self):
-    return self._{_prop}
-
-  @{_prop}.setter
-  def {_prop}(self, value):
-    if self._{_prop} != value:
-      last = self._{_prop}
-      self._{_prop} = value
-
-      for c in self._callbacks['{_prop}']:
-        c(self, last, value)
-
-  @classmethod
-  def on_{_prop}(cls, f):
-    cls._callbacks['{_prop}'].append(f)
-    return f
-'''
-  gen_props = '\n'.join(prop_temp.format(_prop=a) for a in args)
-
-  slot_template = f'''
-class {name}:
-  __slots__ = {repr(unders)}
-
-  _callbacks = {{{binds}}}
-
-  def __init__(self, {all_args}):
-    {sargs}
-
-  def __repr__(self):
-    return str({{{rargs}}})
-
-  def __call__(self, **kw):
-    return self.__class__(**dict({{{rargs}}}, **kw))
-
-  def to_dict(self):
-    return {{{rargs}}}
-
-  @classmethod
-  def bind(cls, **kw):
-    for k, v in kw.items():
-      cls._callbacks[k].append(v)
-
-  @classmethod
-  def unbind(cls, **kw):
-    for k, v in kw.items():
-      cls._callbacks[k].remove(v)
-
-{gen_props}
+  def __setitem__(self, key, value):
+    for k, v in zip(key.split(' '), value):
+      setattr(self, k, v)
 
 '''.strip()
   if verbose:
@@ -799,18 +738,19 @@ class {name}:
   return local[name]
 
 
-def compose(cfg, base=prop, verbose=False):
+
+def compose(cls, components, base=slot, verbose=False):
   entities = {}
 
-  for cls, props in cfg['cls'].items():
-    mixed = {'cls': cls, 'uuid': ''}
+  for _cls, props in cls.items():
+    mixed = {'cls': _cls}
 
     for c in props['_components']:
-      mixed.update(cfg['components'][c])
+      mixed.update(components[c])
 
     mixed.update(props)
 
-    entities[cls] = base(cls, ' '.join(mixed.keys()), *mixed.values(), verbose=verbose)
+    entities[_cls] = base(_cls, ' '.join(mixed.keys()), *mixed.values(), verbose=verbose)
 
   return entities
 
@@ -1034,8 +974,9 @@ def partial(func, *args, **keywords):
   return newfunc
 
 def try_cast(s):
+  from javascript import JSON
   try:
-    return eval(s)
+    return JSON.parse(s)
   except:
     try:
       return int(s)
@@ -1254,7 +1195,7 @@ def do_tp() -> None:
     window.vdo("gvo")
     data = cm_editbox.getSelection()
     lpad = min(len(i) - len(i.lstrip()) for i in data.splitlines())
-    out = align(s2m(data, ignorecomment=False), True)
+    out = align(s2m(data, filltype=str, ignorecomment=False), True)
     out = '\n'.join(f'{" "*lpad}{i}' for i in out.splitlines())
     cm_editbox.replaceSelection(out.strip('\n'))
   except Exception as e:
@@ -1378,7 +1319,7 @@ def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
   lpad = min(len(i) - len(i.lstrip()) for i in data.splitlines())
-  out = align(s2m(data,  ignorecomment=False))
+  out = align(s2m(data, filltype=str, ignorecomment=False))
   out = '\n'.join(f'{" "*lpad}{i}' for i in out.splitlines())
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
@@ -1405,13 +1346,42 @@ def run_stack(cm, params):
   else:
     if params:
       ig = itemgetter(*params)
-      out = pformat({ig(i): i for i in s2d(data)})
+      out = pformat({ig(i): i for i in s2d(data)}, compact=True)
     else:
-      out = pformat(s2d(data))
+      out = pformat(s2d(data), compact=True)
     #out = str(stack(data))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("stack", None, run_stack)
+
+def run_sstack(cm, params):
+  from pprint import pformat
+
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  try:
+    params = params.argString.strip()
+    params = [i.strip() for i in params.split(',')]
+  except:
+    params = []
+
+  if '' in params:
+    params.remove('')
+  if data[0] == '[':
+    out = align(eval(data))
+  elif data[0] == '{':
+    #out = sstack(eval(data))
+    out = align(list(eval(data).values()))
+  else:
+    if params:
+      ig = itemgetter(*params)
+      out = pformat({ig(i): i for i in s2d(data, filltype=str)})
+    else:
+      out = pformat(s2d(data, filltype=str))
+    #out = str(stack(data))
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("sstack", None, run_sstack)
 
 def move(cm, params):
   window.vdo('gv')
@@ -1956,7 +1926,29 @@ async def _any(_iterable):
   return _iterable
 
 
+class Observable:
+  def __init__(self, *events):
+    self._callbacks = {i:[] for i in events}
 
+  def on(self, *event):
+    def _on(f):
+      for _event in event:
+        self._callbacks[_event].append(f)
+      return f
+    return _on
+
+  def bind(self, **kw):
+    for k, v in kw.items():
+      self._callbacks[k].append(v)
+
+  def unbind(self, **kw):
+    for k, v in kw.items():
+      self._callbacks[k].remove(v)
+
+  def emit(self, *event, **kw):
+    for _event in event:
+      for e in self._callbacks[_event]:
+        e(self, _event, **kw)
 
 
 def fill(s, default=''):
