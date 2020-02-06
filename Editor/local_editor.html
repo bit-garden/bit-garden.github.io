@@ -645,7 +645,8 @@ function uuid4() {
 }
 
 </script>
-<script src="lib/brython_aio.js"></script>
+<!--<script src="lib/brython_aio.js"></script>-->
+<script src="lib/brython.js"></script>
 <script src="lib/brython_stdlib.js"></script>
 <script type="text/python">
 
@@ -653,10 +654,26 @@ from browser import aio, window
 from browser import window
 from browser import document as doc
 from browser.html import *
-#import time
+import time
 #import traceback
 
 alert, prompt, confirm = window.alert, window.prompt, window.confirm
+
+class timer:
+  def print(self, *objects, sep=' ', end='\n'):
+    global pstack
+    pstack.append(sep.join(str(o) for o in objects) + end)
+    
+  def __init__(self, mark='', func=None):
+    self.func = func if func else self.print
+    self.mark = mark
+
+  def __enter__(self):
+    self.start = time.time()
+    return self
+
+  def __exit__(self, *l):
+    self.func(f'{self.mark} {time.time() - self.start}')
 
 class fopen():
   def __init__(self, new_file=False):
@@ -693,6 +710,27 @@ class fopen():
     pass
 
 
+def dfactory(name, slots='', *defaults, verbose=False):
+  'Slot class generator. Similar to named tuple, but mutable.'
+
+  args = tuple(slots.split(' '))
+  largs = ', '.join(args[:-len(defaults)] if defaults else args)
+  collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults) 
+      if type(v) in (list, tuple, dict, set)}
+  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
+  all_args = ', '.join(i for i in [largs, kwargs] if i)
+  sargs = ', \n      '.join(f'{k!r}: {v}' for k,v in zip(args,
+      (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
+  slot_template = f'''
+def {name}({all_args}):
+  return {{{sargs}}}
+    
+'''.strip()
+  if verbose:
+    print(slot_template)
+  local = {}
+  exec(slot_template, local)
+  return local[name]
 
 def slot(name, slots='', *defaults, verbose=False):
   'Slot class generator. Similar to named tuple, but mutable.'
@@ -827,7 +865,7 @@ class Event:
   https://docs.python.org/3/library/asyncio-sync.html
   '''
 
-  def __init__(self, *):
+  def __init__(self, *_):
     self._set = False
 
   async def wait(self):
@@ -846,7 +884,7 @@ class Event:
 aio.Event = Event
 
 class Lock:
-  def __init__(self, *):
+  def __init__(self, *_):
     self._locked = False
 
   async def acquire(self):
@@ -872,7 +910,7 @@ class Lock:
 aio.Lock = Lock
 
 class Semaphore:
-  def __init__(self, value=1, *):
+  def __init__(self, value=1, *_):
     self._locked = False
     self.count = value
     self.limit = value
@@ -1346,13 +1384,38 @@ def run_stack(cm, params):
   else:
     if params:
       ig = itemgetter(*params)
-      out = pformat({ig(i): i for i in s2d(data)}, compact=True)
+      out = pformat({ig(i): i for i in s2d(data)}, compact=True, sort_dicts=False)
     else:
-      out = pformat(s2d(data), compact=True)
+      out = pformat(s2d(data), compact=True, sort_dicts=False)
     #out = str(stack(data))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("stack", None, run_stack)
+
+def run_lstack(cm, params):
+  from pprint import pformat
+
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  try:
+    params = params.argString.strip()
+    params = [i.strip() for i in params.split(',')]
+  except:
+    params = []
+
+  if '' in params:
+    params.remove('')
+  if data[0] == '[':
+    out = align(eval(data))
+  elif data[0] == '{':
+    #out = sstack(eval(data))
+    out = align(list(eval(data).values()))
+  else:
+    out = pformat(s2m(data), compact=True, sort_dicts=False)
+    #out = str(stack(data))
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("lstack", None, run_lstack)
 
 def run_sstack(cm, params):
   from pprint import pformat
