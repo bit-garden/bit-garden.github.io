@@ -176,7 +176,7 @@ String.prototype.replaceAll = function(search, replacement) {
   // The start state contains the rules that are intially used
   start: [
     // The regex matches the token, the token property contains the type
-{regex: /\w?"([^"\\]|\\.)*("|$)/, token: "strings"}, // Double quote
+{regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
 	
 //{regex: /#(\S|\s\s).*$/, token: "comments"}, // darklights comments
 //{regex: /#(\s\S.*|\s*$)/, token: "deco"}, // highlights comments
@@ -239,7 +239,8 @@ CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
 
 CodeMirror.Vim.map('zv', ':vblock', 'normal')
 
-
+CodeMirror.Vim.map('<Space>', ':vdo :js CodeMirror.Vim.exitVisualMode(cm_editbox)|`<O|:js CodeMirror.Vim.exitInsertMode(cm_editbox)|`>o|:js CodeMirror.Vim.exitInsertMode(cm_editbox)', 'visual')
+CodeMirror.Vim.map('<C-j>', ':remove_blanks', 'visual')
 
   editbox = document.querySelector('.editbox')
   //if ('data' in localStorage){
@@ -659,11 +660,50 @@ import time
 
 alert, prompt, confirm = window.alert, window.prompt, window.confirm
 
+from javascript import RegExp, String
+def csv_split(s):
+  re = RegExp.new(r'(,)(?=(?:[^"]|"[^"]*")*$)')
+  for i in s.splitlines():
+    if i.strip() and i.strip()[0] != '#':
+      yield [j.strip() for j in String.new(i).split(re) if j != ',']
+def pipe_split(s):
+  re = RegExp.new(r'(\|)(?=(?:[^"]|"[^"]*")*$)')
+  for i in s.splitlines():
+    if i.strip() and i.strip()[0] != '#':
+      yield [j.strip() for j in String.new(i).split(re) if j != '|']
+
+def csv_splitc(s):
+  re = RegExp.new(r'(,)(?=(?:[^"]|"[^"]*")*$)')
+  for i in s.splitlines():
+    i = i.strip()
+    if i:
+      yield [j.strip() for j in String.new(i).split(re) if j != ',']
+def pipe_splitc(s):
+  re = RegExp.new(r'(\|)(?=(?:[^"]|"[^"]*")*$)')
+  for i in s.splitlines():
+    i = i.strip()
+    if i:
+      yield [j.strip() for j in String.new(i).split(re) if j != '|']
+
+def csv_splitd(s):
+  _headers = next(csv_splitc(s))
+  _headers[0] = _headers[0].lstrip('#')
+  _s = csv_split(s)
+  next(_s)
+  return [dict(zip(_headers, i)) for i in _s]
+def pipe_splitd(s):
+  _headers = next(pipe_splitc(s))
+  _headers[0] = _headers[0].lstrip('#')
+  _s = pipe_split(s)
+  next(_s)
+  return [dict(zip(_headers, i)) for i in _s]
+  
+
 class timer:
   def print(self, *objects, sep=' ', end='\n'):
     global pstack
     pstack.append(sep.join(str(o) for o in objects) + end)
-    
+
   def __init__(self, mark='', func=None):
     self.func = func if func else self.print
     self.mark = mark
@@ -710,70 +750,73 @@ class fopen():
     pass
 
 
-def dfactory(name, slots='', *defaults, verbose=False):
+def slot(name, *components, verbose=False):
   'Slot class generator. Similar to named tuple, but mutable.'
+  if isinstance(components[0], str):
+    components = list(components)
+    slots = components.pop(0)
+    defaults = components
+    args = tuple(slots.split(' '))
+    largs = ', \n      '.join(args[:-len(defaults)] if defaults else args)
+  else:
+    base = {}
+    for c in components:
+      base.update(c)
 
-  args = tuple(slots.split(' '))
-  largs = ', '.join(args[:-len(defaults)] if defaults else args)
+    args = tuple(base.keys())
+    defaults = tuple(base.values())
+    largs = ', \n      '.join(args[:-len(defaults)] if defaults else args)
+
+  # Gather list of collections
   collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults) 
       if type(v) in (list, tuple, dict, set)}
-  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
-  all_args = ', '.join(i for i in [largs, kwargs] if i)
-  sargs = ', \n      '.join(f'{k!r}: {v}' for k,v in zip(args,
-      (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
-  slot_template = f'''
-def {name}({all_args}):
-  return {{{sargs}}}
-    
-'''.strip()
-  if verbose:
-    print(slot_template)
-  local = {}
-  exec(slot_template, local)
-  return local[name]
 
-def slot(name, slots='', *defaults, verbose=False):
-  'Slot class generator. Similar to named tuple, but mutable.'
-
-  args = tuple(slots.split(' '))
-  largs = ', \n      '.join(args[:-len(defaults)] if defaults else args)
-  collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
-      if type(v) in (list, tuple, dict, set)}
+  # Set default signature. 
   kwargs = ', \n      '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
   all_args = ', \n      '.join(i for i in [largs, kwargs] if i)
-  sargs = ', \\\n    '.join(f'self.{i}' for i in args) + ' = \\\n    ' + \
-      ', \\\n    '.join(f'({collections[i]} if {i} is None else {i})' if i in collections else i for i in args)
+
+  # Self setters.
+  sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args))) 
+
+  # Repr string. Only gete non under variables.
   rargs = ', \n      '.join(f'"{k}": self.{k}' for k in args if not k.startswith('_'))
+
+  # deep copy rargs
+  cargs = ', \n      '.join(f'"{k}": copy.deepcopy(self.{k})' for k in args if not k.startswith('_'))
+
   slot_template = f'''
 class {name}:
   __slots__ = {repr(args)}
 
-  def __init__(self,
+  def __init__(self, 
       {all_args}):
     {sargs}
-
+    
   def __repr__(self):
     return str({{{rargs}}})
 
   def __call__(self, **kw):
     return self.__class__(**dict({{{rargs}}}, **kw))
 
+  def __copy__(self):
+    return type(self)(**{{{rargs}}})
+
+  def __deepcopy__(self, memo):
+    import copy
+    return type(self)(**{{{cargs}}})
+
   def to_dict(self):
     return {{{rargs}}}
 
-  def __getitem__(self, key):
-    return (getattr(self, i) for i in key.split(' '))
-
-  def __setitem__(self, key, value):
-    for k, v in zip(key.split(' '), value):
-      setattr(self, k, v)
-
 '''.strip()
+  # Verbosity to print out generated code.
   if verbose:
-    return(slot_template)
+    print(slot_template)
+
   local = {}
   exec(slot_template, local)
   return local[name]
+
 
 
 
@@ -1024,16 +1067,12 @@ def try_cast(s):
       except:
         return s
 
-def s2m(s, *types, fillvalue='', filltype=try_cast, ignorecomment=True):
-  return [[t(j.strip() or fillvalue) for j, t in zip_longest(i.split('|'), types, fillvalue=filltype)]
-      for i in s.strip().splitlines()
-      if (ignorecomment and not i.strip().startswith('#') or not ignorecomment)]
 
-def s2d(s, *types, fillvalue='', filltype=try_cast, ignorecomment=True):
-  _headers = [i.strip() for i in s.strip().splitlines()[0].lstrip('#').split('|')]
-  return [dict(zip(_headers, [t(j.strip() or fillvalue) for j, t in zip_longest(i.split('|'), types, fillvalue=filltype)]))
-      for i in s.strip().splitlines()[1:]
-      if (ignorecomment and not i.strip().startswith('#') or not ignorecomment)]
+
+def chunks(l, n):
+  for i in range(0, len(l), n):
+    yield l[i:i + n]
+    
 
 def is_num(_in):
   try:
@@ -1042,26 +1081,13 @@ def is_num(_in):
   except:
     return False
 
-def align(_dat, transpose=False):
-  if isinstance(_dat[0], dict):
-    fill(_dat)
-    _heads = list(_dat[0].keys())
-    ig = itemgetter(*_heads)
-    dat = [_heads, *[[str(j) for j in ig(i)] for i in _dat]]
-  else:
-    dat = [[str(j) for j in i] for i in _dat]
-  if transpose:
-    dat = list(map(list, zip(*dat)))
-
-  max_len = max(len(i) for i in dat)
-  for i in dat:
-    i.extend(['']*(max_len-len(i)))
-  widths = [max(map(len, col)) for col in zip(*dat)]
-  _out = ''
-  for row in dat:
-    _out += ' | '.join((val.ljust(width) if not is_num(val) else val.rjust(width)
-      for val, width in zip(row, widths))).rstrip() + '\n'
-  return _out
+def align(d):
+  d = list(list(i) for i in zip_longest(*d, fillvalue=''))
+  for col in d:
+    l = max(len(str(i)) for i in col)
+    col[:] = [str(i).rjust(l) if is_num(i) else str(i).ljust(l) for i in col]
+    
+  return '\n'.join(' | '.join(i).rstrip() for i in zip(*d))
 
 # --- end focus
 
@@ -1195,7 +1221,7 @@ def on_down(ev):
     start = cm_editbox.getCursor(True).line
     end = cm_editbox.getCursor(False).line
     if start == end:
-      print(cm_editbox.getCursor().line + 1)
+      print(cm_editbox.getCursor().line + 1, cm_editbox.getCursor().ch + 1)
     else:
       diff = abs(start-end)
       print('{}:{}({})'.format(start+1, end+1, diff+1))
@@ -1232,9 +1258,8 @@ def do_tp() -> None:
   try:
     window.vdo("gvo")
     data = cm_editbox.getSelection()
-    lpad = min(len(i) - len(i.lstrip()) for i in data.splitlines())
-    out = align(s2m(data, filltype=str, ignorecomment=False), True)
-    out = '\n'.join(f'{" "*lpad}{i}' for i in out.splitlines())
+    data = list(list(i) for i in zip_longest(*pipe_splitc(data)))
+    out = align(data)
     cm_editbox.replaceSelection(out.strip('\n'))
   except Exception as e:
     import traceback
@@ -1356,9 +1381,7 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  lpad = min(len(i) - len(i.lstrip()) for i in data.splitlines())
-  out = align(s2m(data, filltype=str, ignorecomment=False))
-  out = '\n'.join(f'{" "*lpad}{i}' for i in out.splitlines())
+  out = align(pipe_splitc(data))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
@@ -1370,12 +1393,9 @@ def run_stack(cm, params):
   data = cm_editbox.getSelection()
   try:
     params = params.argString.strip()
-    params = [i.strip() for i in params.split(',')]
   except:
-    params = []
+    params = ''
 
-  if '' in params:
-    params.remove('')
   if data[0] == '[':
     out = align(eval(data))
   elif data[0] == '{':
@@ -1383,39 +1403,13 @@ def run_stack(cm, params):
     out = align(list(eval(data).values()))
   else:
     if params:
-      ig = itemgetter(*params)
-      out = pformat({ig(i): i for i in s2d(data)}, compact=True, sort_dicts=False)
+      out = pformat(sum(list(pipe_split(data)), []), compact=True, sort_dicts=False)
     else:
-      out = pformat(s2d(data), compact=True, sort_dicts=False)
+      out = pformat(list(pipe_split(data)), compact=True, sort_dicts=False)
     #out = str(stack(data))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("stack", None, run_stack)
-
-def run_lstack(cm, params):
-  from pprint import pformat
-
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-  try:
-    params = params.argString.strip()
-    params = [i.strip() for i in params.split(',')]
-  except:
-    params = []
-
-  if '' in params:
-    params.remove('')
-  if data[0] == '[':
-    out = align(eval(data))
-  elif data[0] == '{':
-    #out = sstack(eval(data))
-    out = align(list(eval(data).values()))
-  else:
-    out = pformat(s2m(data), compact=True, sort_dicts=False)
-    #out = str(stack(data))
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("lstack", None, run_lstack)
 
 def run_sstack(cm, params):
   from pprint import pformat
@@ -1446,6 +1440,18 @@ def run_sstack(cm, params):
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("sstack", None, run_sstack)
 
+def remove_blanks(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  
+  data = '\n'.join(i for i in data.splitlines() if i.strip())
+  
+  window.vdo('gv')
+  cm_editbox.replaceSelection(data.strip('\n'))
+window.CodeMirror.Vim.defineEx("remove_blanks", None, remove_blanks)
+
+
+
 def move(cm, params):
   window.vdo('gv')
   if not cm_editbox.state.vim.visualLine:
@@ -1465,6 +1471,17 @@ def move(cm, params):
     else:
       window.vdo(f'{where}Gp')
 window.CodeMirror.Vim.defineEx("move", None, move)
+
+def csv2pipe(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  
+  data = align(csv_splitc(data))
+  
+  window.vdo('gv')
+  cm_editbox.replaceSelection(data.strip('\n'))
+window.CodeMirror.Vim.defineEx("csv2pipe", None, csv2pipe)
+
 
 #--- async stuff
 
@@ -1649,8 +1666,8 @@ def flex(*l, base=DIV, color=base_color, padding='12px 18px', elevation=0, flow=
 
   base_style = {
         # commented for flatter look
-        'margin': '8px',
-        'border-radius': '5px',
+        #'margin': '8px',
+        #'border-radius': '5px',
 
         'border': 'none',
         'font-size': '16px',
@@ -1991,27 +2008,27 @@ async def _any(_iterable):
 
 class Observable:
   def __init__(self, *events):
-    self._callbacks = {i:[] for i in events}
+    self.callbacks = {i:[] for i in events}
 
   def on(self, *event):
     def _on(f):
       for _event in event:
-        self._callbacks[_event].append(f)
+        self.callbacks[_event].append(f)
       return f
     return _on
 
   def bind(self, **kw):
     for k, v in kw.items():
-      self._callbacks[k].append(v)
+      self.callbacks[k].append(v)
 
   def unbind(self, **kw):
     for k, v in kw.items():
-      self._callbacks[k].remove(v)
+      self.callbacks[k].remove(v)
 
   def emit(self, *event, **kw):
     for _event in event:
-      for e in self._callbacks[_event]:
-        e(self, _event, **kw)
+      for e in self.callbacks[_event]:
+        e(_event, **kw)
 
 
 def fill(s, default=''):
