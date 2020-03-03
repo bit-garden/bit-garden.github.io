@@ -254,7 +254,7 @@ CodeMirror.Vim.map('<C-j>', ':remove_blanks', 'visual')
               "theme":             "material",
               'tabSize':           2,
               'styleActiveLine':   true,
-              'keyMap':            'vim',
+              //'keyMap':            'vim',
               'extraKeys':         {"Ctrl-Space": "autocomplete"}
    })
    function tab_to_space(cm){
@@ -1060,12 +1060,12 @@ editbox = window.editbox
 cm_editbox = window.cm_editbox
 _options['editbox'] = cm_editbox
 _options['so'] = 6*12
-_options['center'] = True
+_options['center'] = False
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = None
 _options['printer'] = 'quick'
-_options['relative_number'] = True
+_options['relative_number'] = False
 
 def runup(cm, params):
   cm_editbox.save()
@@ -1186,6 +1186,24 @@ def on_down(ev):
     else:
       diff = abs(start-end)
       print('{}:{}({})'.format(start+1, end+1, diff+1))
+    ev.preventDefault()
+    ev.stopPropagation()
+  if chr(ev.which)=='E' and ctrl:
+    try:
+      def print(*objects, sep=' ', end='\n'):
+        pstack.append(sep.join(str(o) for o in objects) + end)
+      data = cm_editbox.getSelection()
+      if data:
+        exec(data)
+      else:
+        exec(cm_editbox.getValue())
+    except Exception as e:
+      import traceback
+      window.make_popup(traceback.format_exc())
+    ev.preventDefault()
+    ev.stopPropagation()
+  if chr(ev.which)=='S' and ctrl:
+    save_me.append(True)
     ev.preventDefault()
     ev.stopPropagation()
 window.bind('keydown', on_down)
