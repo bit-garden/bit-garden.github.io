@@ -687,15 +687,19 @@ def pipe_splitc(s):
 
 def csv_splitd(s):
   _headers = next(csv_splitc(s))
+  ignore_first = not _headers[0].startswith('#')
   _headers[0] = _headers[0].lstrip('#')
   _s = csv_split(s)
-  next(_s)
+  if ignore_first:
+    next(_s)
   return [dict(zip(_headers, i)) for i in _s]
 def pipe_splitd(s):
   _headers = next(pipe_splitc(s))
+  ignore_first = not _headers[0].startswith('#')
   _headers[0] = _headers[0].lstrip('#')
   _s = pipe_split(s)
-  next(_s)
+  if ignore_first:
+    next(_s)
   return [dict(zip(_headers, i)) for i in _s]
   
 
@@ -795,7 +799,11 @@ class {name}:
   exec(slot_template, local)
   return local[name]
 
-
+def lattr(l, *props):
+  props = sum([i.split(' ') for i in props], [])
+  if len(props) == 1:
+    return [getattr(i, props[0]) for i in l]
+  return [{j: getattr(i, j) for j in props} for i in l]
 
 import _jsre as re
 
@@ -1372,6 +1380,33 @@ def run_stack(cm, params):
   data = cm_editbox.getSelection()
   try:
     params = params.argString.strip()
+    params = [i.strip() for i in params.split(',')]
+  except:
+    params = []
+
+  if data[0] == '[':
+    out = align(eval(data))
+  elif data[0] == '{':
+    #out = sstack(eval(data))
+    out = align(list(eval(data).values()))
+  else:
+    if params:
+      ig = itemgetter(*params)
+      out = pformat({ig(i): i for i in pipe_splitd(data)}, compact=True, sort_dicts=False)
+    else:
+      out = pformat(list(pipe_splitd(data)), compact=True, sort_dicts=False)
+    #out = str(stack(data))
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("stack", None, run_stack)
+
+def run_lstack(cm, params):
+  from pprint import pformat
+
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  try:
+    params = params.argString.strip()
   except:
     params = ''
 
@@ -1388,7 +1423,7 @@ def run_stack(cm, params):
     #out = str(stack(data))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("stack", None, run_stack)
+window.CodeMirror.Vim.defineEx("lstack", None, run_lstack)
 
 def run_sstack(cm, params):
   from pprint import pformat
