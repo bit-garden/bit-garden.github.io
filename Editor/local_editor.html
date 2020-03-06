@@ -793,7 +793,7 @@ class {name}:
 '''.strip()
   # Verbosity to print out generated code.
   if verbose:
-    print(slot_template)
+    return slot_template
 
   local = {}
   exec(slot_template, local)
@@ -1356,8 +1356,6 @@ def run_align(cm, params):
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
 def run_stack(cm, params):
-  from pprint import pformat
-
   window.vdo('gv')
   data = cm_editbox.getSelection()
   try:
@@ -1368,24 +1366,35 @@ def run_stack(cm, params):
 
   if data[0] == '[':
     d = eval(data)
-    if isinstance(d[0], dict):
-      _heads = [list(d[0].keys())]
-      _heads.extend([list(i.values()) for i in d])
-      out = align(_heads)
+    keys = {k for i in d for k in i.keys()}
+    [i.update({k:''}) for i in d for k in keys if k not in i]
+    _heads = [list(d[0].keys())]
+    ig = itemgetter(*_heads[0])
+    _heads.extend([list(ig(i)) for i in d])
+    _heads[0][0] = f'#{_heads[0][0]}'
+    out = align(_heads)
+  elif data[0] == '{':
+    d = eval(data)
+    keys = {k for i in list(d.values()) for k in i.keys()}
+    [i.update({k:''}) for i in list(d.values()) for k in keys if k not in i]
+    _heads = [list(list(d.values())[0].keys())]
+    ig = itemgetter(*_heads[0])
+    _heads.extend([list(ig(i)) for i in list(d.values())])
+    _heads[0][0] = f'#{_heads[0][0]}'
+    out = align(_heads)
   else:
     if params:
       ig = itemgetter(*params)
-      out = pformat({ig(i): i for i in pipe_splitd(data)}, compact=True, sort_dicts=False)
+      out = '{' + ',\n'.join(repr(k) + ': ' + repr(v) for k, v in {ig(i): i for i in pipe_splitd(data)}.items()) + '}'
     else:
-      out = pformat(list(pipe_splitd(data)), compact=True, sort_dicts=False)
+      out = '[' + ',\n'.join(str(i) for i in list(pipe_splitd(data))) + ']'
     #out = str(stack(data))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
+from browser import window
 window.CodeMirror.Vim.defineEx("stack", None, run_stack)
 
 def run_lstack(cm, params):
-  from pprint import pformat
-
   window.vdo('gv')
   data = cm_editbox.getSelection()
   try:
@@ -1395,47 +1404,15 @@ def run_lstack(cm, params):
 
   if data[0] == '[':
     out = align(eval(data))
-  elif data[0] == '{':
-    #out = sstack(eval(data))
-    out = align(list(eval(data).values()))
   else:
     if params:
-      out = pformat(sum(list(pipe_split(data)), []), compact=True, sort_dicts=False)
+      out = str(sum(list(pipe_split(data)), []))
     else:
-      out = pformat(list(pipe_split(data)), compact=True, sort_dicts=False)
+      out = '[' + ',\n'.join(str(i) for i in list(pipe_split(data))) + ']'
     #out = str(stack(data))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("lstack", None, run_lstack)
-
-def run_sstack(cm, params):
-  from pprint import pformat
-
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-  try:
-    params = params.argString.strip()
-    params = [i.strip() for i in params.split(',')]
-  except:
-    params = []
-
-  if '' in params:
-    params.remove('')
-  if data[0] == '[':
-    out = align(eval(data))
-  elif data[0] == '{':
-    #out = sstack(eval(data))
-    out = align(list(eval(data).values()))
-  else:
-    if params:
-      ig = itemgetter(*params)
-      out = pformat({ig(i): i for i in s2d(data, filltype=str)})
-    else:
-      out = pformat(s2d(data, filltype=str))
-    #out = str(stack(data))
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("sstack", None, run_sstack)
 
 def remove_blanks(cm, params):
   window.vdo('gv')
@@ -1448,6 +1425,22 @@ def remove_blanks(cm, params):
 window.CodeMirror.Vim.defineEx("remove_blanks", None, remove_blanks)
 
 
+def run_slot(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection().splitlines()
+  _data = cm_editbox.getSelection()
+
+  title = data.pop(0).strip().lstrip('#').lstrip()
+  args = data.pop(0).strip().lstrip('#').lstrip()
+  defs = [eval(i.strip().lstrip('#').lstrip()) for i in data]
+  out = slot(title, args, *defs, verbose=True)
+
+  window.vdo('gv')
+  cm_editbox.replaceSelection((_data + '\n' + out).strip('\n'))
+window.CodeMirror.Vim.defineEx("slot", None, run_slot)
+  
+  
+  
 
 def move(cm, params):
   window.vdo('gv')
@@ -1478,6 +1471,38 @@ def csv2pipe(cm, params):
   window.vdo('gv')
   cm_editbox.replaceSelection(data.strip('\n'))
 window.CodeMirror.Vim.defineEx("csv2pipe", None, csv2pipe)
+
+def csv2list(cm, params):
+  from javascript import RegExp, String
+  _re = RegExp.new(r'(,)(?=(?:[^"]|"[^"]*")*$)')
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  
+  data = data.strip().splitlines()
+  data = [[j.strip() for j in String.new(i).split(_re) if j!=','] for i in data]
+  
+  data = '[' + ',\n'.join(str(i) for i in data) + ']'
+  
+  window.vdo('gv')
+  cm_editbox.replaceSelection(data.strip('\n'))
+window.CodeMirror.Vim.defineEx("csv2list", None, csv2list)
+
+def csv2dict(cm, params):
+  from javascript import RegExp, String
+  _re = RegExp.new(r'(,)(?=(?:[^"]|"[^"]*")*$)')
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  
+  data = data.strip().splitlines()
+  _heads = data.pop(0).lstrip('#')
+  _heads = [j.strip() for j in String.new(_heads).split(_re) if j!=',']
+  data = [dict(zip(_heads, [j.strip() for j in String.new(i).split(_re) if j!=','])) for i in data]
+  
+  data = '[' + ',\n'.join(str(i) for i in data) + ']'
+  
+  window.vdo('gv')
+  cm_editbox.replaceSelection(data.strip('\n'))
+window.CodeMirror.Vim.defineEx("csv2dict", None, csv2dict)
 
 
 #--- async stuff
@@ -2026,23 +2051,6 @@ class Observable:
     for _event in event:
       for e in self.callbacks[_event]:
         e(_event, **kw)
-
-
-def fill(s, default=''):
-  if isinstance(s, dict):
-    keys = {k for i in s.values() for k in i.keys()}
-    #out = [keys] + [[i.get(k, '') for k in keys] for i in s.values()]
-    for i in s.values():
-      for k in keys:
-        if k not in i:
-          i[k] = default
-  else:
-    keys = {k for i in s for k in i.keys()}
-    for i in s:
-      for k in keys:
-        if k not in i:
-          i[k] = default
-  return s
 
 save_me = []
 loaded = False
