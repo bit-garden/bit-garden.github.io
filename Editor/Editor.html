@@ -574,13 +574,6 @@ class {name}:
   exec(slot_template, local)
   return local[name]
 
-def lattr(l, *props):
-  props = sum([i.split(' ') for i in props], [])
-  if len(props) == 1:
-    return [getattr(i, props[0]) for i in l]
-  return [{j: getattr(i, j) for j in props} for i in l]
-
-
 # pure python versions for faster load
 def itemgetter(*items):
   if len(items) == 1:
@@ -1052,6 +1045,180 @@ window.CodeMirror.Vim.defineEx("edit", None, _e)
 #  window.alert(str(res))
 #
 #aio.run(main())
+
+
+# import from notes file
+def grid_to_tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
+  # generates values to align a grid layout
+  _width = width
+  _cols = [0]
+  for c in cols:
+    if c == ...:
+      _cols.append(c)
+    elif c < 1:
+      _cols.append(_width - width + _width * c)
+      width -= _width * c
+    else:
+      _cols.append(_width - width + c)
+      width -= c
+      
+  _height = height
+  _rows = [0]
+  for c in rows:
+    if c == ...:
+      _rows.append(c)
+    elif c < 1:
+      _rows.append(_height - height + _height * c)
+      height -= _height * c
+    else:
+      _rows.append(_height - height + c)
+      height -= c
+  
+  if ... in _cols:
+    idx = _cols.index(...)
+    _cols[idx:idx+1] = [_cols[idx-1]]
+    _cols[idx:] = [i+width for i in _cols[idx:]]
+    width = 0
+    
+  if ... in _rows:
+    idx = _rows.index(...)
+    _rows[idx:idx+1] = [_rows[idx-1]]
+    _rows[idx:] = [i+height for i in _rows[idx:]]
+    height = 0
+  
+  # optionally round
+  _cols = [round(i+offx+width//2) for i in _cols]
+  _rows = [round(i+offy+height//2) for i in _rows]
+      
+  return _cols, _rows
+
+
+def grid_to_dims(grid, x=0, y=0, ex=None, ey=None):
+  # uses a grid layout to return x,y/w,h values
+  columns, rows = grid
+  if ex is None:
+    ex = x
+  if ey is None:
+    ey = y
+
+  #return {'x': columns[:-1][x], 'y': rows[:-1][y],
+  #    'w': columns[1:][ex] - columns[:-1][x],
+  #    'h': rows[1:][ey] - rows[:-1][y]}
+  return columns[:-1][x], rows[:-1][y],\
+      columns[1:][ex] - columns[:-1][x],\
+      rows[1:][ey] - rows[:-1][y]
+# dark material height to tint
+opacities = {0: 0,
+     1: .05,
+     2: .07,
+     3: .08,
+     4: .09,
+     6: .11,
+     8: .12,
+     12: .14,
+     16: .15,
+     24: .16}
+font_opacities = {'high': .87, 'medium': .6, 'disabled': .38}
+font_error = (176, 0, 32, 1) #B00020
+
+def tint(val, r, g, b, *_):
+  # Tints rgb values to apply 'light'
+
+  rt = r + (val * (255 - r))
+  gt = g + (val * (255 - g))
+  bt = b + (val * (255 - b))
+  return (rt, gt, bt, *_)
+
+def shade(val, r, g, b, *_):
+  # Tints rgb values to apply 'dark' 
+
+  rt = r - r*val 
+  gt = g - g*val 
+  bt = b - b*val 
+  return (rt, gt, bt, *_)
+
+
+def is_dark(r, g, b, *_):
+  # determine color too dark
+  # HSP (Highly Sensitive Poo) equation from http://alienryderflex.com/hsp.html
+  hsp =  0.299 * r**2 + 0.587 * g**2 + 0.114 * b**2
+  return 127.5 >= hsp**(1/2.0)
+
+def hilo(a, b, c):
+  # used in compliment function
+
+  if c < b: b, c = c, b
+  if b < a: a, b = b, a
+  if c < b: b, c = c, b
+  return a + c
+
+def complement(r, g, b, *_):
+  # return complement color
+  k = hilo(r, g, b)
+  return (*(k - u for u in (r, g, b)), *_)
+
+#decode hex to tuple
+#tuple(bytes.fromhex("aabbccaa"))
+
+def lattr(l, *props, default=None):
+  # lists attributes of objects in l
+  props = sum([i.split(' ') for i in props], [])
+  if len(props) == 1:
+    return [getattr(i, props[0], default) for i in l]
+  return [{j: getattr(i, j, default) for j in props} for i in l]
+
+def bind(*events):
+  def _bind(f):
+    for e in events:
+      callbacks[e].append(f)
+    return f
+  return _bind
+
+def unbind(f, *events):
+  for e in events:
+    callbacks[e].remove(f)
+
+def emit(event, *l, **kw):
+  for c in callbacks[event]:
+    c(event, *l, **kw)
+
+# list tools
+def push(l, x):
+  """Pushes item of l in direction 1 space. None is considered empty."""
+
+  changes = []
+
+  try:
+    first_empty = l.index(None, x)
+  except ValueError:
+    first_empty = -1
+  if first_empty != -1:
+    del l[first_empty]
+    changes = l[x: first_empty]
+    l[x: first_empty] = [None] + l[x: first_empty]
+
+  if first_empty == -1 or not changes:
+    first_empty = rindex(l, None, x)
+    if first_empty != -1:
+      del l[first_empty]
+      changes = l[first_empty: x]
+      l[first_empty: x] = l[first_empty: x] + [None]
+
+  return changes
+
+def rindex(lst, val, start=None):
+  # index from right
+  if start is None:
+    start = len(lst)-1
+  for i in range(start,-1,-1):
+    if i < len(lst) and lst[i] == val:
+        return i
+  return -1
+
+def chunks(l, n):
+  "split list into n-length chunk"
+  for i in range(0, len(l), n):
+    yield l[i:i + n]
 
 
 </script>
