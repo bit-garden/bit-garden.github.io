@@ -167,7 +167,7 @@ editbox = document.querySelector('.editbox')
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
-            'lineNumbers':       true,
+            'lineNumbers':       false,
             "mode":              'simplemode',
             "theme":             "material",
             'tabSize':           2,
@@ -756,7 +756,7 @@ doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', showRelativeLin
 
 
 
-_options['_line_numbers'] = True
+_options['_line_numbers'] = False
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
   _options['_line_numbers'] = state
