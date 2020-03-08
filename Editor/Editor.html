@@ -482,12 +482,8 @@ def pipe_splitd(s):
 
 # TODO
 class timer:
-  def print(self, *objects, sep=' ', end='\n'):
-    global pstack
-    pstack.append(sep.join(str(o) for o in objects) + end)
-
-  def __init__(self, mark='', func=None):
-    self.func = func if func else self.print
+  def __init__(self, mark='', func=print):
+    self.func = func
     self.mark = mark
 
   def __enter__(self):
