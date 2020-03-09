@@ -772,14 +772,6 @@ def on_down(ev):
       window.alert('{}:{}({})'.format(start+1, end+1, diff+1))
     ev.preventDefault()
     ev.stopPropagation()
-  if chr(ev.which)=='S' and ctrl:
-    save_me.append(1)
-    ev.preventDefault()
-    ev.stopPropagation()
-  if chr(ev.which)=='O' and ctrl:
-    aio.run(auto_saver())
-    ev.preventDefault()
-    ev.stopPropagation()
 window.bind('keydown', on_down)
 
 def do_py() -> None:
