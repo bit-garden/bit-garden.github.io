@@ -174,7 +174,7 @@ cm_editbox = CodeMirror.fromTextArea(editbox,{
             "theme":             "material",
             'tabSize':           2,
             'styleActiveLine':   true,
-            'keyMap':            'vim',
+            //'keyMap':            'vim',
             'extraKeys':         {"Ctrl-Space": "autocomplete"}
  })
  function tab_to_space(cm){
@@ -718,16 +718,7 @@ _options['so'] = 6*12
 _options['center'] = True
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
-_options['limelight'] = None
-_options['relative_number'] = True
 
-
-def overscroll(cm):
-  if _options['center'] and not cm_editbox.state.vim.insertMode and not cm_editbox.state.vim.visualMode:
-    doc.querySelector('.CodeMirror').CodeMirror.setOption('cursorScrollMargin',doc.querySelector('.CodeMirror').scrollHeight/2)
-  else:
-    doc.querySelector('.CodeMirror').CodeMirror.setOption('cursorScrollMargin',_options['so'])
-doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
 
 
 
@@ -778,6 +769,31 @@ def on_down(ev):
     ev.stopPropagation()
   if chr(ev.which)=='O' and ctrl:
     aio.run(auto_saver())
+    ev.preventDefault()
+    ev.stopPropagation()
+  if chr(ev.which)=='E' and ctrl:
+    data = cm_editbox.getSelection()
+    if data.strip():
+      try:
+        print_red = []
+        def print(*objects, sep=' ', end='\n'):
+          print_red.append(sep.join(str(o) for o in objects) + end)
+        data = cm_editbox.getSelection()
+        exec(data)
+        if print_red:
+          out = '\n'.join([data, ''.join(print_red)])
+          cm_editbox.replaceSelection(out.strip('\n'))
+      except Exception as e:
+        import traceback
+        print_red = traceback.format_exc().splitlines()
+        out = '\n'.join([data, '\n'.join(print_red)])
+        cm_editbox.replaceSelection(out.strip('\n'))
+    else:
+      try:
+        exec(cm_editbox.getValue())
+      except Exception as e:
+        import traceback
+        print(traceback.format_exc())
     ev.preventDefault()
     ev.stopPropagation()
 window.bind('keydown', on_down)
