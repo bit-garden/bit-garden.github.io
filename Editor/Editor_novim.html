@@ -1176,8 +1176,8 @@ def lattr(l, *props, default=None):
   # lists attributes of objects in l
   props = sum([i.split(' ') for i in props], [])
   if len(props) == 1:
-    return [getattr(i, props[0], default) for i in l]
-  return [{j: getattr(i, j, default) for j in props} for i in l]
+    return (getattr(i, props[0], default) for i in l)
+  return ((getattr(i, j, default) for j in props) for i in l)
 
 def bind(*events):
   def _bind(f):
@@ -1227,7 +1227,22 @@ def rindex(lst, val, start=None):
         return i
   return -1
 
-
+def parse(pat, s):
+  if pat.startswith('[]'):
+    pat = ' ' + pat
+    s = ' ' + s
+  ends = False
+  if pat.endswith('[]'): ends = True
+  pat = pat.split('[]')
+  out = []
+  for idx, p in enumerate(pat):
+    if ends and idx == len(pat)-1:
+      out.append(s)
+    else:
+      _s = s.partition(p)
+      out.append(_s[0])
+      s = _s[2]
+  return out[1:]
 
 
 </script>
