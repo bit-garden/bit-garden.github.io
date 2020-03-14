@@ -440,46 +440,10 @@ from browser.html import *
 import time
 
 from javascript import RegExp, String
-def csv_split(s):
-  re = RegExp.new(r'(,)(?=(?:[^"]|"[^"]*")*$)')
-  for i in s.splitlines():
-    if i.strip() and i.strip()[0] != '#':
-      yield [j.strip() for j in String.new(i).split(re) if j != ',']
-def pipe_split(s):
-  re = RegExp.new(r'(\|)(?=(?:[^"]|"[^"]*")*$)')
-  for i in s.splitlines():
-    if i.strip() and i.strip()[0] != '#':
-      yield [j.strip() for j in String.new(i).split(re) if j != '|']
-
-def csv_splitc(s):
-  re = RegExp.new(r'(,)(?=(?:[^"]|"[^"]*")*$)')
-  for i in s.splitlines():
-    i = i.strip()
-    if i:
-      yield [j.strip() for j in String.new(i).split(re) if j != ',']
-def pipe_splitc(s):
-  re = RegExp.new(r'(\|)(?=(?:[^"]|"[^"]*")*$)')
-  for i in s.splitlines():
-    i = i.strip()
-    if i:
-      yield [j.strip() for j in String.new(i).split(re) if j != '|']
-
-def csv_splitd(s):
-  _headers = next(csv_splitc(s))
-  ignore_first = not _headers[0].startswith('#')
-  _headers[0] = _headers[0].lstrip('#')
-  _s = csv_split(s)
-  if ignore_first:
-    next(_s)
-  return [dict(zip(_headers, i)) for i in _s]
-def pipe_splitd(s):
-  _headers = next(pipe_splitc(s))
-  ignore_first = not _headers[0].startswith('#')
-  _headers[0] = _headers[0].lstrip('#')
-  _s = pipe_split(s)
-  if ignore_first:
-    next(_s)
-  return [dict(zip(_headers, i)) for i in _s]
+def dsplit(s, char=','):
+  re = RegExp.new(r'(' + char + r')(?=(?:[^"]|"[^"]*")*$)')
+  for i in (k for k in s.splitlines() if k.strip()):
+    yield [j.strip() for idx, j in enumerate(String.new(i).split(re)) if not idx % 2]
 
 
 # TODO
@@ -833,7 +797,7 @@ def do_tp() -> None:
   try:
     window.vdo("gvo")
     data = cm_editbox.getSelection()
-    data = list(list(i) for i in zip_longest(*pipe_splitc(data)))
+    data = list(list(i) for i in zip_longest(*dsplit(data, '\|')))
     out = align(data)
     cm_editbox.replaceSelection(out.strip('\n'))
   except Exception as e:
@@ -893,124 +857,12 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  out = align(pipe_splitc(data))
+  out = align(dsplit(data, '\|'))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
-def run_stack(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-  try:
-    params = params.argString.strip()
-    params = [i.strip() for i in params.split(',')]
-  except:
-    params = []
 
-  if data[0] == '[':
-    d = eval(data)
-    keys = {k for i in d for k in i.keys()}
-    [i.update({k:''}) for i in d for k in keys if k not in i]
-    _heads = [list(d[0].keys())]
-    ig = itemgetter(*_heads[0])
-    _heads.extend([list(ig(i)) for i in d])
-    _heads[0][0] = f'#{_heads[0][0]}'
-    out = align(_heads)
-  elif data[0] == '{':
-    d = eval(data)
-    keys = {k for i in list(d.values()) for k in i.keys()}
-    [i.update({k:''}) for i in list(d.values()) for k in keys if k not in i]
-    _heads = [list(list(d.values())[0].keys())]
-    ig = itemgetter(*_heads[0])
-    _heads.extend([list(ig(i)) for i in list(d.values())])
-    _heads[0][0] = f'#{_heads[0][0]}'
-    out = align(_heads)
-  else:
-    if params:
-      ig = itemgetter(*params)
-      out = '{' + ',\n'.join(repr(k) + ': ' + repr(v) for k, v in {ig(i): i for i in pipe_splitd(data)}.items()) + '}'
-    else:
-      out = '[' + ',\n'.join(str(i) for i in list(pipe_splitd(data))) + ']'
-    #out = str(stack(data))
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-from browser import window
-window.CodeMirror.Vim.defineEx("stack", None, run_stack)
-
-def run_lstack(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-  try:
-    params = params.argString.strip()
-  except:
-    params = ''
-
-  if data[0] == '[':
-    data = eval(data)
-    if isinstance(data[0], (list, tuple)):
-      out = align(data)
-    else:
-      if not params:
-        params = 1
-      data = list(data)
-      while data[-1] is '':
-        data.pop()
-      out = align(grouper(data, int(params), fillvalue=''))
-  else:
-    if params:
-      out = str(sum(list(pipe_split(data)), []))
-    else:
-      out = '[' + ',\n'.join(str(i) for i in list(pipe_split(data))) + ']'
-    #out = str(stack(data))
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("lstack", None, run_lstack)
-
-
-
-
-
-def csv2pipe(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-
-  data = align(csv_splitc(data))
-
-  window.vdo('gv')
-  cm_editbox.replaceSelection(data.strip('\n'))
-window.CodeMirror.Vim.defineEx("csv2pipe", None, csv2pipe)
-
-def csv2list(cm, params):
-  from javascript import RegExp, String
-  _re = RegExp.new(r'(,)(?=(?:[^"]|"[^"]*")*$)')
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-
-  data = data.strip().splitlines()
-  data = [[j.strip() for j in String.new(i).split(_re) if j!=','] for i in data]
-
-  data = '[' + ',\n'.join(str(i) for i in data) + ']'
-
-  window.vdo('gv')
-  cm_editbox.replaceSelection(data.strip('\n'))
-window.CodeMirror.Vim.defineEx("csv2list", None, csv2list)
-
-def csv2dict(cm, params):
-  from javascript import RegExp, String
-  _re = RegExp.new(r'(,)(?=(?:[^"]|"[^"]*")*$)')
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-
-  data = data.strip().splitlines()
-  _heads = data.pop(0).lstrip('#')
-  _heads = [j.strip() for j in String.new(_heads).split(_re) if j!=',']
-  data = [dict(zip(_heads, [j.strip() for j in String.new(i).split(_re) if j!=','])) for i in data]
-
-  data = '[' + ',\n'.join(str(i) for i in data) + ']'
-
-  window.vdo('gv')
-  cm_editbox.replaceSelection(data.strip('\n'))
-window.CodeMirror.Vim.defineEx("csv2dict", None, csv2dict)
 
 
 #--- async stuff
@@ -1244,6 +1096,19 @@ def parse(pat, s):
       s = _s[2]
   return out[1:]
 
+def _try_cast(s):
+  try:
+    return int(s)
+  except:
+    try:
+      return float(s)
+    except:
+      try:
+        return eval(s)
+      except:
+        return s
+def lcast(l):
+  yield from (_try_cast(i) for i in l)
 
 </script>
 </html>
