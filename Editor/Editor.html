@@ -444,7 +444,14 @@ def dsplit(s, char=','):
   re = RegExp.new(r'(' + char + r')(?=(?:[^"]|"[^"]*")*$)')
   for i in (k for k in s.splitlines() if k.strip()):
     yield [j.strip() for idx, j in enumerate(String.new(i).split(re)) if not idx % 2]
+def asplit(s, char=','):
+  re = RegExp.new(r'(' + char + r')(?=(?:[^"]|"[^"]*")*$)')
+  for i in (k for k in s.splitlines() if k.strip()):
+    yield [_try_cast(j.strip()) for idx, j in enumerate(String.new(i).split(re)) if not idx % 2]
 
+def dict_split(s, char=',', splitter=dsplit):
+  heads = next((ds:=splitter(s.lstrip().lstrip('#'), char)))
+  return (dict(zip_longest(heads, i, fillvalue='')) for i in ds if not i[0].startswith('#'))
 
 # TODO
 class timer:
