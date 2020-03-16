@@ -444,14 +444,7 @@ def dsplit(s, char=','):
   re = RegExp.new(r'(' + char + r')(?=(?:[^"]|"[^"]*")*$)')
   for i in (k for k in s.splitlines() if k.strip()):
     yield [j.strip() for idx, j in enumerate(String.new(i).split(re)) if not idx % 2]
-def asplit(s, char=','):
-  re = RegExp.new(r'(' + char + r')(?=(?:[^"]|"[^"]*")*$)')
-  for i in (k for k in s.splitlines() if k.strip()):
-    yield [_try_cast(j.strip()) for idx, j in enumerate(String.new(i).split(re)) if not idx % 2]
 
-def dict_split(s, char=',', splitter=dsplit):
-  heads = next((ds:=splitter(s.lstrip().lstrip('#'), char)))
-  return (dict(zip_longest(heads, i, fillvalue='')) for i in ds if not i[0].startswith('#'))
 
 # TODO
 class timer:
@@ -1013,7 +1006,7 @@ def lattr(l, *props, default=None):
   props = sum([i.split(' ') for i in props], [])
   if len(props) == 1:
     return (getattr(i, props[0], default) for i in l)
-  return ((getattr(i, j, default) for j in props) for i in l)
+  return ([getattr(i, j, default) for j in props)] for i in l)
 
 def bind(*events):
   def _bind(f):
@@ -1036,32 +1029,32 @@ def push(l, x):
 
   changes = []
 
-  try:
-    first_empty = l.index(None, x)
-  except ValueError:
-    first_empty = -1
-  if first_empty != -1:
+  if ~(first_empty:=lindex(l, None, x)):
     del l[first_empty]
     changes = l[x: first_empty]
     l[x: first_empty] = [None] + l[x: first_empty]
 
-  if first_empty == -1 or not changes:
-    first_empty = rindex(l, None, x)
-    if first_empty != -1:
-      del l[first_empty]
-      changes = l[first_empty: x]
-      l[first_empty: x] = l[first_empty: x] + [None]
+  if not changes and ~(first_empty:=rindex(l, None, x)):
+    del l[first_empty]
+    changes = l[first_empty: x]
+    l[first_empty: x] = l[first_empty: x] + [None]
 
   return changes
 
-def rindex(lst, val, start=None):
+def rindex(l, val, start=None):
   # index from right
-  if start is None:
-    start = len(lst)-1
-  for i in range(start,-1,-1):
-    if i < len(lst) and lst[i] == val:
-        return i
+  for i in range(start or len(l)-1, -1, -1):
+    if l[i] is val:
+      return i
   return -1
+def lindex(l, val, start=0):
+  # index from left
+  for i in range(start, len(l)):
+    if l[i] is val:
+      return i
+  return -1
+
+
 
 def parse(pat, s):
   if pat.startswith('[]'):
