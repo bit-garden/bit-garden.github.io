@@ -442,8 +442,8 @@ import time
 from javascript import RegExp, String
 def dsplit(s, char=','):
   re = RegExp.new(r'(' + char + r')(?=(?:[^"]|"[^"]*")*$)')
-  for i in (k for k in s.splitlines() if k.strip()):
-    yield [j.strip() for idx, j in enumerate(String.new(i).split(re)) if not idx % 2]
+  return [[j.strip() for idx, j in enumerate(String.new(i).split(re)) if not idx % 2]
+      for i in s.splitlines() if i.strip()]
 
 
 # TODO
@@ -663,7 +663,7 @@ def is_num(_in):
     return False
 
 def align(d):
-  d = list(list(i) for i in zip_longest(*d, fillvalue=''))
+  d = [list(i) for i in zip_longest(*d, fillvalue='')]
   for col in d:
     l = max(len(str(i)) for i in col)
     col[:] = [str(i).rjust(l) if is_num(i) else str(i).ljust(l) for i in col]
@@ -1028,8 +1028,8 @@ def lattr(l, *props, default=None):
   # lists attributes of objects in l
   props = sum([i.split(' ') for i in props], [])
   if len(props) == 1:
-    return (getattr(i, props[0], default) for i in l)
-  return ([getattr(i, j, default) for j in props] for i in l)
+    return [getattr(i, props[0], default) for i in l]
+  return [[getattr(i, j, default) for j in props] for i in l]
 
 def bind(*events):
   def _bind(f):
@@ -1106,7 +1106,7 @@ def _try_cast(s):
       except:
         return s
 def lcast(l):
-  yield from (_try_cast(i) for i in l)
+  yield from [_try_cast(i) for i in l]
 
 </script>
 </html>
