@@ -727,6 +727,12 @@ def on_down(ev):
       window.alert('{}:{}({})'.format(start+1, end+1, diff+1))
     ev.preventDefault()
     ev.stopPropagation()
+  if chr(ev.which)=='Q' and ctrl:
+    data = cm_editbox.getSelection()
+    out = align(dsplit(data, '\|'))
+    cm_editbox.replaceSelection(out.strip('\n'))
+    ev.preventDefault()
+    ev.stopPropagation()
   if chr(ev.which)=='S' and ctrl:
     save_me.append(1)
     ev.preventDefault()
