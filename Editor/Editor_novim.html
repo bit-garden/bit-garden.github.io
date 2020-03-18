@@ -108,6 +108,7 @@ CodeMirror.defineSimpleMode("simplemode", {
     {regex: /(^| )'([^']|'\w)*'( |$)/, token: "strings"}, // single quote strings speech
     
     {regex: /#.*$/, token: "comments"}, // darklights comments
+    {regex: / \|( |$)/, token: 'nums'},
   ]
 });
 </script>
@@ -662,8 +663,8 @@ def is_num(_in):
   except:
     return False
 
-def align(d):
-  d = [list(i) for i in zip_longest(*d, fillvalue='')]
+def align(*d):
+  d = [list(i) for i in zip_longest(*(j for k in d for j in k), fillvalue='')]
   for col in d:
     l = max(len(str(i)) for i in col)
     col[:] = [str(i).rjust(l) if is_num(i) else str(i).ljust(l) for i in col]
