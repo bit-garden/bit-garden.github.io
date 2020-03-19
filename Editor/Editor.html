@@ -499,7 +499,7 @@ class fopen():
 def slot(name, *components, verbose=False):
   'Slot class generator. Similar to named tuple, but mutable.'
   if isinstance(components[0], str):
-    components = list(components)
+    components = [*components]
     slots = components.pop(0)
     defaults = components
     args = tuple(slots.split(' '))
@@ -665,7 +665,7 @@ def is_num(_in):
     return False
 
 def align(*d):
-  d = [list(i) for i in zip_longest(*(j for k in d for j in k), fillvalue='')]
+  d = [[*i] for i in zip_longest(*(j for k in d for j in k), fillvalue='')]
   for col in d:
     l = max(len(str(i)) for i in col)
     col[:] = [str(i).rjust(l) if is_num(i) else str(i).ljust(l) for i in col]
@@ -1075,19 +1075,10 @@ def parse(pat, s):
       s = _s[2]
   return out[1:]
 
-def _try_cast(s):
-  try:
-    return int(s)
-  except:
-    try:
-      return float(s)
-    except:
-      try:
-        return eval(s)
-      except:
-        return s
-def lcast(l, kind=_try_cast):
-  return [kind(i) for i in l]
+def lcast(l, *kinds):
+  if len(kinds) == 1:
+    return (kinds[0](i) for i in l)
+  return (k(i) for k, i in zip(kinds, l))
 
 
 </script>
