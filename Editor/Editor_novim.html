@@ -170,7 +170,7 @@ editbox = document.querySelector('.editbox')
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
-            'lineNumbers':       false,
+            'lineNumbers':       true,
             "mode":              'simplemode',
             "theme":             "material",
             'tabSize':           2,
@@ -531,6 +531,13 @@ class {name}:
   def __init__(self,
       {all_args}):
     {sargs}
+  
+  def __getitem__(self, key):
+    return [getattr(self, i) for i in key.split(' ')]
+    
+  def __setitem__(self, key, value):
+    for k, v in zip(key.split(' '), value):
+      setattr(self, k, v)
 
 '''.strip()
   # Verbosity to print out generated code.
@@ -664,10 +671,10 @@ def is_num(_in):
     return False
 
 def align(*d):
-  d = [[*i] for i in zip_longest(*(j for k in d for j in k), fillvalue='')]
+  d = [[*i] for i in zip_longest(*(x for x in d for x in x), fillvalue='')]
   for col in d:
-    l = max(len(str(i)) for i in col)
-    col[:] = [str(i).rjust(l) if is_num(i) else str(i).ljust(l) for i in col]
+    l = max(len(f'{i}') for i in col)
+    col[:] = [f'{i}'.rjust(l) if is_num(i) else f'{i}'.ljust(l) for i in col]
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*d))
 
 # --- end focus
@@ -683,12 +690,20 @@ _options['so'] = 6*12
 _options['center'] = True
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
+_options['relative_number'] = True
 
 
+def overscroll(cm):
+  def temp(l):
+    if _options['relative_number']:
+      return abs(cm.getCursor().line + 1 - l)
+    else:
+      return l
+  cm.setOption('lineNumberFormatter', temp);
+doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
 
 
-
-_options['_line_numbers'] = False
+_options['_line_numbers'] = True
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
   _options['_line_numbers'] = state
