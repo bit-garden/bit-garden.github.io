@@ -532,13 +532,6 @@ class {name}:
       {all_args}):
     {sargs}
 
-  def __getitem__(self, key):
-    return [getattr(self, i) for i in key.split(' ')]
-    
-  def __setitem__(self, key, value):
-    for k, v in zip(key.split(' '), value):
-      setattr(self, k, v)
-
 '''.strip()
   # Verbosity to print out generated code.
   if verbose:
@@ -855,6 +848,22 @@ def run_align(cm, params):
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
+
+def run_gen(cm, params):
+  window.vdo('gv')
+  s = cm_editbox.getSelection().strip().split(' ')
+  
+  if s[0] == 'lambda':
+    out = f'''lambda {s[1]}: ({", ".join(f"{s[1]}{'' if i[0]=='[' else '.'}{i}" for i in s[2:])})'''
+  elif s[1].lower() == 'none':
+    out = f'''{s[0]} = (None if {s[2]} is None else ({", ".join(f"{s[2]}{'' if i[0]=='[' else '.'}{i}" for i in s[4:])}) for {s[2]} in {s[3]})'''
+  else:
+    out = f'''{s[0]} = (({", ".join(f"{s[1]}{'' if i[0]=='[' else '.'}{i}" for i in s[3:])}) for {s[1]} in {s[2]})'''
+
+  
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("lg", None, run_gen)
 
 
 
