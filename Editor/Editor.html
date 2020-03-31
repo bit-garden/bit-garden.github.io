@@ -98,6 +98,39 @@
 pre, code, pre > * {
         font-family: Mono;
 }
+
+dialog {
+  background-color: rgba(18,18,18,1);
+  color: rgba(255,255,255,.87);
+  border: none;
+  padding: 0px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+}
+.card {
+  background-color: rgba(18,18,18,1);
+  color: rgba(255,255,255,.87);
+  border: none;
+  padding: 12px 16px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+}
+
+button, textarea, input{
+  background: none;
+  color: rgba(255,255,255,.87);
+  border: none;
+  border-bottom: 2px solid #00ccff;
+  outline: none;
+}
+
+button{
+  font-weight: bold;
+  padding: 12px 16px;
+}
+
+.warn{
+  border-bottom: 2px solid #B00020;
+}
+
 </style>
 <script>
 CodeMirror.defineSimpleMode("simplemode", {
@@ -429,6 +462,8 @@ function uuid4() {
   );
 }
 
+
+
 </script>
 <!--<script src="lib/brython_aio.js"></script>-->
 <script src="lib/brython.js"></script>
@@ -655,6 +690,14 @@ def grouper(iterable, n, fillvalue=None):
   args = [iter(iterable)] * n
   return zip_longest(*args, fillvalue=fillvalue)
 
+
+def sub_group(dat):
+  gb = groupby(dat, key=lambda i: i[0][0])
+  gb = ((k, (*v,)) for k, v in gb)
+  for k, v in gb:
+    subs = ', '.join(f"{'/'.join(lcast(i.pop(0)[1:], str))}" for i in v)
+    zips = (f"({', '.join(lcast(i, str))})" for i in zip(*v))
+    yield [f'{k} ({subs})', *zips]
   
   
 def is_num(_in):
@@ -849,22 +892,6 @@ def run_align(cm, params):
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
-def run_gen(cm, params):
-  window.vdo('gv')
-  s = cm_editbox.getSelection().strip().split(' ')
-  
-  if s[0] == 'lambda':
-    out = f'''lambda {s[1]}: ({", ".join(f"{s[1]}{'' if i[0]=='[' else '.'}{i}" for i in s[2:])})'''
-  elif s[1].lower() == 'none':
-    out = f'''{s[0]} = (None if {s[2]} is None else ({", ".join(f"{s[2]}{'' if i[0]=='[' else '.'}{i}" for i in s[4:])}) for {s[2]} in {s[3]})'''
-  else:
-    out = f'''{s[0]} = (({", ".join(f"{s[1]}{'' if i[0]=='[' else '.'}{i}" for i in s[3:])}) for {s[1]} in {s[2]})'''
-
-  
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("lg", None, run_gen)
-
 
 
 
@@ -912,6 +939,40 @@ window.CodeMirror.Vim.defineEx("edit", None, _e)
 #  window.alert(str(res))
 #
 #aio.run(main())
+
+async def popup(*l, **kw):
+  d = DIALOG(*l, **kw)
+  doc <= d
+  d.showModal()
+  while d.open:
+    await asyncio.sleep(.5)
+  d.remove()
+  return d
+  
+class Popup:
+  def __init__(self, *l, **kw):
+    self.d = DIALOG(*l, **kw)
+    doc <= self.d
+  
+  def __enter__(self):
+    self.d.showModal()
+    return self.d
+    
+  def __exit__(self, *l):
+    self.d.open = False
+    self.d.remove()
+    
+class El:
+  def __init__(self, el, parent=None):
+    self.el = el
+    if parent:
+      parent <= self.el
+  
+  def __enter__(self):
+    return self.el
+    
+  def __exit__(self, *l):
+    self.el.remove()
 
 
 # import from notes file
@@ -1027,27 +1088,22 @@ def complement(r, g, b, *_):
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
 
-def lattr(l, *props, default=None):
-  # lists attributes of objects in l
-  props = sum([i.split(' ') for i in props], [])
-  if len(props) == 1:
-    return (getattr(i, props[0], default) for i in l)
-  return ([getattr(i, j, default) for j in props] for i in l)
-
-def bind(*events):
-  def _bind(f):
-    for e in events:
-      callbacks[e].append(f)
-    return f
-  return _bind
-
-def unbind(f, *events):
-  for e in events:
-    callbacks[e].remove(f)
-
-def emit(event, *l, **kw):
-  for c in callbacks[event]:
-    c(event, *l, **kw)
+#callbacks = {}
+#
+#def bind(*events):
+#  def _bind(f):
+#    for e in events:
+#      callbacks[e].append(f)
+#    return f
+#  return _bind
+#
+#def unbind(f, *events):
+#  for e in events:
+#    callbacks[e].remove(f)
+#
+#def emit(event, *l, **kw):
+#  for c in callbacks[event]:
+#    c(event, *l, **kw)
 
 # list tools
 def push(l, x):

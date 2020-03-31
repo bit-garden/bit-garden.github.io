@@ -98,6 +98,41 @@
 pre, code, pre > * {
         font-family: Mono;
 }
+
+
+dialog {
+  background-color: rgba(18,18,18,1);
+  color: rgba(255,255,255,.87);
+  border: none;
+  padding: 0px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+}
+.card {
+  background-color: rgba(18,18,18,1);
+  color: rgba(255,255,255,.87);
+  border: none;
+  padding: 12px 16px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+}
+
+button, textarea, input{
+  background: none;
+  color: rgba(255,255,255,.87);
+  border: none;
+  border-bottom: 2px solid #00ccff;
+  outline: none;
+}
+
+button{
+  font-weight: bold;
+  padding: 12px 16px;
+}
+
+.warn{
+  border-bottom: 2px solid #B00020;
+}
+
+
 </style>
 <script>
 CodeMirror.defineSimpleMode("simplemode", {
@@ -531,13 +566,6 @@ class {name}:
   def __init__(self,
       {all_args}):
     {sargs}
-  
-  def __getitem__(self, key):
-    return [getattr(self, i) for i in key.split(' ')]
-    
-  def __setitem__(self, key, value):
-    for k, v in zip(key.split(' '), value):
-      setattr(self, k, v)
 
 '''.strip()
   # Verbosity to print out generated code.
@@ -661,7 +689,14 @@ def grouper(iterable, n, fillvalue=None):
   # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
   args = [iter(iterable)] * n
   return zip_longest(*args, fillvalue=fillvalue)
-  
+
+def sub_group(dat):
+  gb = groupby(dat, key=lambda i: i[0][0])
+  gb = ((k, (*v,)) for k, v in gb)
+  for k, v in gb:
+    subs = ', '.join(f"{'/'.join(lcast(i.pop(0)[1:], str))}" for i in v)
+    zips = (f"({', '.join(lcast(i, str))})" for i in zip(*v))
+    yield [f'{k} ({subs})', *zips]
   
 def is_num(_in):
   try:
@@ -933,6 +968,40 @@ window.CodeMirror.Vim.defineEx("edit", None, _e)
 #aio.run(main())
 
 
+async def popup(*l, **kw):
+  d = DIALOG(*l, **kw)
+  doc <= d
+  d.showModal()
+  while d.open:
+    await asyncio.sleep(.5)
+  d.remove()
+  return d
+  
+class Popup:
+  def __init__(self):
+    self.d = DIALOG()
+    doc <= self.d
+  
+  def __enter__(self):
+    self.d.showModal()
+    return self.d
+    
+  def __exit__(self, *l):
+    self.d.open = False
+    self.d.remove()
+    
+class El:
+  def __init__(self, el, parent=None):
+    self.el = el
+    if parent:
+      parent <= self.el
+  
+  def __enter__(self):
+    return self.el
+    
+  def __exit__(self, *l):
+    self.el.remove()
+
 # import from notes file
 def grid_to_tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
   # generates values to align a grid layout
@@ -1046,12 +1115,7 @@ def complement(r, g, b, *_):
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
 
-def lattr(l, *props, default=None):
-  # lists attributes of objects in l
-  props = sum([i.split(' ') for i in props], [])
-  if len(props) == 1:
-    return (getattr(i, props[0], default) for i in l)
-  return ([getattr(i, j, default) for j in props] for i in l)
+callbacks = {}
 
 def bind(*events):
   def _bind(f):
