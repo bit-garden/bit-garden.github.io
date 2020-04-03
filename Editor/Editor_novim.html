@@ -124,12 +124,16 @@ button, textarea, input{
 }
 
 button{
-  font-weight: bold;
   padding: 12px 16px;
+  font-size: 16px;
 }
 
 .warn{
   border-bottom: 2px solid #B00020;
+}
+
+::placeholder {
+  color: rgba(255,255,255,.6);
 }
 
 
@@ -470,7 +474,8 @@ function uuid4() {
 <script src="lib/brython_stdlib.js"></script>
 <script type="text/python">
 
-from browser import window, aio
+from browser import window
+from browser import aio as asyncio
 from browser import document as doc
 from browser.html import *
 import time
@@ -789,7 +794,7 @@ def on_down(ev):
     ev.preventDefault()
     ev.stopPropagation()
   if chr(ev.which)=='O' and ctrl:
-    aio.run(auto_saver())
+    asyncio.run(auto_saver())
     ev.preventDefault()
     ev.stopPropagation()
   if chr(ev.which)=='E' and ctrl:
@@ -948,7 +953,7 @@ async def auto_saver():
     loaded = True
     while True:
       while not save_me:
-        await aio.sleep(.1)
+        await asyncio.sleep(.1)
       cm_editbox.save()
       await f.write(editbox.value)
       if 1 in save_me:
@@ -957,16 +962,15 @@ async def auto_saver():
       print('Saved')
 
 def _e(cm, params):
-  aio.run(auto_saver())
+  asyncio.run(auto_saver())
 window.CodeMirror.Vim.defineEx("e", None, _e)
 window.CodeMirror.Vim.defineEx("edit", None, _e)
 
 #async def main():
-#  res = await aio.gather(auto_saver())
+#  res = await asyncio.gather(auto_saver())
 #  window.alert(str(res))
 #
-#aio.run(main())
-
+#asyncio.run(main())
 
 async def popup(*l, **kw):
   d = DIALOG(*l, **kw)
