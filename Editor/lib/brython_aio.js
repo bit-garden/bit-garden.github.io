@@ -1,6 +1,6 @@
 // brython.js brython.info
 // version [3, 8, 0, 'final', 0]
-// implementation [3, 8, 7, 'final', 0]
+// implementation [3, 8, 9, 'dev', 0]
 // version compiled from commented, indented source files at
 // github.com/brython-dev/brython
 var __BRYTHON__=__BRYTHON__ ||{}
@@ -96,11 +96,11 @@ var root=$B.py2js(src[0],"script","script"),js=root.to_js()
 $B.set_import_paths()
 new Function("$locals_script",js)({})}})(__BRYTHON__)
 ;
-__BRYTHON__.implementation=[3,8,7,'final',0]
-__BRYTHON__.__MAGIC__="3.8.7"
+__BRYTHON__.implementation=[3,8,9,'dev',0]
+__BRYTHON__.__MAGIC__="3.8.9"
 __BRYTHON__.version_info=[3,8,0,'final',0]
-__BRYTHON__.compiled_date="2020-02-04 15:08:35.807824"
-__BRYTHON__.timestamp=1580825315807
+__BRYTHON__.compiled_date="2020-04-02 15:34:55.799155"
+__BRYTHON__.timestamp=1585834495799
 __BRYTHON__.builtin_module_names=["_aio","_ajax","_base64","_binascii","_io_classes","_jsre","_locale","_multiprocessing","_posixsubprocess","_profile","_sre_utils","_string","_strptime","_svg","_warnings","_webcomponent","_webworker","_zlib_utils","array","builtins","dis","hashlib","long_int","marshal","math","math1","math_kozh","modulefinder","posix","random","unicodedata"]
 ;
 
@@ -284,23 +284,24 @@ if(this.yield_atoms.length > 0){
 this.parent.children.splice(rank,1)
 var offset=0
 this.yield_atoms.forEach(function(atom){
-var temp_node=new $Node()
-var js='var $yield_value'+$loop_num
+var temp_node=new $Node(),loop_num=$loop_num,
+var_name='$yield_value'+loop_num,js='var '+var_name
 js+=' = '+(atom.to_js()||'None')
 new $NodeJSCtx(temp_node,js)
 this.parent.insert(rank+offset,temp_node)
 var yield_node=new $Node()
 this.parent.insert(rank+offset+1,yield_node)
 var yield_expr=new $YieldCtx(new $NodeCtx(yield_node))
-new $StringCtx(yield_expr,'$yield_value'+$loop_num)
+new $StringCtx(yield_expr,var_name)
 var set_yield=new $Node()
 set_yield.line_num=this.line_num
+set_yield.indent=this.indent
 set_yield.is_set_yield_value=true
 set_yield.after_yield=true
-js=$loop_num
+js=loop_num
 new $NodeJSCtx(set_yield,js)
 this.parent.insert(rank+offset+2,set_yield)
-atom.to_js=(function(x){return function(){return '$yield_value'+x}})($loop_num)
+atom.to_js=(function(x){return function(){return '$yield_value'+x}})(loop_num)
 $loop_num++
 offset+=3},this)
 this.parent.insert(rank+offset,this)
@@ -343,6 +344,11 @@ this.parent.insert(rank+offset-1,new_node)}
 return ctx_offset}}
 this.clone=function(){var res=new $Node(this.type)
 for(var attr in this){res[attr]=this[attr]}
+return res}
+this.clone_tree=function(){var res=new $Node(this.type)
+for(var attr in this){res[attr]=this[attr]}
+res.children=[]
+for(var i=0,len=this.children.length;i < len;i++){res.add(this.children[i].clone_tree())}
 return res}}
 var $YieldFromMarkerNode=$B.parser.$YieldFromMarkerNode=function(params){$Node.apply(this,['marker'])
 new $NodeCtx(this)
@@ -724,9 +730,9 @@ parent.insert(rank+offset,new_node)
 in_class=true
 offset++}}}
 var left=C.tree[0].to_js()
-if(C.tree[0].type=="id"){var binding_scope=C.tree[0].firstBindingScopeId()
+if(C.tree[0].type=="id"){var binding_scope=C.tree[0].firstBindingScopeId(),left_value=C.tree[0].value
 if(binding_scope){left="$locals_"+binding_scope.replace(/\./g,'_')+
-'["'+C.tree[0].value+'"]'}}
+'["'+left_value+'"]'}else{left='$locals["'+left_value+'"]'}}
 if(left_bound_to_int && right_is_int){parent.insert(rank+offset,$NodeJS(left+" "+op+" "+right))
 return offset++}
 prefix=prefix && !C.tree[0].unknown_binding && !left_id_unbound
@@ -787,7 +793,9 @@ aa2.line_num=node.line_num
 else_node.add(aa2)
 var ctx2=new $NodeCtx(aa2)
 var expr2=new $ExprCtx(ctx2,'clone',false)
-if(left_id_unbound){new $RawJSCtx(expr2,left)}else{expr2.tree=C.tree
+if(left_id_unbound){var js=left
+if(! binding_scope){js='$B.$local_search("'+left_value+'");'+left}
+new $RawJSCtx(expr2,js)}else{expr2.tree=C.tree
 expr2.tree.forEach(function(elt){elt.parent=expr2})}
 var assign2=new $AssignCtx(expr2)
 assign2.tree.push($NodeJS('$B.$getattr('+C.to_js()+',"'+
@@ -1109,12 +1117,13 @@ this.type='condition'
 this.token=token
 this.parent=C
 this.tree=[]
-if(token=='while'){this.loop_num=$loop_num++}
+this.scope=$get_scope(this)
+if(token=='while'){this.loop_num=$loop_num++
+$get_node(this).loop_start=this.loop_num}
 C.tree[C.tree.length]=this
 this.toString=function(){return this.token+' '+this.tree}
 this.transform=function(node,rank){var scope=$get_scope(this)
-if(this.token=="while"){if(scope.ntype=="generator"){this.parent.node.loop_start=this.loop_num}
-node.parent.insert(rank,$NodeJS('$locals["$no_break'+this.loop_num+'"] = true'))
+if(this.token=="while"){node.parent.insert(rank,$NodeJS('$locals["$no_break'+this.loop_num+'"] = true'))
 var module=$get_module(this).module
 if($B.last(node.children).C.tree[0].type !="return"){var js='$locals.$line_info = "'+node.line_num+
 ','+module+'";if($locals.$f_trace !== _b_.None){'+
@@ -1663,9 +1672,7 @@ C.tree[C.tree.length]=this
 this.toString=function(){return '(expr '+with_commas+') '+this.tree}
 this.to_js=function(arg){var res
 this.js_processed=true
-if(this.type=='list'){res='['+$to_js(this.tree)+']'}
-else if(this.tree.length==1){res=this.tree[0].to_js(arg)}
-else{res='_b_.tuple.$factory(['+$to_js(this.tree)+'])'}
+if(this.type=='list'){res='['+$to_js(this.tree)+']'}else if(this.tree.length==1){res=this.tree[0].to_js(arg)}else{res='_b_.tuple.$factory(['+$to_js(this.tree)+'])'}
 if(this.is_await){res="await ($B.promise("+res+"))"}
 if(this.assign){
 var scope=$get_scope(this)
@@ -1759,7 +1766,7 @@ for_node.add($NodeJS('if($safe'+num+'){$next'+num+
 ' += 1}'))
 for_node.add($NodeJS('else{$next'+num+' = $B.add($next'+
 num+',1)}'))}
-children.forEach(function(child){for_node.add(child)})
+children.forEach(function(child){for_node.add(child.clone_tree())})
 if($B.last(node.children).C.tree[0].type !="return"){var js='$locals.$line_info = "'+node.line_num+
 ','+this.module+'";if($locals.$f_trace !== _b_.None){'+
 '$B.trace_line()};None;'
@@ -1834,7 +1841,8 @@ try_node.add(iter_node)
 while_node.add(
 $NodeJS('catch($err){if($B.is_exc($err, [StopIteration]))'+
 '{break;}else{throw($err)}}'))
-children.forEach(function(child){while_node.add(child)})
+children.forEach(function(child){
+while_node.add(child.clone())})
 if($B.last(node.children).C.tree[0].type !="return"){var js='$locals.$line_info = "'+node.line_num+
 ','+this.module+'";if($locals.$f_trace !== _b_.None){'+
 '$B.trace_line()};None;'
@@ -1885,7 +1893,6 @@ this.type='from'
 this.parent=C
 this.module=''
 this.names=[]
-this.aliases={}
 C.tree[C.tree.length]=this
 this.expect='module'
 this.scope=$get_scope(this)
@@ -1893,10 +1900,9 @@ this.add_name=function(name){this.names[this.names.length]=name
 if(name=='*'){this.scope.blurred=true}}
 this.bind_names=function(){
 var scope=$get_scope(this)
-this.names.forEach(function(name){name=this.aliases[name]||name
+this.names.forEach(function(name){if(Array.isArray(name)){name=name[1]}
 $bind(name,scope,this)},this)}
-this.toString=function(){return '(from) '+this.module+' (import) '+this.names+
-'(as)'+this.aliases}
+this.toString=function(){return '(from) '+this.module+' (import) '+this.names}
 this.to_js=function(){this.js_processed=true
 var scope=$get_scope(this),module=$get_module(this),mod=module.module,res=[],pos=0,indent=$get_node(this).indent,head=' '.repeat(indent)
 if(mod.startsWith("$exec")){var frame=$B.last($B.frames_stack)[1]
@@ -1915,18 +1921,21 @@ this.module=packages.join('.')
 var mod_name=this.module.replace(/\$/g,'')
 res[pos++]='var module = $B.$import("'
 res[pos++]=mod_name+'",["'
-res[pos++]=this.names.join('","')+'"], {'
+var names=[]
+for(var i=0,len=this.names.length;i < len;i++){if(Array.isArray(this.names[i])){names.push(this.names[i][0])}else{names.push(this.names[i])}}
+res[pos++]=names.join('","')+'"], {'
 var sep=''
 for(var attr in this.aliases){res[pos++]=sep+'"'+attr+'": "'+this.aliases[attr]+'"'
 sep=','}
 res[pos++]='}, {}, true);'
 if(this.names[0]=='*'){
 scope.blurred=true
-res[pos++]='\n'+head+'for(var attr in module'+
-'){if(attr.charAt(0) !== "_" && attr.charAt(0) !== "$")'+
-'{$locals[attr] = module[attr]}};'}else{this.names.forEach(function(name){module.imports[this.module+'.'+name]=true
+res[pos++]='\n'+head+'$B.import_all($locals, module);'}else{this.names.forEach(function(name){var alias=name
+if(Array.isArray(name)){alias=name[1]
+name=name[0]}
+module.imports[this.module+'.'+name]=true
 res[pos++]='\n'+head+'$locals["'+
-(this.aliases[name]||name)+'"] = $B.$getattr($B.imported["'+
+alias+'"] = $B.$getattr($B.imported["'+
 mod_name+'"], "'+name+'");'},this)}
 res[pos++]='\n'+head+'None;'
 return res.join('');}}
@@ -2030,7 +2039,7 @@ this.bound=true}
 if(scope.ntype=='def' ||scope.ntype=='generator'){
 var _ctx=this.parent
 while(_ctx){if(_ctx.type=='list_or_tuple' && _ctx.is_comp()){this.in_comp=true
-return}
+break}
 _ctx=_ctx.parent}
 if(C.type=='expr' && C.parent.type=='comp_if'){
 return}else if(C.type=='global'){if(scope.globals===undefined){scope.globals=new Set([value])}else{scope.globals.add(value)}}}
@@ -2042,7 +2051,7 @@ if(scope.binding && scope.binding[this.value]){return scope.id}
 scope=scope.parent}}
 this.boundBefore=function(scope){
 var node=$get_node(this),found=false
-var $test=this.value=="bx"
+var $test=false 
 while(!found && node.parent){var pnode=node.parent
 if(pnode.bindings && pnode.bindings[this.value]){if($test){console.log("bound in",pnode)}
 return pnode.bindings[this.value]}
@@ -2086,7 +2095,7 @@ if(val=='__BRYTHON__' ||val=='$B'){return val}
 var innermost=$get_scope(this),scope=innermost,found=[]
 var search_ids=['"'+innermost.id+'"']
 var gs=innermost
-var $test=val=="bx"
+var $test=false 
 if($test){console.log("this",this)}
 while(true){if($test){console.log(gs.id,gs)}
 if(gs.parent_block){if(gs.parent_block==$B.builtins_scope){break}
@@ -2132,13 +2141,15 @@ if(this.nonlocal && found[0]===innermost){found.shift()}
 if(found.length > 0){
 if(found[0].C && found[0]===innermost
 && val.charAt(0)!='$'){var locs=this_node.locals ||{},nonlocs=innermost.nonlocals
-if(locs[val]===undefined &&
+try{if(locs[val]===undefined &&
 ((innermost.type !='def' ||
 innermost.type !='generator')&&
 innermost.ntype !='class' &&
+innermost.C.tree[0].args &&
 innermost.C.tree[0].args.indexOf(val)==-1)&&
 (nonlocs===undefined ||nonlocs[val]===undefined)){this.result='$B.$local_search("'+val+'")'
-return this.result}}
+return this.result}}catch(err){console.log("error",val,innermost)
+throw err}}
 if(found.length > 1 && found[0].C){if(found[0].C.tree[0].type=='class'){var ns0='$locals_'+found[0].id.replace(/\./g,'_'),ns1='$locals_'+found[1].id.replace(/\./g,'_'),res
 if(bound_before){if(bound_before.indexOf(val)>-1){this.found=found[0].binding[val]
 res=ns0}else{this.found=found[1].binding[val]
@@ -2306,6 +2317,15 @@ return '('+this.real+') ['+this.intervals+'-'+
 this.tree+']'
 default:
 return '(tuple) ('+this.tree+')'}}
+this.close=function(){this.closed=true
+for(var i=0,len=this.tree.length;i < len;i++){
+var elt=this.tree[i]
+if(elt.type=="expr" &&
+elt.tree[0].type=="list_or_tuple" &&
+elt.tree[0].real=="tuple" &&
+elt.tree[0].tree.length==1 &&
+elt.tree[0].expect==","){this.tree[i]=elt.tree[0].tree[0]
+this.tree[i].parent=this}}}
 this.is_comp=function(){switch(this.real){case 'list_comp':
 case 'gen_expr':
 case 'dict_or_set_comp':
@@ -2363,6 +2383,7 @@ var pos=comment[0]-start
 txt=txt.substr(0,pos)+
 ' '.repeat(comment[1])+
 txt.substr(pos+comment[1]+1)}})
+txt=txt.replace(/\\\n/g," ")
 items.push(txt)
 var lines=txt.split('\n')
 var res2=[]
@@ -2527,10 +2548,10 @@ default:
 return '$B.$TypeError("unorderable types: '+
 " int() "+this.op+' str()")'}
 case 'id':
-return 'typeof '+js0+' == "number" ? '+
+return '(typeof '+js0+' == "number" ? '+
 js0+this.op+js1+' : $B.rich_comp("__'+
 method+'__",'+this.tree[0].to_js()+
-','+this.tree[1].to_js()+')'}
+','+this.tree[1].to_js()+'))'}
 break;
 case 'str':
 switch(t0.type){case 'str':
@@ -2544,10 +2565,10 @@ default:
 return '$B.$TypeError("unorderable types: '+
 ' str() '+this.op+' int()")'}
 case 'id':
-return 'typeof '+js0+' == "string" ? '+
+return '(typeof '+js0+' == "string" ? '+
 js0+this.op+js1+' : $B.rich_comp("__'+
 method+'__",'+this.tree[0].to_js()+
-','+this.tree[1].to_js()+')'}
+','+this.tree[1].to_js()+'))'}
 break;
 case 'id':
 if(t0.type=='id'){return 'typeof '+js0+'!="object" && typeof '+
@@ -3035,6 +3056,7 @@ this.cmexit_name=this.prefix+'$ctx_manager_exit'+num
 this.exc_name=this.prefix+'$exc'+num
 this.err_name='$err'+num
 this.val_name='$value'+num
+this.yield_name=this.prefix+'$yield'+num
 if(this.tree[0].alias===null){this.tree[0].alias='$temp'}
 if(this.tree[0].type=='expr' &&
 this.tree[0].tree[0].type=='list_or_tuple'){if(this.tree[1].type !='expr' ||
@@ -3056,6 +3078,7 @@ if(this.tree[0].alias){var alias=this.tree[0].alias.tree[0].tree[0].value
 try_node.add($NodeJS('$locals'+'["'+alias+'"] = '+
 this.val_name))}
 block.forEach(function(elt){try_node.add(elt)})
+if(this.scope.ntype=="generator"){try_node.add($NodeJS(this.yield_name+" = false"))}
 var catch_node=new $Node()
 catch_node.is_catch=true 
 new $NodeJSCtx(catch_node,'catch('+this.err_name+')')
@@ -3066,7 +3089,7 @@ var js=this.exc_name+' = false;'+this.err_name+
 this.err_name+'.__class__,'+
 this.err_name+','+
 '$B.$getattr('+this.err_name+', "__traceback__"));'
-if(this.scope.ntype=="generator"){js+='delete '+this.cmexit_name+';'}
+if(this.scope.ntype=="generator"){js+='$B.set_cm_in_generator('+this.cmexit_name+');'}
 js+='if(!$B.$bool($b)){throw '+this.err_name+'}'
 catch_node.add($NodeJS(js))
 top_try_node.add(catch_node)
@@ -3078,12 +3101,11 @@ finally_node.C.in_ctx_manager=true
 finally_node.is_except=true
 finally_node.in_ctx_manager=true
 var js='if('+this.exc_name
-if(this.scope.ntype=="generator"){js+=' && (!$yield)'+
+if(this.scope.ntype=="generator"){js+=' && (!'+this.yield_name+')'+
 ' && '+this.cmexit_name}
-js+='){;'+this.cmexit_name+'(None,None,None);'
+js+='){'+this.cmexit_name+'(None,None,None);'
 if(this.scope.ntype=="generator"){js+='delete '+this.cmexit_name}
-js+='}'
-if(this.scope.ntype=="generator"){js+='$yield = undefined'}
+js+='};'
 finally_node.add($NodeJS(js))
 node.parent.insert(rank+2,finally_node)
 this.transformed=true}
@@ -3181,7 +3203,7 @@ new_node.after_yield=true
 new_node.indent=node.indent
 node.parent.insert(rank+1,new_node)
 var parent=node.parent
-while(parent){if(parent.ctx_manager_num !==undefined){node.parent.insert(rank+2,$NodeJS("$top_frame[1].$has_yield_in_cm = true"))
+while(parent){if(parent.ctx_manager_num !==undefined){node.parent.insert(rank+1,$NodeJS("$top_frame[1].$has_yield_in_cm = true"))
 break}
 parent=parent.parent}}
 this.to_js=function(){this.js_processed=true
@@ -3815,7 +3837,8 @@ return $transition(C.parent,token)}
 if(C.expect==','){return $transition(C,'op','in')}
 break
 case ',':
-if(C.expect==','){if(C.with_commas){if($parent_match(C,{type:"yield","from":true})){$_SyntaxError(C,"no implicit tuple for yield from")}
+if(C.expect==','){if(C.with_commas ||
+["assign","return"].indexOf(C.parent.type)>-1){if($parent_match(C,{type:"yield","from":true})){$_SyntaxError(C,"no implicit tuple for yield from")}
 C.parent.tree.pop()
 var tuple=new $ListOrTupleCtx(C.parent,'tuple')
 tuple.implicit=true
@@ -3922,7 +3945,9 @@ if(C.tree[0].type !="id"){$_SyntaxError(C,["keyword can't be an expression"])}
 return new $AbstractExprCtx(new $KwArgCtx(C),true)}else if(annotation=has_parent(C,"annotation")){return $transition(annotation,token,value)}else if(C.parent.type=="op"){
 $_SyntaxError(C,["cannot assign to operator"])}else if(C.parent.type=="list_or_tuple"){
 for(var i=0;i < C.parent.tree.length;i++){var item=C.parent.tree[i]
-if(item.type=="expr" && item.name=="operand"){$_SyntaxError(C,["cannot assign to operator"])}}}
+if(item.type=="expr" && item.name=="operand"){$_SyntaxError(C,["cannot assign to operator"])}}}else if(C.parent.type=="expr" &&
+C.parent.name=="target list"){$_SyntaxError(C,'token '+token+' after '
++C)}
 while(C.parent !==undefined){C=C.parent
 if(C.type=="condition"){$_SyntaxError(C,'token '+token+' after '
 +C)}else if(C.type=="augm_assign"){$_SyntaxError(C,"assignment inside augmented assignment")}}
@@ -3952,7 +3977,7 @@ case 'if':
 var in_comp=false,ctx=C.parent
 while(true){if(ctx.type=="list_or_tuple"){
 break}else if(ctx.type=='comp_for' ||ctx.type=="comp_if"){in_comp=true
-break}
+break}else if(ctx.type=='call_arg'){break}
 if(ctx.parent !==undefined){ctx=ctx.parent}
 else{break}}
 if(in_comp){break}
@@ -3960,7 +3985,7 @@ var ctx=C
 while(ctx.parent && ctx.parent.type=='op'){ctx=ctx.parent
 if(ctx.type=='expr' &&
 ctx.parent && ctx.parent.type=='op'){ctx=ctx.parent}}
-return new $AbstractExprCtx(new $TernaryCtx(ctx),false)
+return new $AbstractExprCtx(new $TernaryCtx(ctx),true)
 case 'eol':
 if(C.tree.length==2 &&
 C.tree[0].type=="id" &&
@@ -3978,6 +4003,8 @@ new $OpCtx(C.parent,'not_in'),false)}
 $_SyntaxError(C,'token '+token+' after '+C)
 case 'for':
 switch(token){case 'in':
+if(C.tree[0].tree.length==0){
+$_SyntaxError(C,"missing target between 'for' and 'in'")}
 return new $AbstractExprCtx(
 new $ExprCtx(C,'target list',true),false)
 case ':':
@@ -3991,8 +4018,8 @@ switch(token){case 'id':
 if(C.expect=='id'){C.add_name(value)
 C.expect=','
 return C}
-if(C.expect=='alias'){C.aliases[C.names[C.names.length-1]]=
-value
+if(C.expect=='alias'){C.names[C.names.length-1]=
+[$B.last(C.names),value]
 C.expect=','
 return C}
 case '.':
@@ -4208,24 +4235,26 @@ new $SubCtx(C.parent),false)}
 if(token=='('){return new $CallCtx(C.parent)}
 return $transition(C.parent,token,value)}else{if(C.expect==','){switch(C.real){case 'tuple':
 case 'gen_expr':
-if(token==')'){while(C.type=="list_or_tuple" &&
+if(token==')'){var close=true
+while(C.type=="list_or_tuple" &&
 C.real=="tuple" &&
 C.parent.type=="expr" &&
 C.parent.parent.type=="node" &&
 C.tree.length==1){
+close=false
 var node=C.parent.parent,ix=node.tree.indexOf(C.parent),expr=C.tree[0]
 expr.parent=node
 expr.$in_parens=true 
 node.tree.splice(ix,1,expr)
 C=expr.tree[0]}
-C.closed=true
+if(close){C.close()}
 if(C.real=='gen_expr'){C.intervals.push($pos)}
 if(C.parent.type=="packed"){return C.parent.parent}
 return C.parent}
 break
 case 'list':
 case 'list_comp':
-if(token==']'){C.closed=true
+if(token==']'){C.close()
 if(C.real=='list_comp'){C.intervals.push($pos)}
 if(C.parent.type=="packed"){if(C.parent.tree.length > 0){return C.parent.tree[0]}else{return C.parent.parent}}
 return C.parent}
@@ -4247,22 +4276,22 @@ C.tree=[]
 var comp=new $ComprehensionCtx(C)
 return new $TargetListCtx(new $CompForCtx(comp))}
 return $transition(C.parent,token,value)}else if(C.expect=='id'){switch(C.real){case 'tuple':
-if(token==')'){C.closed=true
+if(token==')'){C.close()
 return C.parent}
-if(token=='eol' && C.implicit===true){C.closed=true
+if(token=='eol' && C.implicit===true){C.close()
 return $transition(C.parent,token)}
 break
 case 'gen_expr':
-if(token==')'){C.closed=true
+if(token==')'){C.close()
 return $transition(C.parent,token)}
 break
 case 'list':
-if(token==']'){C.closed=true
+if(token==']'){C.close()
 return C}
 break}
 switch(token){case '=':
 if(C.real=='tuple' &&
-C.implicit===true){C.closed=true
+C.implicit===true){C.close()
 C.parent.tree.pop()
 var expr=new $ExprCtx(C.parent,'tuple',false)
 expr.tree=[C]
@@ -4450,7 +4479,8 @@ if(token=='id'){new $IdCtx(C,value)
 C.parent.expect=','
 return C.parent}else if(token=="["){C.parent.expect=','
 return new $ListOrTupleCtx(C,"list")}else if(token=="("){C.parent.expect=','
-return new $ListOrTupleCtx(C,"tuple")}else if(token=="]"){return $transition(C.parent,token,value)}
+return new $ListOrTupleCtx(C,"tuple")}else if(token=="]"){return $transition(C.parent,token,value)}else if(token=="{"){C.parent.expect=','
+return new $DictOrSetCtx(C)}
 console.log("syntax error",C,token)
 $_SyntaxError(C,'token '+token+' after '+C)
 case 'pass':
@@ -4543,7 +4573,7 @@ return new $PackedCtx(C)}
 case '(':
 case '[':
 if(C.expect=='id'){C.expect=','
-return new $TargetListCtx(C)}
+return new $ListOrTupleCtx(C,token=='(' ? 'tuple' :'list')}
 case ')':
 case ']':
 if(C.expect==','){return C.parent}
@@ -4555,7 +4585,15 @@ return $transition(C.parent,token,value)}
 $_SyntaxError(C,'token '+token+' after '+C)
 case 'ternary':
 if(token=='else'){C.in_else=true
-return new $AbstractExprCtx(C,false)}else if(! C.in_else){$_SyntaxError(C,'token '+token+' after '+C)}
+return new $AbstractExprCtx(C,false)}else if(! C.in_else){$_SyntaxError(C,'token '+token+' after '+C)}else if(token==","){
+if(["assign","augm_assign","node","return"].
+indexOf(C.parent.type)>-1){C.parent.tree.pop()
+var t=new $ListOrTupleCtx(C.parent,'tuple')
+t.implicit=true
+t.tree[0]=C
+C.parent=t
+t.expect="id"
+return t}}
 return $transition(C.parent,token,value)
 case 'try':
 if(token==':'){return $BodyCtx(C)}
@@ -4635,7 +4673,7 @@ var kwdict=["class","return","break","for","lambda","try","finally","raise","def
 var unsupported=[]
 var $indented=["class","def","for","condition","single_kw","try","except","with"
 ]
-var int_pattern=/^(\d[0-9_]*)(j|J)?/,float_pattern1=/^(\d[\d_]*)\.(\d*)([eE][+-]?\d+(_\d+)*)?(j|J)?/,float_pattern2=/^(\d[\d_]*)([eE][+-]?\d+(_\d+)*)(j|J)?/,hex_pattern=/^0[xX]([\da-fA-F_]+)/,octal_pattern=/^0[oO]([0-7_]+)/,binary_pattern=/^0[bB]([01_]+)/
+var int_pattern=/^(\d[0-9_]*)(j|J)?/,float_pattern1=/^(\d[\d_]*)\.(\d+(_\d+)*)?([eE][+-]?\d+(_\d+)*)?(j|J)?/,float_pattern2=/^(\d[\d_]*)([eE][+-]?\d+(_\d+)*)(j|J)?/,hex_pattern=/^0[xX]([\da-fA-F_]+)/,octal_pattern=/^0[oO]([0-7_]+)/,binary_pattern=/^0[bB]([01_]+)/
 var C=null
 var new_node=new $Node(),current=root,name="",_type=null,pos=0,indent=null,string_modifier=false
 var module=root.module
@@ -4719,13 +4757,13 @@ end++}
 escaped=true}else{if(src.charAt(end+1)=='\n'){
 end+=2
 lnum++}else if(src.substr(end+1,2)=='N{'){
-var end_lit=end+3,re=new RegExp("[-A-Z0-9 ]+"),search=re.exec(src.substr(end_lit))
+var end_lit=end+3,re=new RegExp("[-a-zA-Z0-9 ]+"),search=re.exec(src.substr(end_lit))
 if(search===null){$_SyntaxError(C,"(unicode error) "+
 "malformed \\N character escape",pos)}
 var end_lit=end_lit+search[0].length
 if(src.charAt(end_lit)!="}"){$_SyntaxError(C,"(unicode error) "+
-"malformed \\N character escape",pos)}
-var description=search[0]
+"malformed \\N character escape")}
+var description=search[0].toUpperCase()
 if($B.unicodedb===undefined){var xhr=new XMLHttpRequest
 xhr.open("GET",$B.brython_path+"unicode.txt",false)
 xhr.onreadystatechange=function(){if(this.readyState==4){if(this.status==200){$B.unicodedb=this.responseText}else{console.log("Warning - could not "+
@@ -4735,9 +4773,10 @@ if($B.unicodedb !==undefined){var re=new RegExp("^([0-9A-F]+);"+
 description+";.*$","m")
 search=re.exec($B.unicodedb)
 if(search===null){$_SyntaxError(C,"(unicode error) "+
-"unknown Unicode character name",pos)}
-if(search[1].length==4){zone+="\\u"+search[1]
-end=end_lit+1}else{end++}}else{end++}}else{if(end < src.length-1 &&
+"unknown Unicode character name")}
+var cp="0x"+search[1]
+zone+=String.fromCodePoint(eval(cp))
+end=end_lit+1}else{end++}}else{if(end < src.length-1 &&
 is_escaped[src.charAt(end+1)]===undefined){zone+='\\'}
 zone+='\\'
 escaped=true
@@ -5045,10 +5084,10 @@ var try_node=new $NodeJS('try'),children=root.children.slice(enter_frame_pos+1,r
 root.insert(enter_frame_pos+1,try_node)
 if(children.length==0){children=[$NodeJS('')]}
 children.forEach(function(child){try_node.add(child)})
-try_node.add($NodeJS('$B.leave_frame()'))
+try_node.add($NodeJS('$B.leave_frame({value: _b_.None})'))
 root.children.splice(enter_frame_pos+2,root.children.length)
 var catch_node=$NodeJS('catch(err)')
-catch_node.add($NodeJS('$B.leave_frame()'))
+catch_node.add($NodeJS('$B.leave_frame({value: _b_.None})'))
 catch_node.add($NodeJS('throw err'))
 root.add(catch_node)
 $add_line_num(root,null,line_info)
@@ -5270,16 +5309,19 @@ loop()}}}}
 idb_cx.onupgradeneeded=function(){console.info("upgrade needed")
 var db=idb_cx.result,store=db.createObjectStore("modules",{"keyPath":"name"})
 store.onsuccess=loop}
-idb_cx.onerror=function(){console.info('could not open indexedDB database')}}
+idb_cx.onerror=function(){console.info('could not open indexedDB database')
+$B.idb_cx=null
+$B.idb_name=null
+$B.$options.indexedDB=false
+loop()}}
 $B.ajax_load_script=function(script){var url=script.url,name=script.name
 if($B.files && $B.files.hasOwnProperty(name)){$B.tasks.splice(0,0,[$B.run_script,$B.files[name],name,true])}else if($B.protocol !="file"){var req=new XMLHttpRequest(),qs=$B.$options.cache ? '' :'?'+Date.now()
 req.open("GET",url+qs,true)
 req.onreadystatechange=function(){if(this.readyState==4){if(this.status==200){var src=this.responseText
-if(script.is_ww){$B.webworkers[name]=src}else{$B.tasks.splice(0,0,[$B.run_script,src,name,true])}}else if(this.status==404){throw Error(url+" not found")}
-loop()}}
+if(script.is_ww){$B.webworkers[name]=src}else{$B.tasks.splice(0,0,[$B.run_script,src,name,true])}
+loop()}else if(this.status==404){throw Error(url+" not found")}}}
 req.send()}else{throw _b_.IOError.$factory("can't load external script at "+
-script.url+" (Ajax calls not supported with protocol file:///)")}
-loop()}
+script.url+" (Ajax calls not supported with protocol file:///)")}}
 function add_jsmodule(module,source){
 source+="\nvar $locals_"+
 module.replace(/\./g,"_")+" = $module"
@@ -5423,7 +5465,9 @@ if($test){console.log("res",res,"res1",res1)}
 if(typeof res1=="function"){
 if(res1.__class__===$B.method){return res}
 if(res.$type=="staticmethod"){return res}
-else{var self=res.__class__===$B.method ? klass :obj,method=res.bind(null,self)
+else{var self=res.__class__===$B.method ? klass :obj,method=function(){var args=[self]
+for(var i=0,len=arguments.length;i < len;i++){args.push(arguments[i])}
+return res.apply(this,args)}
 method.__class__=$B.method
 method.__get__=function(obj,cls){var clmethod=res.bind(null,cls)
 clmethod.__class__=$B.method
@@ -5554,8 +5598,7 @@ i--
 continue}}}
 if(metaclass===undefined){if(bases && bases.length > 0 && bases[0].__class__ !==$B.JSObject){metaclass=bases[0].__class__
 for(var i=1;i < bases.length;i++){var mc=bases[i].__class__
-if(mc===metaclass){}else if(mc.__bases__ &&
-mc.__bases__.indexOf(metaclass)>-1){metaclass=mc}else if(metaclass.__bases__ &&
+if(mc===metaclass ||_b_.issubclass(metaclass,mc)){}else if(_b_.issubclass(mc,metaclass)){metaclass=mc}else if(metaclass.__bases__ &&
 metaclass.__bases__.indexOf(mc)==-1){throw _b_.TypeError.$factory("metaclass conflict: the "+
 "metaclass of a derived class must be a (non-"+
 "strict) subclass of the metaclasses of all its bases")}}}else{metaclass=_b_.type}}
@@ -5920,7 +5963,6 @@ case "function":
 obj.__class__=$B.Function
 return $B.Function
 case "object":
-if(obj.$class){return obj.$class}
 if(Array.isArray(obj)){if(Object.getPrototypeOf(obj)===Array.prototype){obj.__class__=_b_.list
 return _b_.list}}else if(obj.constructor===Number){return _b_.float}
 break}}
@@ -6243,10 +6285,12 @@ case "number":
 return item
 case "object":
 if(item.__class__===$B.long_int){return item}
+if(_b_.isinstance(item,_b_.int)){
+return item.$value}
 var method=$B.$getattr(item,"__index__",_b_.None)
 if(method !==_b_.None){method=typeof method=="function" ?
 method :$B.$getattr(method,"__call__")
-return $B.int_or_bool(method)}
+return $B.int_or_bool(method())}
 default:
 throw _b_.TypeError.$factory("'"+$B.class_name(item)+
 "' object cannot be interpreted as an integer")}}
@@ -6263,32 +6307,51 @@ throw _b_.TypeError.$factory("'"+$B.class_name(v)+
 "' object cannot be interpreted as an integer")}}
 $B.enter_frame=function(frame){
 $B.frames_stack.push(frame)
-if($B.tracefunc){if(frame[4]===$B.tracefunc){
-return _b_.None}else{return $B.tracefunc($B._frame.$factory($B.frames_stack,$B.frames_stack.length-1),'call',_b_.None)}}
+if($B.tracefunc){if(frame[4]===$B.tracefunc ||
+($B.tracefunc.$infos && frame[4]&&
+frame[4]===$B.tracefunc.$infos.__func__)){
+$B.tracefunc.$frame_id=frame[0]
+return _b_.None}else{
+for(var i=$B.frames_stack.length-1;i >=0;i--){if($B.frames_stack[i][0]==$B.tracefunc.$frame_id){return _b_.None}}
+return $B.tracefunc($B._frame.$factory($B.frames_stack,$B.frames_stack.length-1),'call',_b_.None)}}
 return _b_.None}
-$B.trace_exception=function(){var top_frame=$B.last($B.frames_stack),trace_func=top_frame[1].$f_trace,exc=top_frame[1].$current_exception,frame_obj=$B._frame.$factory($B.frames_stack,$B.frames_stack.length-1)
+$B.trace_exception=function(){var top_frame=$B.last($B.frames_stack)
+if(top_frame[0]==$B.tracefunc.$current_frame_id){return _b_.None}
+var trace_func=top_frame[1].$f_trace,exc=top_frame[1].$current_exception,frame_obj=$B._frame.$factory($B.frames_stack,$B.frames_stack.length-1)
 return trace_func(frame_obj,'exception',$B.fast_tuple([exc.__class__,exc,$B.traceback.$factory(exc)]))}
-$B.trace_line=function(){var top_frame=$B.last($B.frames_stack),trace_func=top_frame[1].$f_trace,frame_obj=$B._frame.$factory($B.frames_stack,$B.frames_stack.length-1)
+$B.trace_line=function(){var top_frame=$B.last($B.frames_stack)
+if(top_frame[0]==$B.tracefunc.$current_frame_id){return _b_.None}
+var trace_func=top_frame[1].$f_trace,frame_obj=$B._frame.$factory($B.frames_stack,$B.frames_stack.length-1)
 return trace_func(frame_obj,'line',_b_.None)}
 $B.set_line=function(line_info){
 var top_frame=$B.last($B.frames_stack)
+if($B.tracefunc && top_frame[0]==$B.tracefunc.$current_frame_id){return _b_.None}
 top_frame[1].$line_info=line_info
 var trace_func=top_frame[1].$f_trace
 if(trace_func !==_b_.None){var frame_obj=$B._frame.$factory($B.frames_stack,$B.frames_stack.length-1)
 top_frame[1].$ftrace=trace_func(frame_obj,'line',_b_.None)}
 return true}
 $B.trace_return=function(value){var top_frame=$B.last($B.frames_stack),trace_func=top_frame[1].$f_trace,frame_obj=$B._frame.$factory($B.frames_stack,$B.frames_stack.length-1)
+if(top_frame[0]==$B.tracefunc.$current_frame_id){
+return _b_.None}
 trace_func(frame_obj,'return',value)}
 function exit_ctx_managers_in_generators(frame){
 for(key in frame[1]){if(frame[1][key]&& frame[1][key].$is_generator_obj){var gen_obj=frame[1][key]
 if(gen_obj.env !==undefined){for(var attr in gen_obj.env){if(attr.search(/^\$ctx_manager_exit\d+$/)>-1){
-$B.$call(gen_obj.env[attr])()}}}}}}
+$B.$call(gen_obj.env[attr])()
+return true}}}}}}
+$B.set_cm_in_generator=function(cm_exit){if(cm_exit !==undefined){$B.frames_stack.forEach(function(frame){frame[1].$cm_in_gen=frame[1].$cm_in_gen ||new Set()
+frame[1].$cm_in_gen.add(cm_exit)})}}
 $B.leave_frame=function(arg){
 if($B.frames_stack.length==0){console.log("empty stack");return}
 $B.del_exc()
+if(arg && arg.value !==undefined && $B.tracefunc){if($B.last($B.frames_stack)[1].$f_trace===undefined){$B.last($B.frames_stack)[1].$f_trace=$B.tracefunc}
+if($B.last($B.frames_stack)[1].$f_trace !==_b_.None){$B.trace_return(arg.value)}}
 var frame=$B.frames_stack.pop()
 if(frame[1].$has_yield_in_cm){
-exit_ctx_managers_in_generators(frame)}}
+var closed_cm=exit_ctx_managers_in_generators(frame)
+if((! closed_cm)&& $B.frames_stack.length > 0){$B.last($B.frames_stack)[1].$has_yield_in_cm=true}}
+return _b_.None}
 $B.leave_frame_exec=function(arg){
 if($B.profile > 0){$B.$profile.return()}
 if($B.frames_stack.length==0){console.log("empty stack");return}
@@ -6308,7 +6371,10 @@ return x+y}
 try{var method=$B.$getattr(x.__class__ ||$B.get_class(x),"__add__")}catch(err){if(err.__class__===_b_.AttributeError){throw _b_.TypeError.$factory("unsupported operand type(s) for "+
 "+: '"+$B.class_name(x)+"' and '"+$B.class_name(y)+"'")}
 throw err}
-return $B.$call(method)(x,y)}
+var res=$B.$call(method)(x,y)
+if(res===_b_.NotImplemented){
+return $B.rich_op("add",x,y)}
+return res}
 $B.div=function(x,y){var z=x/y
 if(x > min_int && x < max_int && y > min_int && y < max_int
 && z > min_int && z < max_int){return z}
@@ -6498,6 +6564,11 @@ return $builtin_base_convert_helper(res,base)}}
 function bin(obj){check_nb_args('bin',1,arguments)
 check_no_kw('bin',obj)
 return bin_hex_oct(2,obj)}
+function breakpoint(){
+$B.$import('sys',[])
+var missing={},hook=$B.$getattr($B.imported.sys,'breakpointhook',missing)
+if(hook===missing){throw _b_.RuntimeError.$factory('lost sys.breakpointhook')}
+return $B.$call(hook).apply(null,arguments)}
 function callable(obj){check_nb_args('callable',1,arguments)
 check_no_kw('callable',obj)
 return hasattr(obj,'__call__')}
@@ -6579,6 +6650,8 @@ return res}
 function divmod(x,y){check_no_kw('divmod',x,y)
 check_nb_args('divmod',2,arguments)
 var klass=x.__class__ ||$B.get_class(x)
+var dm=$B.$getattr(klass,"__divmod__",_b_.None)
+if(dm !==_b_.None){return dm(x,y)}
 return _b_.tuple.$factory([$B.$getattr(klass,'__floordiv__')(x,y),$B.$getattr(klass,'__mod__')(x,y)])}
 var enumerate=$B.make_class("enumerate",function(){var $ns=$B.args("enumerate",2,{iterable:null,start:null},['iterable','start'],arguments,{start:0},null,null),_iter=iter($ns["iterable"]),start=$ns["start"]
 return{
@@ -6594,6 +6667,9 @@ return attr}
 $B.to_alias=function(attr){if($B.aliased_names[attr]){return '$$'+attr}
 return attr}
 function $$eval(src,_globals,_locals){var $=$B.args("eval",4,{src:null,globals:null,locals:null,mode:null},["src","globals","locals","mode"],arguments,{globals:_b_.None,locals:_b_.None,mode:"eval"},null,null),src=$.src,_globals=$.globals,_locals=$.locals,mode=$.mode
+if($.src.mode && $.src.mode=="single" &&
+["<console>","<stdin>"].indexOf($.src.filename)>-1){
+_b_.print(">",$.src.source.trim())}
 var current_frame=$B.frames_stack[$B.frames_stack.length-1]
 if(current_frame !==undefined){var current_locals_id=current_frame[0].replace(/\./,'_'),current_globals_id=current_frame[2].replace(/\./,'_')}
 var stack_len=$B.frames_stack.length
@@ -6679,7 +6755,9 @@ var locals_obj=eval("$locals_"+locals_id),globals_obj=eval("$locals_"+globals_id
 if(_globals===_b_.None){var res=new Function("$locals_"+globals_id,"$locals_"+locals_id,js)(
 globals_obj,locals_obj)}else{current_globals_obj=current_frame[3]
 current_locals_obj=current_frame[1]
-var res=new Function("$locals_"+globals_id,"$locals_"+locals_id,"$locals_"+current_globals_id,"$locals_"+current_locals_id,js)(globals_obj,locals_obj,current_globals_obj,current_locals_obj)}}else{js=root.to_js()
+var res=new Function("$locals_"+globals_id,"$locals_"+locals_id,"$locals_"+current_globals_id,"$locals_"+current_locals_id,js)(globals_obj,locals_obj,current_globals_obj,current_locals_obj)}
+if($.src.mode && $.src.mode=="single" &&
+$.src.filename=="<stdin>"){if(res !==_b_.None && res !==undefined){_b_.print(_b_.repr(res))}}}else{js=root.to_js()
 var res=eval(js)}
 if($.src.filename=="<console>" && $.src.mode=="single" &&
 res !==undefined && res !==_b_.None){_b_.print(res)}
@@ -6760,7 +6838,7 @@ attr=$B.to_alias(attr)
 if(obj===undefined){console.log("get attr",attr,"of undefined")}
 var is_class=obj.$is_class ||obj.$factory
 var klass=obj.__class__
-var $test=attr=="Date" 
+var $test=false 
 if($test){console.log("$getattr",attr,obj,klass)}
 if(klass !==undefined && klass.__bases__ &&
 (klass.__bases__.length==0 ||
@@ -6802,8 +6880,9 @@ return $B.builtins_doc[builtin_names[i]]}}
 break
 case '__mro__':
 if(obj.$is_class){
-return _b_.tuple.$factory([obj].concat(obj.__mro__))}
-break
+return _b_.tuple.$factory([obj].concat(obj.__mro__))}else if(obj.__dict__ &&
+obj.__dict__.$string_dict.__mro__ !==undefined){return obj.__dict__.$string_dict.__mro__}
+throw _b_.AttributeError.$factory(attr)
 case '__subclasses__':
 if(klass.$factory ||klass.$is_class){var subclasses=obj.$subclasses ||[]
 return function(){return subclasses}}
@@ -6840,7 +6919,7 @@ if(mro===undefined){console.log(obj,attr,"no mro, klass",klass)}
 for(var i=0,len=mro.length;i < len;i++){attr_func=mro[i]['__getattribute__']
 if(attr_func !==undefined){break}}}}
 if(typeof attr_func !=='function'){console.log(attr+' is not a function '+attr_func,klass)}
-if($test){console.log("attr_func is odga",attr_func,attr_func===odga,obj[attr])}
+if($test){console.log("attr_func is odga",attr_func,attr_func+"",attr_func===odga,obj[attr])}
 if(attr_func===odga){var res=obj[attr]
 if(Array.isArray(obj)&& Array.prototype[attr]!==undefined){
 res=undefined}
@@ -6871,7 +6950,8 @@ function hash(obj){check_no_kw('hash',obj)
 check_nb_args('hash',1,arguments)
 if(obj.__hashvalue__ !==undefined){return obj.__hashvalue__}
 if(isinstance(obj,_b_.bool)){return _b_.int.$factory(obj)}
-if(isinstance(obj,_b_.int)){return obj.valueOf()}
+if(isinstance(obj,_b_.int)){if(obj.$value===undefined){return obj.valueOf()}else{
+return obj.__hashvalue__=obj.$value}}
 if(obj.$is_class ||
 obj.__class__===_b_.type ||
 obj.__class__===$B.Function){return obj.__hashvalue__=$B.$py_next_hash--}
@@ -6880,17 +6960,17 @@ if(cached !==undefined){return cached}
 else{return hash_cache[obj]=_b_.str.__hash__(obj)}}
 var klass=obj.__class__ ||$B.get_class(obj)
 var hash_method=$B.$getattr(klass,'__hash__',_b_.None)
-if(hash_method==_b_.None){throw _b_.TypeError.$factory("unhashable type: '"+
-$B.class_name(obj)+"'",'hash')}
+if(hash_method===_b_.None){throw _b_.TypeError.$factory("unhashable type: '"+
+$B.class_name(obj)+"'")}
 if(hash_method.$infos===undefined){return obj.__hashvalue__=hashfunc()}
 if(hash_method.$infos.__func__===_b_.object.__hash__){if($B.$getattr(obj,'__eq__').$infos.__func__ !==_b_.object.__eq__){throw _b_.TypeError.$factory("unhashable type: '"+
-$B.class_name(obj)+"'",'hash')}else{return _b_.object.__hash__(obj)}}else{return $B.$call(hash_method)(obj)}}
+$B.class_name(obj)+"'",'hash')}else{return obj.__hashvalue__=_b_.object.__hash__(obj)}}else{return obj.__hashvalue__=$B.$call(hash_method)(obj)}}
 function _get_builtins_doc(){if($B.builtins_doc===undefined){
 var url=$B.brython_path
 if(url.charAt(url.length-1)=='/'){url=url.substr(0,url.length-1)}
 url+='/builtins_docstrings.js'
 var f=_b_.open(url)
-eval(f.$content)
+eval(f.$string)
 $B.builtins_doc=docs}}
 function help(obj){if(obj===undefined){obj='help'}
 if(typeof obj=='string' && _b_[obj]!==undefined){_get_builtins_doc()
@@ -6918,7 +6998,11 @@ else{return obj.$id=$B.UUID()}}
 function __import__(mod_name,globals,locals,fromlist,level){
 var $=$B.args('__import__',5,{name:null,globals:null,locals:null,fromlist:null,level:null},['name','globals','locals','fromlist','level'],arguments,{globals:None,locals:None,fromlist:_b_.tuple.$factory(),level:0},null,null)
 return $B.$__import__($.name,$.globals,$.locals,$.fromlist)}
-function input(msg){return prompt(msg ||'')||''}
+function input(msg){var res=prompt(msg ||'')||''
+if($B.imported["sys"]&& $B.imported["sys"].ps1){
+var ps1=$B.imported["sys"].ps1,ps2=$B.imported["sys"].ps2
+if(msg==ps1 ||msg==ps2){console.log(msg,res)}}
+return res}
 function isinstance(obj,cls){check_no_kw('isinstance',obj,cls)
 check_nb_args('isinstance',2,arguments)
 if(obj===null){return cls===None}
@@ -6959,12 +7043,9 @@ if(isinstance(classinfo,_b_.tuple)){for(var i=0;i < classinfo.length;i++){if(iss
 return false}
 if(classinfo.$factory ||classinfo.$is_class){if(klass===classinfo ||
 klass.__mro__.indexOf(classinfo)>-1){return true}}
-var sch=$B.$getattr(classinfo,'__subclasscheck__',_b_.None)
+var sch=$B.$getattr(classinfo.__class__ ||$B.get_class(classinfo),'__subclasscheck__',_b_.None)
 if(sch==_b_.None){return false}
-if(classinfo===_b_.type ||
-(classinfo.__bases__ &&
-classinfo.__bases__.indexOf(_b_.type)>-1)){return sch(classinfo,klass)}
-return sch(klass)}
+return sch(classinfo,klass)}
 var iterator_class=$B.make_class("iterator",function(getitem,len){return{
 __class__:iterator_class,getitem:getitem,len:len,counter:-1}}
 )
@@ -7124,12 +7205,11 @@ throw _b_.TypeError.$factory('ord() expected a character, but '+
 default:
 throw _b_.TypeError.$factory('ord() expected a character, but '+
 $B.class_name(c)+' was found')}}
-function pow(x,y){var $=$B.args('pow',3,{x:null,y:null,z:null},['x','y','z'],arguments,{z:null},null,null),z=$.z
-var klass=x.__class__ ||$B.get_class(x),res=$B.$call($B.$getattr(klass,'__pow__'))(x,y,z)
-if(z===null){return res}
-else{if(x !=_b_.int.$factory(x)||y !=_b_.int.$factory(y)){throw _b_.TypeError.$factory("pow() 3rd argument not allowed "+
+function pow(){var $=$B.args('pow',3,{x:null,y:null,mod:null},['x','y','mod'],arguments,{mod:None},null,null),x=$.x,y=$.y,z=$.mod
+var klass=x.__class__ ||$B.get_class(x)
+if(z===_b_.None){return $B.$call($B.$getattr(klass,'__pow__'))(x,y)}else{if(x !=_b_.int.$factory(x)||y !=_b_.int.$factory(y)){throw _b_.TypeError.$factory("pow() 3rd argument not allowed "+
 "unless all arguments are integers")}
-return $B.$getattr(res,'__mod__')(z)}}
+return $B.$call($B.$getattr(klass,'__pow__'))(x,y,z)}}
 function $print(){var $ns=$B.args('print',0,{},[],arguments,{},'args','kw')
 var ks=$ns['kw'].$string_dict
 var end=(ks['end']===undefined ||ks['end']===None)? '\n' :ks['end'][0],sep=(ks['sep']===undefined ||ks['sep']===None)? ' ' :ks['sep'][0],file=ks['file']===undefined ? $B.stdout :ks['file'][0],args=$ns['args']
@@ -7144,7 +7224,10 @@ if(flush !==None){flush()}
 return None}
 $print.__name__='print'
 $print.is_func=true
-var property=$B.make_class("property")
+var property=$B.make_class("property",function(fget,fset,fdel,doc){var res={__class__:property}
+property.__init__(res,fget,fset,fdel,doc)
+return res}
+)
 property.__init__=function(self,fget,fset,fdel,doc){self.__doc__=doc ||""
 self.$type=fget.$type
 self.fget=fget
@@ -7160,6 +7243,8 @@ self.__delete__=fdel;
 self.getter=function(fget){return property.$factory(fget,self.fset,self.fdel,self.__doc__)}
 self.setter=function(fset){return property.$factory(self.fget,fset,self.fdel,self.__doc__)}
 self.deleter=function(fdel){return property.$factory(self.fget,self.fset,fdel,self.__doc__)}}
+property.__repr__=function(self){return _b_.repr(self.fget(self))}
+property.__str__=function(self){return _b_.str.$factory(self.fget(self))}
 $B.set_func_names(property,"builtins")
 function quit(){throw _b_.SystemExit}
 quit.__repr__=quit.__str__=function(){return "Use quit() or Ctrl-Z plus Return to exit"}
@@ -7418,7 +7503,7 @@ req.open('GET',file+fake_qs,false)
 req.overrideMimeType('text/plain; charset=utf-8')
 req.send()
 if($res.constructor===Error){throw $res}
-$string=$res}
+$string=$res}else{console.warn("cannot load by Ajax call with protocol 'file'")}
 if($string===undefined && $bytes===undefined){throw _b_.FileNotFoundError.$factory($ns.file)}
 var res={$binary:is_binary,$string:$string,$bytes:$bytes,$counter:0,closed:False,encoding:encoding,mode:mode,name:file}
 res.__class__=is_binary ? $BufferedReader :$TextIOWrapper
@@ -7487,7 +7572,7 @@ if(free_vars.length==0){return None}
 var cells=[]
 for(var i=0;i < free_vars.length;i++){try{cells.push($B.cell.$factory($B.$check_def_free(free_vars[i])))}catch(err){
 cells.push($B.cell.$factory(None))}}
-return _b_.tuple.$factory(cells)}else if(self.$attrs && self.$attrs[attr]!==undefined){return self.$attrs[attr]}else{return _b_.object.__getattribute__(self,attr)}}
+return _b_.tuple.$factory(cells)}else if(attr=="__globals__"){return $B.obj_dict($B.imported[self.$infos.__module__])}else if(self.$attrs && self.$attrs[attr]!==undefined){return self.$attrs[attr]}else{return _b_.object.__getattribute__(self,attr)}}
 $B.Function.__repr__=$B.Function.__str__=function(self){if(self.$infos===undefined){return '<function '+self.name+'>'}else{return '<function '+self.$infos.__qualname__+'>'}}
 $B.Function.__mro__=[object]
 $B.Function.__setattr__=function(self,attr,value){if(attr=="__closure__"){throw _b_.AttributeError.$factory("readonly attribute")}else if(attr=="__defaults__"){
@@ -7516,7 +7601,7 @@ else{self.$attrs=self.$attrs ||{};self.$attrs[attr]=value}}
 $B.Function.$factory=function(){}
 $B.set_func_names($B.Function,"builtins")
 _b_.__BRYTHON__=__BRYTHON__
-$B.builtin_funcs=["abs","all","any","ascii","bin","callable","chr","compile","delattr","dir","divmod","eval","exec","exit","format","getattr","globals","hasattr","hash","help","hex","id","input","isinstance","issubclass","iter","len","locals","max","min","next","oct","open","ord","pow","print","quit","repr","round","setattr","sorted","sum","vars"
+$B.builtin_funcs=["abs","all","any","ascii","bin","breakpoint","callable","chr","compile","delattr","dir","divmod","eval","exec","exit","format","getattr","globals","hasattr","hash","help","hex","id","input","isinstance","issubclass","iter","len","locals","max","min","next","oct","open","ord","pow","print","quit","repr","round","setattr","sorted","sum","vars"
 ]
 var builtin_function=$B.builtin_function=$B.make_class("builtin_function_or_method")
 builtin_function.__getattribute__=$B.Function.__getattribute__
@@ -7565,7 +7650,13 @@ return frame[1].$current_exception}
 $B.$raise=function(arg){
 if(arg===undefined){var es=$B.get_exc()
 if(es !==undefined){throw es}
-throw _b_.RuntimeError.$factory("No active exception to reraise")}else if(isinstance(arg,BaseException)){throw arg}else if(arg.$is_class && issubclass(arg,BaseException)){throw $B.$call(arg)()}else{throw _b_.TypeError.$factory("exceptions must derive from BaseException")}}
+throw _b_.RuntimeError.$factory("No active exception to reraise")}else if(isinstance(arg,BaseException)){if(arg.__class__===_b_.StopIteration &&
+$B.last($B.frames_stack)[1].$is_generator){
+arg=_b_.RuntimeError.$factory("generator raised StopIteration")}
+throw arg}else if(arg.$is_class && issubclass(arg,BaseException)){if(arg===_b_.StopIteration &&
+$B.last($B.frames_stack)[1].$is_generator){
+throw _b_.RuntimeError.$factory("generator raised StopIteration")}
+throw $B.$call(arg)()}else{throw _b_.TypeError.$factory("exceptions must derive from BaseException")}}
 $B.$syntax_err_line=function(exc,module,src,pos,line_num){
 var pos2line={},lnum=1,module=module.charAt(0)=="$" ? "<string>" :module
 if(src===undefined){exc.$line_info=line_num+','+module
@@ -7633,10 +7724,12 @@ return lineno
 case "tb_lasti":
 if(line_info===undefined){return "<unknown>"}else{var info=line_info.split(","),src
 for(var i=self.$stack.length-1;i >=0;i--){var fr=self.$stack[i]
-if(fr[2]==info[1]){src=fr[3].$src
+if(fr[2]==info[1]){file=fr[3].__file__
 break}}
-if(src===undefined && $B.file_cache.hasOwnProperty(info[1])){src=$B.file_cache[info[1]]}else if($B.imported[info[1]]&& $B.imported[info[1]].__file__ ){src=$B.file_cache[$B.imported[info[1]].__file__]}
-if(src !==undefined){return src.split("\n")[parseInt(info[0]-1)].trim()}else{console.log("no src for",info)
+if(src===undefined){if($B.file_cache.hasOwnProperty(file)){src=$B.file_cache[file]}else if($B.imported[info[1]]&& $B.imported[info[1]].__file__ ){src=$B.file_cache[$B.imported[info[1]].__file__]
+console.log("from filecache",line_info,$B.imported[info[1]].__file__)}}
+if(src !==undefined){return src.split("\n")[parseInt(info[0]-1)].trim()}else{console.log(file)
+console.log("no src for",info)
 return "<unknown>"}}
 case "tb_next":
 if(self.$stack.length <=1){return None}
@@ -7663,18 +7756,19 @@ var co_name=locals_id.startsWith("$exec")? "<string>" :
 locals_id
 if(locals_id==_frame[2]){co_name="<module>"}else{if(_frame[1].$name){co_name=_frame[1].$name}else if(_frame[1].$dict_comp){co_name='<dictcomp>'}else if(_frame[1].$list_comp){co_name='<listcomp>'}else if(_frame.length > 4){if(_frame[4].$infos){co_name=_frame[4].$infos.__name__}else{co_name=_frame[4].name}
 if(_frame[4].$infos===undefined){
-filename="<string>"
 if(_frame[4].name.startsWith("__ge")){co_name="<genexpr>"}else if(_frame[4].name.startsWith("set_comp"+
 $B.lambda_magic)){co_name="<setcomp>"}}else if(filename===undefined && _frame[4].$infos.__code__){filename=_frame[4].$infos.__code__.co_filename
+if(filename===undefined){filename=_frame[4].$infos.__module__}
 res.f_lineno=_frame[4].$infos.__code__.co_firstlineno}}}
 res.f_code={__class__:$B.code,co_code:None,
-co_name:co_name,
-co_filename:filename }
-if(res.f_code.co_filename===undefined){res.f_code.co_filename="<string>"}}
+co_name:co_name,co_filename:filename}
+if(filename===undefined){res.f_code.co_filename="<string>"}}
 return res}
 )
 frame.__getattr__=function(self,attr){
 if(attr=="f_back"){if(self.$pos > 0){return frame.$factory(self.$stack.slice(0,self.$stack.length-1))}else{return _b_.None}}else if(attr=="clear"){return function(){}}}
+frame.__setattr__=function(self,attr,value){if(attr=="f_trace"){
+$B.last(self.$stack)[1].$f_trace=value}}
 frame.__str__=frame.__repr__=function(self){return '<frame object, file '+self.f_code.co_filename+
 ', line '+self.f_lineno+', code '+self.f_code.co_name+'>'}
 $B.set_func_names(frame,"builtins")
@@ -7773,7 +7867,7 @@ break}}}}
 return exc}
 $B.is_exc=function(exc,exc_list){
 if(exc.__class__===undefined){exc=$B.exception(exc)}
-var this_exc_class=exc.__class__
+var this_exc_class=exc.$is_class ? exc :exc.__class__
 for(var i=0;i < exc_list.length;i++){var exc_class=exc_list[i]
 if(this_exc_class===undefined){console.log("exc class undefined",exc)}
 if(issubclass(this_exc_class,exc_class)){return true}}
@@ -7803,9 +7897,9 @@ _str[pos++]="$B.set_func_names(_b_."+name+", 'builtins')"}
 try{eval(_str.join(";"))}catch(err){console.log("--err"+err)
 throw err}}
 $make_exc(["SystemExit","KeyboardInterrupt","GeneratorExit","Exception"],BaseException)
-$make_exc([["StopIteration","err.value = arguments[0]"],["StopAsyncIteration","err.value = arguments[0]"],"ArithmeticError","AssertionError","AttributeError","BufferError","EOFError","ImportError","LookupError","MemoryError","NameError","OSError","ReferenceError","RuntimeError",["SyntaxError","err.msg = arguments[0]"],"SystemError","TypeError","ValueError","Warning"],_b_.Exception)
+$make_exc([["StopIteration","err.value = arguments[0]"],["StopAsyncIteration","err.value = arguments[0]"],"ArithmeticError","AssertionError","AttributeError","BufferError","EOFError",["ImportError","err.name = arguments[0]"],"LookupError","MemoryError","NameError","OSError","ReferenceError","RuntimeError",["SyntaxError","err.msg = arguments[0]"],"SystemError","TypeError","ValueError","Warning"],_b_.Exception)
 $make_exc(["FloatingPointError","OverflowError","ZeroDivisionError"],_b_.ArithmeticError)
-$make_exc(["ModuleNotFoundError"],_b_.ImportError)
+$make_exc([["ModuleNotFoundError","err.name = arguments[0]"]],_b_.ImportError)
 $make_exc(["IndexError","KeyError"],_b_.LookupError)
 $make_exc(["UnboundLocalError"],_b_.NameError)
 $make_exc(["BlockingIOError","ChildProcessError","ConnectionError","FileExistsError","FileNotFoundError","InterruptedError","IsADirectoryError","NotADirectoryError","PermissionError","ProcessLookupError","TimeoutError"],_b_.OSError)
@@ -7867,7 +7961,7 @@ range.__hash__=function(self){var len=range.__len__(self)
 if(len==0){return _b_.hash(_b_.tuple.$factory([0,None,None]))}
 if(len==1){return _b_.hash(_b_.tuple.$factory([1,self.start,None]))}
 return _b_.hash(_b_.tuple.$factory([len,self.start,self.step]))}
-var RangeIterator={__class__:_b_.type,__mro__:[_b_.object],__iter__:function(self){return self},__next__:function(self){return _b_.next(self.obj)},$infos:{__name__:"range_iterator",__module__:"builtins"}}
+var RangeIterator={__class__:_b_.type,__mro__:[_b_.object],__iter__:function(self){return self},__next__:function(self){return _b_.next(self.obj)},$infos:{__name__:"range_iterator",__module__:"builtins"},$is_class:true}
 RangeIterator.$factory=function(obj){return{__class__:RangeIterator,obj:obj}}
 $B.set_func_names(RangeIterator,"builtins")
 range.__iter__=function(self){var res={__class__ :range,start:self.start,stop:self.stop,step:self.step}
@@ -7946,7 +8040,8 @@ var step=self.step===None ? 1 :$B.PyNumber_Index(self.step),step_is_neg=$B.gt(0,
 if(step==0){throw _b_.ValueError.$factory('slice step cannot be zero')}
 var start
 if(self.start===None){start=step_is_neg ? len_1 :0}else{start=$B.PyNumber_Index(self.start)
-if($B.gt(0,start)){start=$B.add(start,len)}
+if($B.gt(0,start)){start=$B.add(start,len)
+if($B.gt(0,start)){start=0}}
 if($B.ge(start,len)){start=step < 0 ? len_1 :len}}
 if(self.stop===None){stop=step_is_neg ?-1 :len}else{stop=$B.PyNumber_Index(self.stop)
 if($B.gt(0,stop)){stop=$B.add(stop,len)}
@@ -8328,17 +8423,17 @@ start=stop+len
 stop=start}else{stop++}}
 if(match ||(stop > start)){res.push(bytes.$factory(src.slice(start,stop)))}
 return res}
-bytes.splitlines=function(){var $=$B.args('splitlines',2,{self:null,keepends:null},['self','keepends'],arguments,{keepends:false},null,null),lines=[],src=$.self.source,start=0,end=-1,newline_end=-1
-for(var i=0;i < src.length;++i){var newline_end=-1
-if(src[i]===13){end=i
-newline_end=++i}
-if(src[i]===10){end=newline_end==-1 ? i :i-1
-newline_end=++i}
-if(newline_end !=-1){lines.push(bytes.$factory(src.slice(start,$.keepends ?
-newline_end :end)))
-start=i}}
-if(src.length > 0){lines.push(bytes.$factory(src.slice(start)))}
-return lines}
+bytes.splitlines=function(self){var $=$B.args('splitlines',2,{self:null,keepends:null},['self','keepends'],arguments,{keepends:false},null,null)
+if(!_b_.isinstance($.keepends,[_b_.bool,_b_.int])){throw _b_.TypeError('integer argument expected, got '+
+$B.get_class($.keepends).__name)}
+var keepends=_b_.int.$factory($.keepends),res=[],source=$.self.source,start=0,pos=0
+if(! source.length){return res}
+while(pos < source.length){if(pos < source.length-1 && source[pos]==0x0d &&
+source[pos+1]==0x0a){res.push(bytes.$factory(source.slice(start,keepends ? pos+2 :pos)))
+start=pos=pos+2}else if(source[pos]==0x0d ||source[pos]==0x0a){res.push(bytes.$factory(source.slice(start,keepends ? pos+1 :pos)))
+start=pos=pos+1}else{pos++}}
+if(start < source.length){res.push(bytes.$factory(source.slice(start)))}
+return res}
 bytes.startswith=function(){var $=$B.args('startswith',3,{self:null,prefix:null,start:null},['self','prefix','start'],arguments,{start:0},null,null),start=$.start
 if(_b_.isinstance($.prefix,bytes)){var res=true
 for(var i=0;i < $.prefix.source.length && res;i++){res=$.self.source[start+i]==$.prefix.source[i]}
@@ -8528,6 +8623,7 @@ _b_.bytearray=bytearray})(__BRYTHON__)
 function create_type(obj){return $B.get_class(obj).$factory()}
 function clone(obj){var res=create_type(obj)
 res.$items=obj.$items.slice()
+for(key in obj.$hashes){res.$hashes[key]=obj.$hashes[key]}
 return res}
 var set={__class__:_b_.type,$infos:{__module__:"builtins",__name__:"set"},$is_class:true,$native:true}
 set.__add__=function(self,other){throw _b_.TypeError.$factory(
@@ -8541,11 +8637,13 @@ set.__contains__=function(self,item){if(self.$simple){if(typeof item=="number" |
 for(var i=self.$items.length-1;i >=0;i--){if(isNaN(self.$items[i])){return true}}
 return false}else if(item instanceof Number){return self.$numbers.indexOf(item.valueOf())>-1}else{return self.$items.indexOf(item)>-1}}else if(typeof item=="string"){return self.$items.indexOf(item)>-1}}
 if(! _b_.isinstance(item,set)){$B.$getattr(item,"__hash__")}
-for(var i=0,len=self.$items.length;i < len;i++){if($B.rich_comp("__eq__",self.$items[i],item)){return true}}
+var hash=_b_.hash(item)
+if(self.$hashes[hash]){for(var i=0,len=self.$hashes[hash].length;i < len;i++){if($B.rich_comp("__eq__",self.$hashes[hash][i],item)){return true}}}
 return false}
 set.__eq__=function(self,other){
 if(other===undefined){return self===set}
-if(_b_.isinstance(other,[_b_.set,_b_.frozenset])){if(other.$items.length==self.$items.length){for(var i=0,len=self.$items.length;i < len;i++){if(set.__contains__(self,other.$items[i])===false){return false}}
+if(_b_.isinstance(other,[_b_.set,_b_.frozenset])){if(other.$items.length==self.$items.length){for(var i=0,len=self.$items.length;i < len;i++){if(set.__contains__(self,other.$items[i])===false){console.log("self does not contain",other.$items[i])
+return false}}
 return true}
 return false}
 return _b_.NotImplemented}
@@ -8554,14 +8652,17 @@ set.__ge__=function(self,other){if(_b_.isinstance(other,[set,frozenset])){return
 return _b_.NotImplemented}
 set.__gt__=function(self,other){if(_b_.isinstance(other,[set,frozenset])){return set.__lt__(other,self)}
 return _b_.NotImplemented}
+set.__hash__=_b_.None
 set.__init__=function(self,iterable,second){if(second===undefined){if(Array.isArray(iterable)){for(var i=0,len=iterable.length;i < len;i++){$add(self,iterable[i])}
 return $N}}
 var $=$B.args("__init__",2,{self:null,iterable:null},["self","iterable"],arguments,{iterable:[]},null,null),self=$.self,iterable=$.iterable
 if(_b_.isinstance(iterable,[set,frozenset])){self.$items=iterable.$items.slice()
+self.$hashes={}
+for(var key in iterable.$hashes){self.$hashes[key]=iterable.$hashes[key]}
 return $N}
 var it=$B.$iter(iterable)
 while(1){try{var item=_b_.next(it)
-set.add(self,item)}catch(err){if(_b_.isinstance(err,_b_.StopIteration)){break}
+$add(self,item)}catch(err){if(_b_.isinstance(err,_b_.StopIteration)){break}
 throw err}}
 return $N}
 var set_iterator=$B.make_iterator_class("set iterator")
@@ -8577,7 +8678,8 @@ set.__len__(self)< _b_.getattr(other,"__len__")()}else{return _b_.NotImplemented
 set.__mro__=[_b_.object]
 set.__new__=function(cls){if(cls===undefined){throw _b_.TypeError.$factory("set.__new__(): not enough arguments")}
 return{
-__class__:cls,$simple:true,$items:[],$numbers:[]}}
+__class__:cls,$simple:true,$items:[],$numbers:[],
+$hashes:{}}}
 set.__or__=function(self,other,accept_iter){
 var res=clone(self),func=_b_.getattr($B.$iter(other),"__next__")
 while(1){try{set.add(res,func())}
@@ -8634,30 +8736,38 @@ self.$numbers.indexOf(item.valueOf())>-1){}else if(typeof item=="number" &&
 self.$numbers.indexOf(item)>-1){}else{self.$items.push(item)
 var value=item.valueOf()
 if(typeof value=="number"){self.$numbers.push(value)}}}else{
-if(item !==self.$items[ix]){self.$items.push(item)}}
-return $N}else{
-_b_.hash(item)}
-var cfunc=function(other){return $B.rich_comp("__eq__",item,other)}
-for(var i=0,len=self.$items.length;i < len;i++){if(cfunc(self.$items[i])){return $N}}
-self.$items.push(item)
+if(item !==self.$items[ix]){self.$items.push(item)}}}else{
+_b_.hash(item)
+var items=self.$hashes[item.__hashvalue__]
+if(items===undefined){self.$hashes[item.__hashvalue__]=[item]
+self.$items.push(item)}else{var items=self.$hashes[item.__hashvalue__],cfunc=function(other){return $B.rich_comp("__eq__",item,other)}
+for(var i=0,len=items.length;i < len;i++){if(cfunc(items[i])){
+return $N}}
+self.$hashes[item.__hashvalue__].push(item)
+self.$items.push(item)}}
 return $N}
 set.add=function(){var $=$B.args("add",2,{self:null,item:null},["self","item"],arguments,{},null,null),self=$.self,item=$.item
 return $add(self,item)}
 set.clear=function(){var $=$B.args("clear",1,{self:null},["self"],arguments,{},null,null)
 $.self.$items=[]
+$.self.$hashes={}
 return $N}
 set.copy=function(){var $=$B.args("copy",1,{self:null},["self"],arguments,{},null,null)
 if(_b_.isinstance($.self,frozenset)){return $.self}
 var res=set.$factory()
 $.self.$items.forEach(function(item){res.$items.push(item)})
 $.self.$numbers.forEach(function(item){res.$numbers.push(item)})
+for(key in self.$hashes){res.$hashes[key]=self.$hashes[key]}
 return res}
 set.difference_update=function(self){var $=$B.args("difference_update",1,{self:null},["self"],arguments,{},"args",null)
 for(var i=0;i < $.args.length;i++){var s=set.$factory($.args[i]),_next=_b_.getattr($B.$iter(s),"__next__"),item
 while(true){try{item=_next()
 var _type=typeof item
 if(_type=="string" ||_type=="number"){var _index=self.$items.indexOf(item)
-if(_index >-1){self.$items.splice(_index,1)}}else{for(var j=0;j < self.$items.length;j++){if($B.rich_comp("__eq__",self.$items[j],item)){self.$items.splice(j,1)}}}}catch(err){if(_b_.isinstance(err,_b_.StopIteration)){break}
+if(_index >-1){self.$items.splice(_index,1)}}else{for(var j=0;j < self.$items.length;j++){if($B.rich_comp("__eq__",self.$items[j],item)){self.$items.splice(j,1)
+var hash=_b_.hash(item)
+if(self.$hashes[hash]){for(var k=0;k < self.$hashes[hash].length;k++){if($B.rich_comp("__eq__",self.$hashes[hash][k],item)){self.$hashes[hash].splice(k,1)
+break}}}}}}}catch(err){if(_b_.isinstance(err,_b_.StopIteration)){break}
 throw err}}}
 return $N}
 set.discard=function(){var $=$B.args("discard",2,{self:null,item:null},["self","item"],arguments,{},null,null)
@@ -8668,9 +8778,12 @@ set.intersection_update=function(){
 var $=$B.args("intersection_update",1,{self:null},["self"],arguments,{},"args",null),self=$.self
 for(var i=0;i < $.args.length;i++){var remove=[],s=set.$factory($.args[i])
 for(var j=0;j < self.$items.length;j++){var _item=self.$items[j],_type=typeof _item
-if(_type=="string" ||_type=="number"){if(s.$items.indexOf(_item)==-1){remove.push(j)}}else{var found=false
-for(var k=0;! found && k < s.$items.length;k++){if($B.rich_comp("__eq__",s.$items[k],_item)){found=true}}
-if(! found){remove.push(j)}}}
+if(_type=="string" ||_type=="number"){if(s.$items.indexOf(_item)==-1){remove.push(j)}}else{var found=false,hash=_b_.hash(_item)
+if(s.$hashes[hash]){var hashes=s.$hashes[hash]
+for(var k=0;! found && k < hashes.length;k++){if($B.rich_comp("__eq__",hashes[k],_item)){found=true}}
+if(! found){remove.push(j)
+hashes=self.$hashes[hash]
+for(var k=0;! found && k < hashes.length;k++){if($B.rich_comp("__eq__",hashes[k],_item)){self.$hashes.splice(k,1)}}}}}}
 remove.sort(function(x,y){return x-y}).reverse()
 for(var j=0;j < remove.length;j++){self.$items.splice(remove[j],1)}}
 return $N}
@@ -8678,7 +8791,12 @@ set.isdisjoint=function(){var $=$B.args("is_disjoint",2,{self:null,other:null},[
 for(var i=0,len=$.self.$items.length;i < len;i++){if(_b_.getattr($.other,"__contains__")($.self.$items[i])){return false}}
 return true}
 set.pop=function(self){if(self.$items.length===0){throw _b_.KeyError.$factory('pop from an empty set')}
-return self.$items.pop()}
+var item=self.$items.pop()
+if(typeof item !="string" && typeof item !="number"){
+var hash=_b_.hash(item),items=self.$hashes[hash]
+for(var k=0;k < items.length;k++){if($B.rich_comp("__eq__",items[k],item)){self.$hashes[hash].splice(k,1)
+break}}}
+return item}
 set.remove=function(self,item){
 var $=$B.args("remove",2,{self:null,item:null},["self","item"],arguments,{},null,null),self=$.self,item=$.item
 if(! _b_.isinstance(item,set)){_b_.hash(item)}
@@ -8687,9 +8805,14 @@ if(_i==-1){throw _b_.KeyError.$factory(item)}
 self.$items.splice(_i,1)
 if(typeof item=="number"){self.$numbers.splice(self.$numbers.indexOf(item),1)}
 return $N}
+var hash=_b_.hash(item)
+if(self.$hashes[hash]){
 for(var i=0,len=self.$items.length;i < len;i++){if($B.rich_comp("__eq__",self.$items[i],item)){self.$items.splice(i,1)
 if(item instanceof Number){self.$numbers.splice(self.$numbers.indexOf(item.valueOf()),1)}
-return $N}}
+break}}
+for(var i=0,len=self.$hashes[hash].length;i < len;i++){if($B.rich_comp("__eq__",self.$hashes[hash][i],item)){self.$hashes[hash].splice(i,1)
+break}}
+return $N}
 throw _b_.KeyError.$factory(item)}
 set.symmetric_difference_update=function(self,s){
 var $=$B.args("symmetric_difference_update",2,{self:null,s:null},["self","s"],arguments,{},null,null),self=$.self,s=$.s
@@ -8709,7 +8832,7 @@ return $N}
 set.update=function(self){
 var $=$B.args("update",1,{self:null},["self"],arguments,{},"args",null)
 for(var i=0;i < $.args.length;i++){var other=set.$factory($.args[i])
-for(var j=0,_len=other.$items.length;j < _len;j++){set.add(self,other.$items[j])}}
+for(var j=0,_len=other.$items.length;j < _len;j++){$add(self,other.$items[j])}}
 return $N}
 set.difference=function(){var $=$B.args("difference",1,{self:null},["self"],arguments,{},"args",null)
 if($.args.length==0){return set.copy($.self)}
@@ -8740,7 +8863,7 @@ set.__isub__=$accept_only_set(set.difference_update,"-=")
 set.__ixor__=$accept_only_set(set.symmetric_difference_update,"^=")
 set.__ior__=$accept_only_set(set.update,"|=")
 set.$factory=function(){
-var res={__class__:set,$simple:true,$items:[],$numbers:[]}
+var res={__class__:set,$simple:true,$items:[],$numbers:[],$hashes:{}}
 var args=[res].concat(Array.prototype.slice.call(arguments))
 set.__init__.apply(null,args)
 return res}
@@ -8769,7 +8892,7 @@ return $N}
 frozenset.__new__=function(cls){if(cls===undefined){throw _b_.TypeError.$factory(
 "frozenset.__new__(): not enough arguments")}
 return{
-__class__:cls,$simple:true,$items:[],$numbers:[]}}
+__class__:cls,$simple:true,$items:[],$numbers:[],$hashes:{}}}
 var singleton_id=Math.floor(Math.random()*Math.pow(2,40))
 function empty_frozenset(){return{
 __class__:frozenset,$items:[],$numbers:[],$id:singleton_id}}
@@ -9011,7 +9134,7 @@ var pylist=['VFS_import','__future__','_abcoll','_codecs','_collections','_colle
 for(var i=0;i < pylist.length;i++){$B.stdlib[pylist[i]]=['py']}
 var js=['_aio','_ajax','_base64','_binascii','_io_classes','_jsre','_locale','_multiprocessing','_posixsubprocess','_profile','_sre_utils','_string','_strptime','_svg','_warnings','_webcomponent','_webworker','_zlib_utils','aes','array','builtins','dis','hashlib','hmac-md5','hmac-ripemd160','hmac-sha1','hmac-sha224','hmac-sha256','hmac-sha3','hmac-sha384','hmac-sha512','long_int','marshal','math','math1','math_kozh','md5','modulefinder','pbkdf2','posix','rabbit','rabbit-legacy','random','rc4','ripemd160','sha1','sha224','sha256','sha3','sha384','sha512','tripledes','unicodedata']
 for(var i=0;i < js.length;i++){$B.stdlib[js[i]]=['js']}
-var pkglist=['browser.widgets','collections','concurrent','concurrent.futures','email','email.mime','encodings','html','http','importlib','json','logging','multiprocessing','multiprocessing.dummy','pydoc_data','site-packages.simpleaio','site-packages.ui','test','test.encoded_modules','test.leakers','test.namespace_pkgs.not_a_namespace_pkg.foo','test.support','test.test_email','test.test_importlib','test.test_importlib.builtin','test.test_importlib.extension','test.test_importlib.frozen','test.test_importlib.import_','test.test_importlib.source','test.test_json','test.tracedmodules','unittest','unittest.test','unittest.test.testmock','urllib']
+var pkglist=['browser.widgets','collections','concurrent','concurrent.futures','email','email.mime','encodings','html','http','importlib','json','logging','multiprocessing','multiprocessing.dummy','pydoc_data','site-packages.simpleaio','site-packages.simpy','site-packages.simpy.resources','site-packages.ui','test','test.encoded_modules','test.leakers','test.namespace_pkgs.not_a_namespace_pkg.foo','test.support','test.test_email','test.test_importlib','test.test_importlib.builtin','test.test_importlib.extension','test.test_importlib.frozen','test.test_importlib.import_','test.test_importlib.source','test.test_json','test.tracedmodules','unittest','unittest.test','unittest.test.testmock','urllib']
 for(var i=0;i < pkglist.length;i++){$B.stdlib[pkglist[i]]=['py',true]}})(__BRYTHON__)
 ;
 
@@ -9019,14 +9142,16 @@ for(var i=0;i < pkglist.length;i++){$B.stdlib[pkglist[i]]=['py',true]}})(__BRYTH
 var module=$B.module={__class__ :_b_.type,__mro__:[_b_.object],$infos:{__module__:"builtins",__name__:"module"},$is_class:true}
 module.__init__=function(){}
 module.__new__=function(cls,name,doc,$package){return{
-$class:cls,__name__:name,__doc__:doc ||_b_.None,__package__:$package ||_b_.None}}
+__class__:cls,
+__name__:name,__doc__:doc ||_b_.None,__package__:$package ||_b_.None}}
 module.__repr__=module.__str__=function(self){var res="<module "+self.__name__
 if(self.__file__===undefined){res+=" (built-in)"}
 return res+">"}
 module.__setattr__=function(self,attr,value){if(self.__name__=="__builtins__"){
 $B.builtins[attr]=value}else{self[attr]=value}}
 module.$factory=function(name,doc,$package){return{
-$class:module,__name__:name,__doc__:doc ||_b_.None,__package__:$package ||_b_.None}}
+__class__:module,
+__name__:name,__doc__:doc ||_b_.None,__package__:$package ||_b_.None}}
 $B.set_func_names(module,"builtins")
 function parent_package(mod_name){var parts=mod_name.split(".")
 parts.pop()
@@ -9107,7 +9232,17 @@ js="var $module = (function(){\n"+js+"return $locals_"+
 module.__name__.replace(/\./g,"_")+"})(__BRYTHON__)\n"+
 "return $module"
 var module_id="$locals_"+module.__name__.replace(/\./g,'_')
-var $module=(new Function(module_id,js))(module)}catch(err){
+var $module=(new Function(module_id,js))(module)}catch(err){console.log(err+" for module "+module.__name__)
+console.log("module",module)
+console.log(root)
+console.log(err)
+if($B.debug > 1){console.log(js)}
+for(var attr in err){console.log(attr,err[attr])}
+console.log(_b_.getattr(err,"info","[no info]"))
+console.log("message: "+err.$message)
+console.log("filename: "+err.fileName)
+console.log("linenum: "+err.lineNumber)
+if($B.debug > 0){console.log("line info "+$B.line_info)}
 throw err}finally{$B.clear_ns(module.__name__)}
 try{
 var mod=eval("$module")
@@ -9128,10 +9263,12 @@ return _b_.None},exec_module :function(cls,modobj){var stored=modobj.__spec__.lo
 delete modobj.__spec__["loader_state"]
 var ext=stored[0],module_contents=stored[1],imports=stored[2]
 modobj.$is_package=stored[3]||false
-var path=$B.brython_path+"Lib/"+modobj.__name__
-if(modobj.$is_package){path+="/__init__.py"}
+var path="VFS."+modobj.__name__
+path+=modobj.$is_package ? "/__init__.py" :ext
 modobj.__file__=path
-if(ext=='.js'){run_js(module_contents,modobj.__path__,modobj)}else if($B.precompiled.hasOwnProperty(modobj.__name__)){var parts=modobj.__name__.split(".")
+$B.file_cache[modobj.__file__]=$B.VFS[modobj.__name__][1]
+if(ext=='.js'){run_js(module_contents,modobj.__path__,modobj)}else if($B.precompiled.hasOwnProperty(modobj.__name__)){if($B.debug > 1){console.info("load",modobj.__name__,"from precompiled")}
+var parts=modobj.__name__.split(".")
 for(var i=0;i < parts.length;i++){var parent=parts.slice(0,i+1).join(".")
 if($B.imported.hasOwnProperty(parent)&&
 $B.imported[parent].__initialized__){continue}
@@ -9139,22 +9276,22 @@ var mod_js=$B.precompiled[parent],is_package=modobj.$is_package
 if(Array.isArray(mod_js)){mod_js=mod_js[0]}
 var mod=$B.imported[parent]=module.$factory(parent,undefined,is_package)
 mod.__initialized__=true
-mod.__file__=mod.__cached__="VFS."+modobj.__name__+".py"
-$B.file_cache[mod.__file__]=module_contents
 if(is_package){mod.__path__="<stdlib>"
 mod.__package__=parent}else{var elts=parent.split(".")
 elts.pop()
 mod.__package__=elts.join(".")}
+mod.__file__=path
 try{var parent_id=parent.replace(/\./g,"_")
 mod_js+="return $locals_"+parent_id
 var $module=new Function("$locals_"+parent_id,mod_js)(
 mod)}catch(err){if($B.debug > 1){console.log(err)
 for(var k in err){console.log(k,err[k])}
 console.log(Object.keys($B.imported))
-if($B.debug > 2){console.log(mod_js)}}
+if($B.debug > 2){console.log(modobj,"mod_js",mod_js)}}
 throw err}
 for(var attr in $module){mod[attr]=$module[attr]}
-if(i>0){
+$module.__file__=path
+if(i > 0){
 $B.builtins.setattr(
 $B.imported[parts.slice(0,i).join(".")],parts[i],$module)}}
 return $module}else{var mod_name=modobj.__name__
@@ -9171,7 +9308,8 @@ if($B.$options.indexedDB && self.indexedDB &&
 $B.idb_name){
 var idb_cx=indexedDB.open($B.idb_name)
 idb_cx.onsuccess=function(evt){var db=evt.target.result,tx=db.transaction("modules","readwrite"),store=tx.objectStore("modules"),cursor=store.openCursor(),request=store.put(record)
-request.onsuccess=function(){if($B.debug > 1){console.info(modobj.__name__,"stored in db")}}}}}},find_module:function(cls,name,path){return{
+request.onsuccess=function(){if($B.debug > 1){console.info(modobj.__name__,"stored in db")}}
+request.onerror=function(){console.info("could not store "+modobj.__name__)}}}}},find_module:function(cls,name,path){return{
 __class__:Loader,load_module:function(name,path){var spec=cls.find_spec(cls,name,path)
 var mod=module.$factory(name)
 $B.imported[name]=mod
@@ -9319,12 +9457,15 @@ exc.args=$B.fast_tuple([exc.msg])
 exc.name=mod_name
 exc.path=_b_.None
 throw exc}}}}}else{if($B.imported[parsed_name[0]]&&
-parsed_name.length > 1){try{$B.$setattr($B.imported[parsed_name[0]],parsed_name[1],modobj)}catch(err){console.log("error",parsed_name,modobj)
+parsed_name.length==2){try{$B.$setattr($B.imported[parsed_name[0]],parsed_name[1],modobj)}catch(err){console.log("error",parsed_name,modobj)
 throw err}}}
 if(fromlist.length > 0){
 return $B.imported[mod_name]}else{
 return $B.imported[parsed_name[0]]}}
-$B.$import=function(mod_name,fromlist,aliases,locals){var parts=mod_name.split(".")
+$B.$import=function(mod_name,fromlist,aliases,locals){fromlist=fromlist===undefined ?[]:fromlist
+aliases=aliases===undefined ?{}:aliases
+locals=locals===undefined ?{}:locals
+var parts=mod_name.split(".")
 if(mod_name[mod_name.length-1]=="."){parts.pop()}
 var norm_parts=[],prefix=true
 for(var i=0,len=parts.length;i < len;i++){var p=parts[i]
@@ -9371,6 +9512,8 @@ console.log($B.last($B.frames_stack))}
 throw _b_.ImportError.$factory(
 "cannot import name '"+name+"'")}}}}
 return locals}}
+$B.import_all=function(locals,module){
+for(var attr in module){if(attr.startsWith("$$")){locals[attr]=module[attr]}else if('_$'.indexOf(attr.charAt(0))==-1){locals[attr]=module[attr]}}}
 $B.$path_hooks=[url_hook]
 $B.$meta_path=[finder_VFS,finder_stdlib_static,finder_path]
 $B.finders={VFS:finder_VFS,stdlib_static:finder_stdlib_static,path:finder_path}
@@ -9479,7 +9622,16 @@ var res=self.toFixed(prec),pt_pos=res.indexOf(".")
 if(fmt.type !==undefined &&
 (fmt.type=="%" ||fmt.type.toLowerCase()=="f")){if(pt_pos==-1){res+="."+"0".repeat(fmt.precision)}
 else{var missing=fmt.precision-res.length+pt_pos+1
-if(missing > 0){res+="0".repeat(missing)}}}else{var res1=self.toExponential(fmt.precision-1),exp=parseInt(res1.substr(res1.search("e")+1))
+if(missing > 0){res+="0".repeat(missing)}}}else if(fmt.type && fmt.type.toLowerCase()=="g"){var exp_fmt=preformat(self,{type:"e"}).split("e"),exp=parseInt(exp_fmt[1])
+if(-4 <=exp && exp < fmt.precision){res=preformat(self,{type:"f",precision:fmt.precision-1-exp})}else{res=preformat(self,{type:"e",precision:fmt.precision-1})}
+var parts=res.split("e")
+if(fmt.alternate){if(parts[0].search(/\./)==-1){parts[0]+='.'}}else{if(parts[1]){var signif=parts[0]
+while(signif.endsWith("0")){signif=signif.substr(0,signif.length-1)}
+if(signif.endsWith(".")){signif=signif.substr(0,signif.length-1)}
+parts[0]=signif}}
+res=parts.join("e")
+if(fmt.type=="G"){res=res.toUpperCase()}
+return res}else{var res1=self.toExponential(fmt.precision-1),exp=parseInt(res1.substr(res1.search("e")+1))
 if(exp <-4 ||exp >=fmt.precision-1){var elts=res1.split("e")
 while(elts[0].endsWith("0")){elts[0]=elts[0].substr(0,elts[0].length-1)}
 res=elts.join("e")}}}else{var res=_b_.str.$factory(self)}
@@ -9630,6 +9782,21 @@ if(self.valueOf()==-Infinity){return '-inf'}
 if(isNaN(self.valueOf())){return 'nan'}
 var res=self.valueOf()+"" 
 if(res.indexOf(".")==-1){res+=".0"}
+var x,y
+[x,y]=res.split('.')
+if(x.length > 16){var exp=x.length-1,int_part=x[0],dec_part=x.substr(1)+y
+while(dec_part.endsWith("0")){dec_part=dec_part.substr(0,dec_part.length-1)}
+var mant=int_part
+if(dec_part.length > 0){mant+='.'+dec_part}
+return mant+'e+'+exp}else if(x=="0"){var exp=0
+while(exp < y.length && y.charAt(exp)=="0"){exp++}
+if(exp > 3){
+var rest=y.substr(exp),exp=(exp+1).toString()
+while(rest.endsWith("0")){rest=rest.substr(0,res.length-1)}
+var mant=rest[0]
+if(rest.length > 1){mant+='.'+rest.substr(1)}
+if(exp.length==1){exp='0'+exp}
+return mant+'e-'+exp}}
 return _b_.str.$factory(res)}
 float.__setattr__=function(self,attr,value){if(self.constructor===Number){if(float[attr]===undefined){throw _b_.AttributeError.$factory("'float' object has no attribute '"+
 attr+"'")}else{throw _b_.AttributeError.$factory("'float' object attribute '"+
@@ -9798,7 +9965,7 @@ __class__:_b_.bytes,source:res}}
 int.__abs__=function(self){return _b_.abs(self)}
 int.__bool__=function(self){return int_value(self).valueOf()==0 ? false :true}
 int.__ceil__=function(self){return Math.ceil(int_value(self))}
-int.__divmod__=function(self,other){return _b_.divmod(self,other)}
+int.__divmod__=function(self,other){return $B.fast_tuple([int.__floordiv__(self,other),int.__mod__(self,other)])}
 int.__eq__=function(self,other){
 if(other===undefined){return self===int}
 if(_b_.isinstance(other,int)){return self.valueOf()==int_value(other).valueOf()}
@@ -9850,7 +10017,7 @@ if(other==0){throw _b_.ZeroDivisionError.$factory("division by zero")}
 return Math.floor(self/other)}
 if(_b_.isinstance(other,_b_.float)){if(!other.valueOf()){throw _b_.ZeroDivisionError.$factory("division by zero")}
 return Math.floor(self/other)}
-if(hasattr(other,"__rfloordiv__")){return $B.$getattr(other,"__rfloordiv__")(self)}
+if(_b_.hasattr(other,"__rfloordiv__")){return $B.$getattr(other,"__rfloordiv__")(self)}
 $err("//",other)}
 int.__hash__=function(self){if(self===undefined){return int.__hashvalue__ ||$B.$py_next_hash--}
 return self.valueOf()}
@@ -9874,7 +10041,7 @@ else if(other===true){other=1}
 if(other==0){throw _b_.ZeroDivisionError.$factory(
 "integer division or modulo by zero")}
 return(self % other+other)% other}
-if(hasattr(other,"__rmod__")){return $B.$getattr(other,"__rmod__")(self)}
+if(_b_.hasattr(other,"__rmod__")){return $B.$getattr(other,"__rmod__")(self)}
 $err("%",other)}
 int.__mro__=[_b_.object]
 int.__mul__=function(self,other){var val=self.valueOf()
@@ -9902,14 +10069,22 @@ if(cls===int){return int.$factory(value)}
 return{
 __class__:cls,__dict__:_b_.dict.$factory(),$value:value ||0}}
 int.__pos__=function(self){return self}
+function extended_euclidean(a,b){var d,u,v
+if(b==0){return[a,1,0]}else{[d,u,v]=extended_euclidean(b,a % b)
+return[d,v,u-Math.floor(a/b)*v]}}
 int.__pow__=function(self,other,z){if(_b_.isinstance(other,int)){other=int_value(other)
 switch(other.valueOf()){case 0:
 return int.$factory(1)
 case 1:
 return int.$factory(self.valueOf())}
-if(z !==undefined && z !==null){
+if(z !==undefined && z !==_b_.None){
 if(z==1){return 0}
 var result=1,base=self % z,exponent=other,long_int=$B.long_int
+if(exponent < 0){var gcd,inv,_
+[gcd,inv,_]=extended_euclidean(self,z)
+if(gcd !==1){throw _b_.ValueError.$factory("not relative primes: "+
+self+' and '+z)}
+return int.__pow__(inv,-exponent,z)}
 while(exponent > 0){if(exponent % 2==1){if(result*base > $B.max_int){result=long_int.__mul__(
 long_int.$factory(result),long_int.$factory(base))
 result=long_int.__mod__(result,z)}else{result=(result*base)% z}}
@@ -9925,7 +10100,8 @@ if(_b_.isinstance(other,_b_.float)){if(self >=0){return new Number(Math.pow(self
 else{
 return _b_.complex.__pow__($B.make_complex(self,0),other)}}else if(_b_.isinstance(other,_b_.complex)){var preal=Math.pow(self,other.$real),ln=Math.log(self)
 return $B.make_complex(preal*Math.cos(ln),preal*Math.sin(ln))}
-if(hasattr(other,"__rpow__")){return $B.$getattr(other,"__rpow__")(self)}
+var rpow=$B.$getattr(other,"__rpow__",_b_.None)
+if(rpow !==_b_.None){return rpow(self)}
 $err("**",other)}
 int.__repr__=function(self){if(self===int){return "<class 'int'>"}
 return self.toString()}
@@ -10105,6 +10281,8 @@ var bltns=$B.InjectBuiltins()
 eval(bltns)
 var long_int={__class__:_b_.type,__mro__:[int,object],$infos:{__module__:"builtins",__name__:"int"},$is_class:true,$native:true,$descriptors:{"numerator":true,"denominator":true,"imag":true,"real":true}}
 function add_pos(v1,v2){
+if(window.BigInt){return{
+__class__:long_int,value:(BigInt(v1)+BigInt(v2)).toString(),pos:true}}
 var res="",carry=0,iself=v1.length,sv=0,x
 for(var i=v2.length-1;i >=0 ;i--){iself--
 if(iself < 0){sv=0}else{sv=parseInt(v1.charAt(iself))}
@@ -10165,18 +10343,21 @@ chunks.forEach(function(chunk,i){rest=chunk % n
 chunks[i]=Math.floor(chunk/n)
 if(i < chunks.length-1){
 chunks[i+1]+=carry*rest}})
-if(chunks[0]==0){chunks.shift()
-if(chunks.length==0){return "0"}}
+while(chunks[0]==0){chunks.shift()
+if(chunks.length==0){return[0,rest]}}
 x=chunks[0]+''
 chunks.forEach(function(chunk,i){if(i > 0){
 x+="0".repeat(len-chunk.toString().length)+chunk}})
 return[x,rest]}
 function divmod_pos(v1,v2){
+if(window.BigInt){var a={__class__:long_int,value:(BigInt(v1)/BigInt(v2)).toString(),pos:true},b={__class__:long_int,value:(BigInt(v1)% BigInt(v2)).toString(),pos:true}
+return[a,b]}
 var iv1=parseInt(v1),iv2=parseInt(v2),res1
 if(iv1 < $B.max_int && iv2 < $B.max_int){var rest=iv1 % iv2,quot=Math.floor(iv1/iv2).toString()
 var res1=[{__class__:long_int,value:quot.toString(),pos:true},{__class__:long_int,value:rest.toString(),pos:true}
 ]
-return res1}
+return res1}else if(iv2 < $B.max_int){var res_safe=divmod_by_safe_int(v1,iv2)
+return[long_int.$factory(res_safe[0]),long_int.$factory(res_safe[1])]}
 var quotient,mod
 if(comp_pos(v1,v2)==-1){
 quotient="0"
@@ -10200,13 +10381,17 @@ if(right.length==0){break}
 left+=right.charAt(0)
 right=right.substr(1)}
 mod=sub_pos(v1,mul_pos(quotient,v2).value)}
+if(iv2 < $B.max_int){if(res_safe[0]!==quotient){console.log("bizarre",v1,v2,res_safe,quotient)
+alert()}else if(res_safe[1]!==mod){console.log("bizarre2 ",v1,v2,res_safe,mod)
+alert()}else{console.log("ok")}}
 return[long_int.$factory(quotient),mod]}
 function split_chunks(s,size){var nb=Math.ceil(s.length/size),chunks=[],len=s.length
 for(var i=0;i < nb;i++){var pos=len-size*(i+1)
 if(pos < 0){size+=pos;pos=0}
 chunks.push(parseInt(s.substr(pos,size)))}
 return chunks}
-function mul_pos(x,y){var ix=parseInt(x),iy=parseInt(y),z=ix*iy
+function mul_pos(x,y){if(window.BigInt){return{__class__:long_int,value:(BigInt(x)*BigInt(y)).toString(),pos:true}}
+var ix=parseInt(x),iy=parseInt(y),z=ix*iy
 if(z < $B.max_int){return{
 __class__:long_int,value:z.toString(),pos:true}}
 var chunk_size=6,cx=split_chunks(x,chunk_size),cy=split_chunks(y,chunk_size)
@@ -10228,6 +10413,8 @@ i++}
 try{return long_int.$factory(result)}catch(err){console.log(x,y,products,result)
 throw err}}
 function sub_pos(v1,v2){
+if(window.BigInt){return{
+__class__:long_int,value:(BigInt(v1)-BigInt(v2)).toString(),pos:true}}
 var res="",carry=0,i1=v1.length,sv=0,x
 for(var i=v2.length-1;i >=0;i--){i1--
 sv=parseInt(v1.charAt(i1))
@@ -10250,7 +10437,7 @@ return{__class__:long_int,value:v,pos:value >=0}}
 long_int.__abs__=function(self){return{__class__:long_int,value:self.value,pos:true}}
 long_int.__add__=function(self,other){if(isinstance(other,_b_.float)){return _b_.float.$factory(parseInt(self.value)+other.value)}
 if(typeof other=="number"){other=long_int.$factory(_b_.str.$factory(other))}else if(other.__class__ !==long_int){if(isinstance(other,_b_.bool)){other=long_int.$factory(other ? 1 :0)}else if(isinstance(other,int)){
-other=long_int.$factory(_b_.str.$factory(_b_.int.__index__(other)))}}
+other=long_int.$factory(_b_.str.$factory(_b_.int.__index__(other)))}else{return _b_.NotImplemented}}
 var res
 if(self.pos && other.pos){
 return add_pos(self.value,other.value)}else if(! self.pos && ! other.pos){
@@ -10280,20 +10467,24 @@ res=sub_pos(other.value,self.value)
 break}
 return intOrLong(res)}}
 long_int.__and__=function(self,other){if(typeof other=="number"){other=long_int.$factory(_b_.str.$factory(other))}
-var v1=long_int.__index__(self),v2=long_int.__index__(other)
-if(v1.length < v2.length){var temp=v2;v2=v1;v1=temp}
-if(v2.charAt(0)=="1"){v2="1".repeat(v1.length-v2.length)+v2}
-var start=v1.length-v2.length,res=""
-for(var i=0;i < v2.length;i++){if(v1.charAt(start+i)=="1" && v2.charAt(i)=="1"){res+="1"}
-else{res+="0"}}
-return intOrLong(long_int.$factory(res,2))}
+var v1=self.value,v2=other.value,temp1,temp2,res=""
+while(true){temp1=divmod_by_safe_int(v1,2)
+temp2=divmod_by_safe_int(v2,2)
+res=((temp1[1]=="1" && temp2[1]=="1")?
+"1" :"0")+res
+v1=temp1[0]
+v2=temp2[0]
+if(v1=="0"){var res0=intOrLong(long_int.$factory(res,2))
+break}else if(v2=="0"){var res0=intOrLong(long_int.$factory(res,2))
+break}}
+return res0}
 long_int.__divmod__=function(self,other){if(typeof other=="number"){other=long_int.$factory(_b_.str.$factory(other))}
 var dm=divmod_pos(self.value,other.value)
 if(self.pos !==other.pos){if(dm[0].value !="0"){dm[0].pos=false}
 if(dm[1].value !="0"){
 dm[0]=long_int.__sub__(dm[0],long_int.$factory("1"))
 dm[1]=long_int.__add__(dm[1],long_int.$factory("1"))}}
-return[intOrLong(dm[0]),intOrLong(dm[1])]}
+return $B.fast_tuple([intOrLong(dm[0]),intOrLong(dm[1])])}
 long_int.__eq__=function(self,other){if(typeof other=="number"){other=long_int.$factory(_b_.str.$factory(other))}
 return self.value==other.value && self.pos==other.pos}
 long_int.__float__=function(self){return new Number(parseFloat(self.value))}
@@ -10308,7 +10499,8 @@ else if(self.value.length < other.value.length){return ! self.pos}
 else{return self.pos ? self.value >=other.value :
 self.value <=other.value}}
 long_int.__gt__=function(self,other){return ! long_int.__le__(self,other)}
-long_int.__index__=function(self){
+$B.nb_index=0
+long_int.__index__=function(self){$B.nb_index+=1
 var res='',temp=self.value,d
 while(true){d=divmod_pos(temp,"2")
 res=d[1].value+res
@@ -10330,10 +10522,13 @@ else if(self.value.length < other.value.length){return self.pos}
 else{return self.pos ? self.value <=other.value :
 self.value >=other.value}}
 long_int.__lt__=function(self,other){return !long_int.__ge__(self,other)}
-long_int.__lshift__=function(self,shift){var is_long=shift.__class__===long_int,shift_safe
+long_int.__lshift__=function(self,shift){if(window.BigInt){if(shift.__class__==long_int){shift=shift.value}
+return intOrLong({__class__:long_int,value:(BigInt(self.value)<< BigInt(shift)).toString(),pos:self.pos})}
+var is_long=shift.__class__===long_int,shift_safe
 if(is_long){var shift_value=parseInt(shift.value)
 if(shift_value < 0){throw _b_.ValueError.$factory('negative shift count')}
-if(shift_value < $B.max_int){shift_safe=true;shift=shift_value}}
+if(shift_value < $B.max_int){shift_safe=true
+shift=shift_value}}
 if(shift_safe){if(shift_value==0){return self}}else{shift=long_int.$factory(shift)
 if(shift.value=="0"){return self}}
 var res=self.value
@@ -10378,17 +10573,35 @@ else{res+="0"}}
 return intOrLong(long_int.$factory(res,2))}
 long_int.__pos__=function(self){return self}
 long_int.__pow__=function(self,power,z){if(typeof power=="number"){power=long_int.$factory(_b_.str.$factory(power))}else if(isinstance(power,int)){
-power=long_int.$factory(_b_.str.$factory(_b_.int.__index__(power)))}else if(! isinstance(power,long_int)){var msg="power must be a LongDict, not '"
+power=long_int.$factory(_b_.str.$factory(_b_.int.__index__(power)))}else if(! isinstance(power,long_int)){var msg="power must be an integer, not '"
 throw TypeError.$factory(msg+$B.class_name(power)+"'")}
 if(! power.pos){if(self.value=="1"){return self}
 return long_int.$factory("0")}else if(power.value=="0"){return long_int.$factory("1")}
-var res={__class__:long_int,value:self.value,pos:self.pos},pow=power.value
-while(true){pow=sub_pos(pow,"1").value
-if(pow=="0"){break}
-res=long_int.$factory(long_int.__mul__(res,self))
-if(z !==undefined){res=long_int.__mod__(res,z)}}
-return intOrLong(res)}
-long_int.__rshift__=function(self,shift){shift=long_int.$factory(shift)
+if(window.BigInt){var s=BigInt(self.value),b=BigInt(1),x=BigInt(power.value),z=z===undefined ? z :typeof z=="number" ? BigInt(z):
+BigInt(z.value)
+while(x > 0){if(x % BigInt(2)==1){b=b*s}
+x=x/BigInt(2)
+if(x > 0){s=s*s}
+if(z !==undefined){b=b % z}}
+return{__class__:long_int,value:b.toString(),pos:true}}
+var b={__class__:long_int,value:"1",pos:true},s=self,pow=power.value,temp
+while(true){if(typeof pow=="string" && parseInt(pow)< $B.max_int){pow=parseInt(pow)}
+if(pow==0){break}else if(typeof pow=="string"){if(parseInt(pow.charAt(pow.length-1))% 2==1){b=long_int.__mul__(b,s)}
+pow=long_int.__floordiv__(pow,2)}else{if(pow % 2==1){if(typeof b=="number" && typeof s=="number" &&
+(temp=b*s)< $B.max_int){b=temp}else{b=long_int.__mul__(long_int.$factory(b),long_int.$factory(s))}}
+pow=Math.floor(pow/2)}
+if(pow > 0){if(typeof s=="number" &&(temp=s*s)< $B.max_int){s=temp}else{s=long_int.$factory(s)
+s=long_int.__mul__(s,s)}}
+if(z !==undefined){b=long_int.__mod__(b,z)}}
+return intOrLong(b)}
+long_int.__rshift__=function(self,shift){if(window.BigInt){if(shift.__class__===long_int){shift=shift.value}
+return intOrLong(
+{__class__:long_int,value:(BigInt(self.value)>> BigInt(shift)).toString(),pos:self.pos}
+)}
+if(typeof shift=="number"){var pow2=Math.pow(2,shift)
+if(pow2 < $B.max_int){var res=divmod_by_safe_int(self.value,pow2)
+return intOrLong({__class__:long_int,value:res[0],pos:self.pos})}}
+shift=long_int.$factory(shift)
 if(shift.value=="0"){return self}
 var res=self.value
 while(true){res=divmod_pos(res,"2")[0].value
@@ -10399,7 +10612,8 @@ return intOrLong({__class__:long_int,value:res,pos:self.pos})}
 long_int.__str__=long_int.__repr__=function(self){var res=""
 if(! self.pos){res+='-'}
 return res+self.value}
-long_int.__sub__=function(self,other){if(isinstance(other,_b_.float)){return _b_.float.$factory(parseInt(self.value)-other.value)}
+long_int.__sub__=function(self,other){if(isinstance(other,_b_.float)){other=other instanceof Number ? other :other.$value
+return _b_.float.$factory(parseInt(self.value)-other)}
 if(typeof other=="number"){other=long_int.$factory(_b_.str.$factory(other))}
 var res
 if(self.pos && other.pos){switch(comp_pos(self.value,other.value)){case 1:
@@ -10499,7 +10713,14 @@ throw ValueError.$factory(
 while(start < value.length-1 && value.charAt(start)=="0"){start++}
 value=value.substr(start)
 var is_digits=digits(base),point=-1
-for(var i=0;i < value.length;i++){if(value.charAt(i)=="." && point==-1){point=i}
+for(var i=0;i < value.length;i++){if(value.charAt(i)=="." && point==-1){point=i}else if(value.charAt(i)=="e"){
+var mant=value.substr(0,i)
+if(/^[+-]?\d+$/.exec(value.substr(i+1))){exp=parseInt(value.substr(i+1))}else{throw Error("wrong exp "+value.substr(i+1))}
+if(point !=-1){mant=mant.substr(0,point)+mant.substr(point+1)
+exp=exp+point-1}
+point=-1
+value=mant+"0".repeat(exp-mant.length)
+break}
 else if(! is_digits[value.charAt(i)]){throw ValueError.$factory(
 'long_int argument is not a valid number: "'+value+'"')}}
 if(point !=-1){value=value.substr(0,point)}
@@ -11981,20 +12202,16 @@ s=""}else{s+=self.charAt(pos)
 pos++}}
 res.push(s)
 return res}}
-str.splitlines=function(self){var $=$B.args("splitlines",2,{self:null,keepends:null},["self","keepends"],arguments,{keepends:false},null,null)
-if(! _b_.isinstance($.keepends,[_b_.bool,_b_.int])){throw _b_.TypeError.$factory("integer argument expected, got "+
+str.splitlines=function(self){var $=$B.args('splitlines',2,{self:null,keepends:null},['self','keepends'],arguments,{keepends:false},null,null)
+if(!_b_.isinstance($.keepends,[_b_.bool,_b_.int])){throw _b_.TypeError('integer argument expected, got '+
 $B.get_class($.keepends).__name)}
-var keepends=_b_.int.$factory($.keepends)
-if(keepends){var res=[],start=pos,pos=0,self=$.self
-while(pos < self.length){if(self.substr(pos,2)=="\r\n"){res.push(self.substring(start,pos+2))
-start=pos+2
-pos=start}else if(self.charAt(pos)=="\r" ||self.charAt(pos)=="\n"){res.push(self.substring(start,pos+1))
-start=pos+1
-pos=start}else{pos++}}
-var rest=self.substr(start)
-if(rest){res.push(rest)}
-return res}else{var self=$.self.replace(/[\r\n]$/,"")
-return self.split(/\n|\r\n|\r/)}}
+var keepends=_b_.int.$factory($.keepends),res=[],self=$.self,start=0,pos=0
+if(!self.length){return res}
+while(pos < self.length){if(self.substr(pos,2)=='\r\n'){res.push(self.slice(start,keepends ? pos+2 :pos))
+start=pos=pos+2}else if(self[pos]=='\r' ||self[pos]=='\n'){res.push(self.slice(start,keepends ? pos+1 :pos))
+start=pos=pos+1}else{pos++}}
+if(start < self.length){res.push(self.slice(start))}
+return res}
 str.startswith=function(){
 var $=$B.args("startswith",4,{self:null,prefix:null,start:null,end:null},["self","prefix","start","end"],arguments,{start:0,end:null},null,null)
 normalize_start_end($)
@@ -12235,6 +12452,7 @@ return _b_.set[op](_b_.set.$factory(self),_b_.set.$factory(other))}})(op)}}
 klass.__iter__=function(self){var it=klass.$iterator.$factory(self.items)
 it.len_func=self.len_func
 return it}
+klass.__len__=function(self){return self.len}
 klass.__repr__=function(self){return klass.$infos.__name__+'('+_b_.repr(self.items)+')'}
 $B.set_func_names(klass,"builtins")
 return klass}
@@ -12661,7 +12879,7 @@ return _b_.None}else if(typeof $.self.elt.setAttribute=="function"){$.self.elt.s
 return _b_.None}
 throw _b_.TypeError.$factory("Can't set attributes on element")}
 Attributes.get=function(){var $=$B.args("get",3,{self:null,key:null,deflt:null},["self","key","deflt"],arguments,{deflt:_b_.None},null,null)
-try{return Attributes.__getitem__($.self,$.key)}catch(err){if(err.__class__===_b_.KeyError){return $B.deflt}else{throw err}}}
+try{return Attributes.__getitem__($.self,$.key)}catch(err){if(err.__class__===_b_.KeyError){return $.deflt}else{throw err}}}
 Attributes.keys=function(){return Attributes.__iter__.apply(null,arguments)}
 Attributes.items=function(){var $=$B.args("values",1,{self:null},["self"],arguments,{},null,null),attrs=$.self.elt.attributes,values=[]
 for(var i=0;i < attrs.length;i++){values.push([attrs[i].name,attrs[i].value])}
@@ -12826,6 +13044,7 @@ throw _b_.AttributeError.$factory("style."+attr+
 " is not set for "+_b_.str.$factory(self))}
 case "x":
 case "y":
+console.log("get attr",attr)
 if(!(self.elt instanceof SVGElement)){var pos=$getPosition(self.elt)
 return attr=="x" ? pos.left :pos.top}
 case "clear":
@@ -12969,11 +13188,7 @@ DOMNode.abs_top={__get__:function(self){return $getPosition(self.elt).top},__set
 "'abs_top' is read-only")}}
 DOMNode.bind=function(self,event){
 var $=$B.args("bind",4,{self:null,event:null,func:null,options:null},["self","event","func","options"],arguments,{options:_b_.None},null,null),self=$.self,event=$.event,func=$.func,options=$.options
-var callback=(function(f){return function(ev){try{return f($DOMEvent(ev))}catch(err){if(err.__class__ !==undefined){var msg=$B.$getattr(err,"info")+
-"\n"+$B.class_name(err)
-if(err.args){msg+=": "+err.args[0]}
-try{$B.$getattr($B.stderr,"write")(msg)}
-catch(err){console.log(msg)}}else{try{$B.$getattr($B.stderr,"write")(err)}
+var callback=(function(f){return function(ev){try{return f($DOMEvent(ev))}catch(err){if(err.__class__ !==undefined){$B.handle_error(err)}else{try{$B.$getattr($B.stderr,"write")(err)}
 catch(err1){console.log(err)}}}}}
 )(func)
 callback.$infos=func.$infos
@@ -13148,16 +13363,20 @@ flag=true
 break}}
 if(!flag){throw _b_.KeyError.$factory('missing callback for event '+event)}}}
 $B.set_func_names(DOMNode,"browser")
-var Query={__class__:_b_.type,$infos:{__name__:"query"}}
+var Query={__class__:_b_.type,__mro__:[_b_.object],$infos:{__name__:"query"}}
 Query.__contains__=function(self,key){return self._keys.indexOf(key)>-1}
 Query.__getitem__=function(self,key){
 var result=self._values[key]
-if(result===undefined){throw _b_.KeyError.$factory(key)}
-if(result.length==1){return result[0]}
+if(result===undefined){throw _b_.KeyError.$factory(key)}else if(result.length==1){return result[0]}
 return result}
 var Query_iterator=$B.make_iterator_class("query string iterator")
 Query.__iter__=function(self){return Query_iterator.$factory(self._keys)}
-Query.__mro__=[object]
+Query.__setitem__=function(self,key,value){self._values[key]=[value]
+return _b_.None}
+Query.__str__=Query.__repr__=function(self){
+var elts=[]
+for(var key in self._values){for(const val of self._values[key]){elts.push(encodeURIComponent(key)+"="+encodeURIComponent(val))}}
+if(elts.length==0){return ""}else{return "?"+elts.join("&")}}
 Query.getfirst=function(self,key,_default){
 var result=self._values[key]
 if(result===undefined){if(_default===undefined){return _b_.None}
@@ -13174,8 +13393,7 @@ Query.keys=function(self){return self._keys}
 DOMNode.query=function(self){var res={__class__:Query,_keys :[],_values :{}}
 var qs=location.search.substr(1).split('&')
 for(var i=0;i < qs.length;i++){var pos=qs[i].search("="),elts=[qs[i].substr(0,pos),qs[i].substr(pos+1)],key=decodeURIComponent(elts[0]),value=decodeURIComponent(elts[1])
-if(res._keys.indexOf(key)>-1){res._values[key].push(value)}
-else{res._keys.push(key)
+if(res._keys.indexOf(key)>-1){res._values[key].push(value)}else{res._keys.push(key)
 res._values[key]=[value]}}
 return res}
 var TagSum={__class__ :_b_.type,__mro__:[object],$infos:{__module__:"<pydom>",__name__:"TagSum"}}
@@ -13222,8 +13440,7 @@ var res='for(var attr in this.blocks){'+
 '};'+
 '\nvar $locals_'+iter_name+' = this.env'+_clean+', '+
 '\n    $local_name = "'+iter_name+'", '+
-'\n    $locals = $locals_'+iter_name+','+
-'\n    $yield;'
+'\n    $locals = $locals_'+iter_name+';'
 if(parent_id){res+='$locals.$parent = $locals_'+parent_id.replace(/\./g,"_")+
 ';'}
 return res}
@@ -13259,23 +13476,30 @@ var ctx_manager=in_ctx_manager(node)
 var yield_node_id=top_node.yields.length
 while(ctx_js.endsWith(";")){ctx_js=ctx_js.substr(0,ctx_js.length-1)}
 var res="return ["+ctx_js+", "+yield_node_id+"]"
-if(ctx_manager !==undefined){res="$yield = true;"+res}
+if(ctx_manager !==undefined){res="$locals.$yield"+ctx_manager.ctx_manager_num+
+" = true;"+res}
 new_node.data=res
 top_node.yields.push(new_node)}else if(node.is_set_yield_value){
 var ctx_manager
 if(node.after_yield){ctx_manager=in_ctx_manager(node)}
 if(node.line_num===undefined){console.log("bizarre",node)}
 var js="var sent_value = this.sent_value === undefined ? "+
-"None : this.sent_value;",h="\n"+' '.repeat(node.indent)
-js+=h+"this.sent_value = None"
+"_b_.None : this.sent_value;",h="\n"+' '.repeat(node.indent)
+js+=h+"this.sent_value = _b_.None"
 js+=h+"if(sent_value.__class__ === $B.$GeneratorSendError)"+
 "{sent_value.err.$stack.splice(0, 0, $B.freeze([$top_frame])[0]);"+
 " throw sent_value.err};"
 if(typeof ctx_js=="number"){js+=h+"var $yield_value"+ctx_js+" = sent_value;"}
-if(ctx_manager !==undefined){js+=h+"$yield = true;" }
+if(ctx_manager !==undefined){var num=ctx_manager.ctx_manager_num
+js+=h+"$locals.$yield"+num+" = true;" 
+js+=h+"$locals.$exc"+num+" = true;"}
 new_node.data=js}else if(ctype=="break" ||ctype=="continue"){
 new_node["is_"+ctype]=true
-new_node.loop_num=node.C.tree[0].loop_ctx.loop_num}
+new_node.loop_num=node.C.tree[0].loop_ctx.loop_num}else if(ctype=="return"){
+var ctx_manager=in_ctx_manager(node)
+if(ctx_manager){new_node.data="$locals.$ctx_manager_exit"+
+ctx_manager.ctx_manager_num+
+"(_b_.None, _b_.None, _b_.None);"+new_node.data}}
 new_node.is_yield=(ctype=="yield" ||ctype=="return")
 new_node.is_cond=is_cond
 new_node.is_except=is_except
@@ -13284,6 +13508,7 @@ new_node.is_try=node.is_try
 new_node.is_else=is_else
 new_node.loop_start=node.loop_start
 new_node.is_set_yield_value=node.is_set_yield_value
+new_node.ctx_manager_num=node.ctx_manager_num
 for(var i=0,len=node.children.length;i < len;i++){var nd=make_node(top_node,node.children[i])
 if(nd !==undefined){new_node.addChild(nd)}}}
 return new_node}
@@ -13327,11 +13552,14 @@ res=new $B.genNode("void(0)")}else{res=new $B.genNode(exit_node.data)}
 exit_node.replaced=true}
 if(head &&(this.is_break ||this.is_continue)){var loop=in_loop(this)
 res.loop=loop
+var loop_has_yield=loop.has("yield")
 res.data=""
 if(this.is_break){res.data+='$locals["$no_break'+this.loop_num+
 '"] = false;'}
-res.data+='var err = new Error("break"); '+
-"err.__class__ = $B.GeneratorBreak; throw err;"
+if(loop.has("yield")){
+res.data+='var err = new Error("'+
+(this.is_break ? 'break' :'continue')+'"); '+
+"err.__class__ = $B.GeneratorBreak; throw err;"}else{res.data+=this.is_break ? "break" :"continue"}
 res.is_break=this.is_break}
 res.is_continue=this.is_continue
 res.has_child=this.has_child
@@ -13348,7 +13576,8 @@ for(var i=0,len=this.children.length;i < len;i++){res.addChild(this.children[i].
 if(this.children[i].is_break){res.no_break=false}}
 return res}
 this.has=function(keyword){
-if(this["is_"+keyword]){return true}else{for(var i=0,len=this.children.length;i < len;i++){if(this.children[i].loop_start !==undefined){
+if(this["is_"+keyword]){return true}else{for(var i=0,len=this.children.length;i < len;i++){if(["break","continue"].indexOf(keyword)>-1 &&
+this.children[i].loop_start !==undefined){
 continue}
 if(this.children[i].has(keyword)){return true}}}
 return false}
@@ -13370,7 +13599,7 @@ $B.generator_return=function(value){return{__class__:$GeneratorReturn,value:valu
 function in_ctx_manager(node){
 var ctx_manager,parent=node.parent
 while(parent && parent.ntype !=="generator"){ctx_manager=parent.ctx_manager_num
-if(ctx_manager !==undefined){return ctx_manager}
+if(ctx_manager !==undefined){return parent}
 parent=parent.parent}}
 function in_loop(node){
 while(node){if(node.loop_start !==undefined){return node}
@@ -13392,8 +13621,7 @@ var line_info=def_node.line_num+','+pblock.id.replace(/\./g,'_')
 var def_ctx=def_node.C.tree[0]
 var module=def_node.module,
 iter_id=def_id
-if($B.debug > 0){
-$B.$add_line_num(def_node,def_ctx.rank,line_info)}
+$B.$add_line_num(def_node,def_ctx.rank)
 var func_root=new $B.genNode(def_ctx.to_js())
 remove_line_nums(def_node.parent)
 func_root.module=module
@@ -13424,6 +13652,8 @@ js='var $top_frame = ["'+self.iter_id+'",$locals,"'+self.module+
 '",$locals_'+self.module.replace(/\./g,'_')+'];'+
 '$B.frames_stack.push($top_frame); var $stack_length = '+
 '$B.frames_stack.length;'
+js+='$locals.$is_generator = true;'
+js+='$locals.$yield_node_id = '+yield_node_id+';'
 fnode.addChild(new $B.genNode(js))
 while(1){
 var exit_parent=exit_node.parent,rest=[],pos=0,breaks=[],has_break,has_continue
@@ -13443,16 +13673,17 @@ is_continue=true
 var loop=clone.loop
 rest[pos++]=loop.clone_tree()
 break}
-if(clone.has("continue")){has_continue=true;}
+if(clone.has("continue")){has_continue=true;
+continue_pos=pos+1}
 rest[pos++]=clone
 var break_num=clone.has("break")
 if(break_num){has_break=true}}
 if((has_break ||has_continue)&& rest.length > 0){
 var rest_try=new $B.genNode("try")
 for(var i=0,len=rest.length;i < len;i++){rest_try.addChild(rest[i])}
-var catch_test="catch(err)"+
-"{if(err.__class__ !== $B.GeneratorBreak){throw err}}"
-catch_test=new $B.genNode(catch_test)
+catch_test=new $B.genNode("catch(err)")
+catch_test.addChild(new $B.genNode(
+"if(err.__class__ !== $B.GeneratorBreak){throw err}"))
 rest=[rest_try,catch_test]
 if(exit_parent.loop_start !==undefined){var test='if($locals["$no_break'+exit_parent.loop_start+
 '"])',test_node=new $B.genNode(test)
@@ -13467,8 +13698,17 @@ for(var i=0;i < tries.length;i++){var try_node=tries[i],try_clone=try_node.clone
 if(i==0){for(var j=0;j < rest.length;j++){try_clone.addChild(rest[j])}}
 var children=[try_clone],cpos=1
 for(var j=try_node.rank+1;
-j < try_node.parent.children.length;j++){if(try_node.parent.children[j].is_except){children[cpos++]=
-try_node.parent.children[j].clone_tree(null,true)}else{break}}
+j < try_node.parent.children.length;j++){if(try_node.parent.children[j].is_except){if(try_node.parent.children[j].data=="finally"){var loop=in_loop(exit_node),flag=true
+if(loop){
+var parent=loop.parent
+while(parent){if(parent===try_node){flag=false
+break}
+parent=parent.parent}}
+if(flag){children[cpos++]=
+try_node.parent.children[j].clone_tree(null,true)}}else{children[cpos++]=
+try_node.parent.children[j].clone_tree(null,true)}}else{break}}
+if(children.length==1){
+children.push(new $B.genNode("catch(err){}"))}
 tree[pos++]=children}
 var parent=fnode
 while(tree.length){children=tree.pop()
@@ -13480,7 +13720,7 @@ var src=root.children[0].src(),next_src=src.substr(src.search("function"))
 next_src=next_src.substr(10)
 next_src=next_src.substr(next_src.search("function"))
 return next_src}
-var generator={__class__:_b_.type,__mro__:[_b_.object],$infos:{__module__:"builtins",__name__:"generator"}}
+var generator={__class__:_b_.type,__mro__:[_b_.object],$infos:{__module__:"builtins",__name__:"generator"},$is_class:true}
 generator.__enter__=function(self){console.log("generator.__enter__ called")}
 generator.__exit__=function(self){console.log("generator.__exit__ called")}
 generator.__str__=function(self){return "<generator object "+self.__name__+">"}
@@ -13655,18 +13895,49 @@ arraybuffers.forEach(function(ab){if(self[ab]!==undefined){modules['javascript']
 var _b_=$B.builtins
 modules['_sys']={
 Getframe :function(){var $=$B.args("_getframe",1,{depth:null},['depth'],arguments,{depth:0},null,null),depth=$.depth
-return $B._frame.$factory($B.frames_stack,$B.frames_stack.length-depth-1)},exc_info:function(){for(var i=$B.frames_stack.length-1;i >=0;i--){var frame=$B.frames_stack[i],exc=frame[1].$current_exception
+return $B._frame.$factory($B.frames_stack,$B.frames_stack.length-depth-1)},breakpointhook:function(){var hookname=$B.$options.breakpoint,modname,dot,funcname,hook
+if(hookname===undefined){hookname="pdb.set_trace"}
+[modname,dot,funcname]=_b_.str.rpartition(hookname,'.')
+if(dot==""){modname="builtins"}
+try{$B.$import(modname)
+hook=$B.$getattr($B.imported[modname],funcname)}catch(err){console.warn("cannot import breakpoint",hookname)
+return _b_.None}
+return $B.$call(hook).apply(null,arguments)},exc_info:function(){for(var i=$B.frames_stack.length-1;i >=0;i--){var frame=$B.frames_stack[i],exc=frame[1].$current_exception
 if(exc){return _b_.tuple.$factory([exc.__class__,exc,$B.$getattr(exc,"__traceback__")])}}
-return _b_.tuple.$factory([_b_.None,_b_.None,_b_.None])},excepthook:function(exc_class,exc_value,traceback){$B.handle_error(exc_value)},modules:{__get__:function(){return $B.obj_dict($B.imported)},__set__:function(self,obj,value){throw _b_.TypeError.$factory("Read only property 'sys.modules'")}},path:{__get__:function(){return $B.path},__set__:function(self,obj,value){$B.path=value;}},meta_path:{__get__:function(){return $B.meta_path},__set__:function(self,obj,value){$B.meta_path=value }},path_hooks:{__get__:function(){return $B.path_hooks},__set__:function(self,obj,value){$B.path_hooks=value }},path_importer_cache:{__get__:function(){return _b_.dict.$factory($B.JSObject.$factory($B.path_importer_cache))},__set__:function(self,obj,value){throw _b_.TypeError.$factory("Read only property"+
-" 'sys.path_importer_cache'")}},settrace:function(){var $=$B.args("settrace",1,{tracefunc:null},['tracefunc'],arguments,{},null,null)
-$B.tracefunc=$.tracefunc},stderr:{__get__:function(){return $B.stderr},__set__:function(self,obj,value){$B.stderr=value},write:function(data){_b_.getattr($B.stderr,"write")(data)}},stdout:{__get__:function(){return $B.stdout},__set__:function(self,obj,value){$B.stdout=value},write:function(data){_b_.getattr($B.stdout,"write")(data)}},stdin:{__get__:function(){return $B.stdin},__set__:function(){throw _b_.TypeError.$factory("sys.stdin is read-only")}},vfs:{__get__:function(){if($B.hasOwnProperty("VFS")){return $B.obj_dict($B.VFS)}
-else{return _b_.None}},__set__:function(){throw _b_.TypeError.$factory("Read only property 'sys.vfs'")}}}
+return _b_.tuple.$factory([_b_.None,_b_.None,_b_.None])},excepthook:function(exc_class,exc_value,traceback){$B.handle_error(exc_value)},modules:_b_.property.$factory(
+function(){return $B.obj_dict($B.imported)},function(self,obj,value){throw _b_.TypeError.$factory("Read only property 'sys.modules'")}
+),path:_b_.property.$factory(
+function(){return $B.path},function(self,obj,value){$B.path=value;}
+),meta_path:_b_.property.$factory(
+function(){return $B.meta_path},function(self,obj,value){$B.meta_path=value }
+),path_hooks:_b_.property.$factory(
+function(){return $B.path_hooks},function(self,obj,value){$B.path_hooks=value }
+),path_importer_cache:_b_.property.$factory(
+function(){return _b_.dict.$factory($B.JSObject.$factory($B.path_importer_cache))},function(self,obj,value){throw _b_.TypeError.$factory("Read only property"+
+" 'sys.path_importer_cache'")}
+),settrace:function(){var $=$B.args("settrace",1,{tracefunc:null},['tracefunc'],arguments,{},null,null)
+$B.tracefunc=$.tracefunc
+$B.last($B.frames_stack)[1].$f_trace=$B.tracefunc
+$.tracefunc.$current_frame_id=$B.last($B.frames_stack)[0]
+return _b_.None},stderr:_b_.property.$factory(
+function(){return $B.stderr},function(self,value){$B.stderr=value}
+),stdout:_b_.property.$factory(
+function(){return $B.stdout},function(self,value){$B.stdout=value}
+),stdin:_b_.property.$factory(
+function(){return $B.stdin},function(self,value){$B.stdin=value}
+),vfs:_b_.property.$factory(
+function(){if($B.hasOwnProperty("VFS")){return $B.obj_dict($B.VFS)}
+else{return _b_.None}},function(){throw _b_.TypeError.$factory("Read only property 'sys.vfs'")}
+)}
+modules._sys.__breakpointhook__=modules._sys.breakpointhook
+modules._sys.stderr.write=function(data){return $B.$getattr(_sys.stderr.__get__(),"write")(data)}
+modules._sys.stdout.write=function(data){return $B.$getattr(_sys.stdout.__get__(),"write")(data)}
 function load(name,module_obj){
 module_obj.__class__=$B.module
 module_obj.__name__=name
 $B.imported[name]=module_obj
 for(var attr in module_obj){if(typeof module_obj[attr]=='function'){var attr1=$B.from_alias(attr)
-module_obj[attr].$infos={__name__:attr1,__qualname__:name+'.'+attr1}}}}
+module_obj[attr].$infos={__module__:name,__name__:attr1,__qualname__:name+'.'+attr1}}}}
 for(var attr in modules){load(attr,modules[attr])}
 if(!($B.isWebWorker ||$B.isNode)){modules['browser'].html=modules['browser.html']}
 var _b_=$B.builtins
@@ -13697,6 +13968,34 @@ $B.cell[op]=(function(op){return function(self,other){if(! _b_.isinstance(other,
 if(self.$cell_contents===null){if(other.$cell_contents===null){return op=="__eq__"}else{return["__ne__","__lt__","__le__"].indexOf(op)>-1}}else if(other.$cell_contents===null){return["__ne__","__gt__","__ge__"].indexOf(op)>-1}
 return $B.rich_comp(op,self.$cell_contents,other.$cell_contents)}})(op)})
 $B.set_func_names($B.cell,"builtins")})(__BRYTHON__)
+;
+var docs={ArithmeticError:"Base class for arithmetic errors.",AssertionError:"Assertion failed.",AttributeError:"Attribute not found.",BaseException:"Common base class for all exceptions",BlockingIOError:"I/O operation would block.",BrokenPipeError:"Broken pipe.",BufferError:"Buffer error.",BytesWarning:"Base class for warnings about bytes and buffer related problems, mostly\nrelated to conversion from str or comparing to str.",ChildProcessError:"Child process error.",ConnectionAbortedError:"Connection aborted.",ConnectionError:"Connection error.",ConnectionRefusedError:"Connection refused.",ConnectionResetError:"Connection reset.",DeprecationWarning:"Base class for warnings about deprecated features.",EOFError:"Read beyond end of file.",Ellipsis:"",EnvironmentError:"Base class for I/O related errors.",Exception:"Common base class for all non-exit exceptions.",False:"bool(x) -> bool\n\nReturns True when the argument x is true, False otherwise.\nThe builtins True and False are the only two instances of the class bool.\nThe class bool is a subclass of the class int, and cannot be subclassed.",FileExistsError:"File already exists.",FileNotFoundError:"File not found.",FloatingPointError:"Floating point operation failed.",FutureWarning:"Base class for warnings about constructs that will change semantically\nin the future.",GeneratorExit:"Request that a generator exit.",IOError:"Base class for I/O related errors.",ImportError:"Import can't find module, or can't find name in module.",ImportWarning:"Base class for warnings about probable mistakes in module imports",IndentationError:"Improper indentation.",IndexError:"Sequence index out of range.",InterruptedError:"Interrupted by signal.",IsADirectoryError:"Operation doesn't work on directories.",KeyError:"Mapping key not found.",KeyboardInterrupt:"Program interrupted by user.",LookupError:"Base class for lookup errors.",MemoryError:"Out of memory.",NameError:"Name not found globally.",None:"",NotADirectoryError:"Operation only works on directories.",NotImplemented:"",NotImplementedError:"Method or function hasn't been implemented yet.",OSError:"Base class for I/O related errors.",OverflowError:"Result too large to be represented.",PendingDeprecationWarning:"Base class for warnings about features which will be deprecated\nin the future.",PermissionError:"Not enough permissions.",ProcessLookupError:"Process not found.",ReferenceError:"Weak ref proxy used after referent went away.",ResourceWarning:"Base class for warnings about resource usage.",RuntimeError:"Unspecified run-time error.",RuntimeWarning:"Base class for warnings about dubious runtime behavior.",StopIteration:"Signal the end from iterator.__next__().",SyntaxError:"Invalid syntax.",SyntaxWarning:"Base class for warnings about dubious syntax.",SystemError:"Internal error in the Python interpreter.\n\nPlease report this to the Python maintainer, along with the traceback,\nthe Python version, and the hardware/OS platform and version.",SystemExit:"Request to exit from the interpreter.",TabError:"Improper mixture of spaces and tabs.",TimeoutError:"Timeout expired.",True:"bool(x) -> bool\n\nReturns True when the argument x is true, False otherwise.\nThe builtins True and False are the only two instances of the class bool.\nThe class bool is a subclass of the class int, and cannot be subclassed.",TypeError:"Inappropriate argument type.",UnboundLocalError:"Local name referenced but not bound to a value.",UnicodeDecodeError:"Unicode decoding error.",UnicodeEncodeError:"Unicode encoding error.",UnicodeError:"Unicode related error.",UnicodeTranslateError:"Unicode translation error.",UnicodeWarning:"Base class for warnings about Unicode related problems, mostly\nrelated to conversion problems.",UserWarning:"Base class for warnings generated by user code.",ValueError:"Inappropriate argument value (of correct type).",Warning:"Base class for warning categories.",WindowsError:"Base class for I/O related errors.",ZeroDivisionError:"Second argument to a division or modulo operation was zero.",__debug__:"bool(x) -> bool\n\nReturns True when the argument x is true, False otherwise.\nThe builtins True and False are the only two instances of the class bool.\nThe class bool is a subclass of the class int, and cannot be subclassed.",abs:"abs(number) -> number\n\nReturn the absolute value of the argument.",all:"all(iterable) -> bool\n\nReturn True if bool(x) is True for all values x in the iterable.\nIf the iterable is empty, return True.",any:"any(iterable) -> bool\n\nReturn True if bool(x) is True for any x in the iterable.\nIf the iterable is empty, return False.",ascii:"ascii(object) -> string\n\nAs repr(), return a string containing a printable representation of an\nobject, but escape the non-ASCII characters in the string returned by\nrepr() using \\x, \\u or \\U escapes.  This generates a string similar\nto that returned by repr() in Python 2.",bin:"bin(number) -> string\n\nReturn the binary representation of an integer.\n\n   >>> bin(2796202)\n   '0b1010101010101010101010'\n",bool:"bool(x) -> bool\n\nReturns True when the argument x is true, False otherwise.\nThe builtins True and False are the only two instances of the class bool.\nThe class bool is a subclass of the class int, and cannot be subclassed.",bytearray:"bytearray(iterable_of_ints) -> bytearray\nbytearray(string, encoding[, errors]) -> bytearray\nbytearray(bytes_or_buffer) -> mutable copy of bytes_or_buffer\nbytearray(int) -> bytes array of size given by the parameter initialized with null bytes\nbytearray() -> empty bytes array\n\nConstruct an mutable bytearray object from:\n  - an iterable yielding integers in range(256)\n  - a text string encoded using the specified encoding\n  - a bytes or a buffer object\n  - any object implementing the buffer API.\n  - an integer",bytes:"bytes(iterable_of_ints) -> bytes\nbytes(string, encoding[, errors]) -> bytes\nbytes(bytes_or_buffer) -> immutable copy of bytes_or_buffer\nbytes(int) -> bytes object of size given by the parameter initialized with null bytes\nbytes() -> empty bytes object\n\nConstruct an immutable array of bytes from:\n  - an iterable yielding integers in range(256)\n  - a text string encoded using the specified encoding\n  - any object implementing the buffer API.\n  - an integer",callable:"callable(object) -> bool\n\nReturn whether the object is callable (i.e., some kind of function).\nNote that classes are callable, as are instances of classes with a\n__call__() method.",chr:"chr(i) -> Unicode character\n\nReturn a Unicode string of one character with ordinal i; 0 <= i <= 0x10ffff.",classmethod:"classmethod(function) -> method\n\nConvert a function to be a class method.\n\nA class method receives the class as implicit first argument,\njust like an instance method receives the instance.\nTo declare a class method, use this idiom:\n\n  class C:\n      def f(cls, arg1, arg2, ...): ...\n      f = classmethod(f)\n\nIt can be called either on the class (e.g. C.f()) or on an instance\n(e.g. C().f()).  The instance is ignored except for its class.\nIf a class method is called for a derived class, the derived class\nobject is passed as the implied first argument.\n\nClass methods are different than C++ or Java static methods.\nIf you want those, see the staticmethod builtin.",compile:"compile(source, filename, mode[, flags[, dont_inherit]]) -> code object\n\nCompile the source (a Python module, statement or expression)\ninto a code object that can be executed by exec() or eval().\nThe filename will be used for run-time error messages.\nThe mode must be 'exec' to compile a module, 'single' to compile a\nsingle (interactive) statement, or 'eval' to compile an expression.\nThe flags argument, if present, controls which future statements influence\nthe compilation of the code.\nThe dont_inherit argument, if non-zero, stops the compilation inheriting\nthe effects of any future statements in effect in the code calling\ncompile; if absent or zero these statements do influence the compilation,\nin addition to any features explicitly specified.",complex:"complex(real[, imag]) -> complex number\n\nCreate a complex number from a real part and an optional imaginary part.\nThis is equivalent to (real + imag*1j) where imag defaults to 0.",copyright:"interactive prompt objects for printing the license text, a list of\n    contributors and the copyright notice.",credits:"interactive prompt objects for printing the license text, a list of\n    contributors and the copyright notice.",delattr:"delattr(object, name)\n\nDelete a named attribute on an object; delattr(x, 'y') is equivalent to\n``del x.y''.",dict:"dict() -> new empty dictionary\ndict(mapping) -> new dictionary initialized from a mapping object's\n    (key, value) pairs\ndict(iterable) -> new dictionary initialized as if via:\n    d = {}\n    for k, v in iterable:\n        d[k] = v\ndict(**kwargs) -> new dictionary initialized with the name=value pairs\n    in the keyword argument list.  For example:  dict(one=1, two=2)",dir:"dir([object]) -> list of strings\n\nIf called without an argument, return the names in the current scope.\nElse, return an alphabetized list of names comprising (some of) the attributes\nof the given object, and of attributes reachable from it.\nIf the object supplies a method named __dir__, it will be used; otherwise\nthe default dir() logic is used and returns:\n  for a module object: the module's attributes.\n  for a class object:  its attributes, and recursively the attributes\n    of its bases.\n  for any other object: its attributes, its class's attributes, and\n    recursively the attributes of its class's base classes.",divmod:"divmod(x, y) -> (div, mod)\n\nReturn the tuple ((x-x%y)/y, x%y).  Invariant: div*y + mod == x.",enumerate:"enumerate(iterable[, start]) -> iterator for index, value of iterable\n\nReturn an enumerate object.  iterable must be another object that supports\niteration.  The enumerate object yields pairs containing a count (from\nstart, which defaults to zero) and a value yielded by the iterable argument.\nenumerate is useful for obtaining an indexed list:\n    (0, seq[0]), (1, seq[1]), (2, seq[2]), ...",eval:"eval(source[, globals[, locals]]) -> value\n\nEvaluate the source in the C of globals and locals.\nThe source may be a string representing a Python expression\nor a code object as returned by compile().\nThe globals must be a dictionary and locals can be any mapping,\ndefaulting to the current globals and locals.\nIf only globals is given, locals defaults to it.\n",exec:"exec(object[, globals[, locals]])\n\nRead and execute code from an object, which can be a string or a code\nobject.\nThe globals and locals are dictionaries, defaulting to the current\nglobals and locals.  If only globals is given, locals defaults to it.",exit:"",filter:"filter(function or None, iterable) --> filter object\n\nReturn an iterator yielding those items of iterable for which function(item)\nis true. If function is None, return the items that are true.",float:"float(x) -> floating point number\n\nConvert a string or number to a floating point number, if possible.",format:"format(value[, format_spec]) -> string\n\nReturns value.__format__(format_spec)\nformat_spec defaults to \"\"",
+frozenset:"frozenset()-> empty frozenset object\nfrozenset(iterable)-> frozenset object\n\nBuild an immutable unordered collection of unique elements.",
+getattr:"getattr(object,name[,default])-> value\n\nGet a named attribute from an object;getattr(x,'y')is equivalent to x.y.\nWhen a default argument is given,it is returned when the attribute doesn't\nexist; without it, an exception is raised in that case.",
+globals:"globals() -> dictionary\n\nReturn the dictionary containing the current scope's global variables.",
+hasattr:"hasattr(object,name)-> bool\n\nReturn whether the object has an attribute with the given name.\n(This is done by calling getattr(object,name)and catching AttributeError.)",
+hash:"hash(object)-> integer\n\nReturn a hash value for the object. Two objects with the same value have\nthe same hash value. The reverse is not necessarily true,but likely.",
+help:"Define the builtin 'help'.\n\n This is a wrapper around pydoc.help that provides a helpful message\n when 'help' is typed at the Python interactive prompt.\n\n Calling help()at the Python prompt starts an interactive help session.\n Calling help(thing)prints help for the python object 'thing'.\n ",
+hex:"hex(number)-> string\n\nReturn the hexadecimal representation of an integer.\n\n >>> hex(3735928559)\n '0xdeadbeef'\n",
+id:"id(object)-> integer\n\nReturn the identity of an object. This is guaranteed to be unique among\nsimultaneously existing objects.(Hint:it's the object's memory address.)",
+input:"input([prompt])-> string\n\nRead a string from standard input. The trailing newline is stripped.\nIf the user hits EOF(Unix:Ctl-D,Windows:Ctl-Z+Return),raise EOFError.\nOn Unix,GNU readline is used if enabled. The prompt string,if given,\nis printed without a trailing newline before reading.",
+int:"int(x=0)-> integer\nint(x,base=10)-> integer\n\nConvert a number or string to an integer,or return 0 if no arguments\nare given. If x is a number,return x.__int__(). For floating point\nnumbers,this truncates towards zero.\n\nIf x is not a number or if base is given,then x must be a string,\nbytes,or bytearray instance representing an integer literal in the\ngiven base. The literal can be preceded by '+' or '-' and be surrounded\nby whitespace. The base defaults to 10. Valid bases are 0 and 2-36.\nBase 0 means to interpret the base from the string as an integer literal.\n>>> int('0b100',base=0)\n4",
+isinstance:"isinstance(object,class-or-type-or-tuple)-> bool\n\nReturn whether an object is an instance of a class or of a subclass thereof.\nWith a type as second argument,return whether that is the object's type.\nThe form using a tuple, isinstance(x, (A, B, ...)), is a shortcut for\nisinstance(x, A) or isinstance(x, B) or ... (etc.).",
+issubclass:"issubclass(C, B) -> bool\n\nReturn whether class C is a subclass (i.e., a derived class) of class B.\nWhen using a tuple as the second argument issubclass(X, (A, B, ...)),\nis a shortcut for issubclass(X, A) or issubclass(X, B) or ... (etc.).",
+iter:"iter(iterable) -> iterator\niter(callable, sentinel) -> iterator\n\nGet an iterator from an object.  In the first form, the argument must\nsupply its own iterator, or be a sequence.\nIn the second form, the callable is called until it returns the sentinel.",
+len:"len(object)\n\nReturn the number of items of a sequence or collection.",
+license:"interactive prompt objects for printing the license text, a list of\n    contributors and the copyright notice.",
+list:"list() -> new empty list\nlist(iterable) -> new list initialized from iterable's items",
+locals:"locals()-> dictionary\n\nUpdate and return a dictionary containing the current scope's local variables.",
+map:"map(func, *iterables) --> map object\n\nMake an iterator that computes the function using arguments from\neach of the iterables.  Stops when the shortest iterable is exhausted.",
+max:"max(iterable, *[, default=obj, key=func]) -> value\nmax(arg1, arg2, *args, *[, key=func]) -> value\n\nWith a single iterable argument, return its biggest item. The\ndefault keyword-only argument specifies an object to return if\nthe provided iterable is empty.\nWith two or more arguments, return the largest argument.",
+memoryview:"memoryview(object)\n\nCreate a new memoryview object which references the given object.",
+min:"min(iterable, *[, default=obj, key=func]) -> value\nmin(arg1, arg2, *args, *[, key=func]) -> value\n\nWith a single iterable argument, return its smallest item. The\ndefault keyword-only argument specifies an object to return if\nthe provided iterable is empty.\nWith two or more arguments, return the smallest argument.",
+next:"next(iterator[, default])\n\nReturn the next item from the iterator. If default is given and the iterator\nis exhausted, it is returned instead of raising StopIteration.",
+object:"The most base type",
+oct:"oct(number) -> string\n\nReturn the octal representation of an integer.\n\n   >>> oct(342391)\n   '0o1234567'\n",
+open:"open(file, mode='r', buffering=-1, encoding=None,\n     errors=None, newline=None, closefd=True, opener=None) -> file object\n\nOpen file and return a stream.  Raise IOError upon failure.\n\nfile is either a text or byte string giving the name (and the path\nif the file isn't in the current working directory)of the file to\nbe opened or an integer file descriptor of the file to be\nwrapped.(If a file descriptor is given,it is closed when the\nreturned I/O object is closed,unless closefd is set to False.)\n\nmode is an optional string that specifies the mode in which the file\nis opened. It defaults to 'r' which means open for reading in text\nmode. Other common values are 'w' for writing(truncating the file if\nit already exists),'x' for creating and writing to a new file,and\n'a' for appending(which on some Unix systems,means that all writes\nappend to the end of the file regardless of the current seek position).\nIn text mode,if encoding is not specified the encoding used is platform\ndependent:locale.getpreferredencoding(False)is called to get the\ncurrent locale encoding.(For reading and writing raw bytes use binary\nmode and leave encoding unspecified.)The available modes are:\n\n========================================================================\nCharacter Meaning\n------------------------------------------------------------------------\n'r' open for reading(default)\n'w' open for writing,truncating the file first\n'x' create a new file and open it for writing\n'a' open for writing,appending to the end of the file if it exists\n'b' binary mode\n't' text mode(default)\n'+' open a disk file for updating(reading and writing)\n'U' universal newline mode(deprecated)\n========================================================================\n\nThe default mode is 'rt'(open for reading text). For binary random\naccess,the mode 'w+b' opens and truncates the file to 0 bytes,while\n'r+b' opens the file without truncation. The 'x' mode implies 'w' and\nraises an `FileExistsError` if the file already exists.\n\nPython distinguishes between files opened in binary and text modes,\neven when the underlying operating system doesn't. Files opened in\nbinary mode (appending 'b' to the mode argument) return contents as\nbytes objects without any decoding. In text mode (the default, or when\n't' is appended to the mode argument), the contents of the file are\nreturned as strings, the bytes having been first decoded using a\nplatform-dependent encoding or using the specified encoding if given.\n\n'U' mode is deprecated and will raise an exception in future versions\nof Python.  It has no effect in Python 3.  Use newline to control\nuniversal newlines mode.\n\nbuffering is an optional integer used to set the buffering policy.\nPass 0 to switch buffering off (only allowed in binary mode), 1 to select\nline buffering (only usable in text mode), and an integer > 1 to indicate\nthe size of a fixed-size chunk buffer.  When no buffering argument is\ngiven, the default buffering policy works as follows:\n\n* Binary files are buffered in fixed-size chunks; the size of the buffer\n  is chosen using a heuristic trying to determine the underlying device's\n \"block size\" and falling back on `io.DEFAULT_BUFFER_SIZE`.\n  On many systems, the buffer will typically be 4096 or 8192 bytes long.\n\n* \"Interactive\" text files (files for which isatty() returns True)\n  use line buffering.  Other text files use the policy described above\n  for binary files.\n\nencoding is the name of the encoding used to decode or encode the\nfile. This should only be used in text mode. The default encoding is\nplatform dependent, but any encoding supported by Python can be\npassed.  See the codecs module for the list of supported encodings.\n\nerrors is an optional string that specifies how encoding errors are to\nbe handled---this argument should not be used in binary mode. Pass\n'strict' to raise a ValueError exception if there is an encoding error\n(the default of None has the same effect), or pass 'ignore' to ignore\nerrors. (Note that ignoring encoding errors can lead to data loss.)\nSee the documentation for codecs.register or run 'help(codecs.Codec)'\nfor a list of the permitted encoding error strings.\n\nnewline controls how universal newlines works (it only applies to text\nmode). It can be None, '', '\\n', '\\r', and '\\r\\n'.  It works as\nfollows:\n\n* On input, if newline is None, universal newlines mode is\n  enabled. Lines in the input can end in '\\n', '\\r', or '\\r\\n', and\n  these are translated into '\\n' before being returned to the\n  caller. If it is '', universal newline mode is enabled, but line\n  endings are returned to the caller untranslated. If it has any of\n  the other legal values, input lines are only terminated by the given\n  string, and the line ending is returned to the caller untranslated.\n\n* On output, if newline is None, any '\\n' characters written are\n  translated to the system default line separator, os.linesep. If\n  newline is '' or '\\n', no translation takes place. If newline is any\n  of the other legal values, any '\\n' characters written are translated\n  to the given string.\n\nIf closefd is False, the underlying file descriptor will be kept open\nwhen the file is closed. This does not work when a file name is given\nand must be True in that case.\n\nA custom opener can be used by passing a callable as *opener*. The\nunderlying file descriptor for the file object is then obtained by\ncalling *opener* with (*file*, *flags*). *opener* must return an open\nfile descriptor (passing os.open as *opener* results in functionality\nsimilar to passing None).\n\nopen() returns a file object whose type depends on the mode, and\nthrough which the standard file operations such as reading and writing\nare performed. When open() is used to open a file in a text mode ('w',\n'r', 'wt', 'rt', etc.), it returns a TextIOWrapper. When used to open\na file in a binary mode, the returned class varies: in read binary\nmode, it returns a BufferedReader; in write binary and append binary\nmodes, it returns a BufferedWriter, and in read/write mode, it returns\na BufferedRandom.\n\nIt is also possible to use a string or bytearray as a file for both\nreading and writing. For strings StringIO can be used like a file\nopened in a text mode, and for bytes a BytesIO can be used like a file\nopened in a binary mode.\n",ord:"ord(c) -> integer\n\nReturn the integer ordinal of a one-character string.",pow:"pow(x, y[, z]) -> number\n\nWith two arguments, equivalent to x**y.  With three arguments,\nequivalent to (x**y) % z, but may be more efficient (e.g. for ints).",print:"print(value, ..., sep=' ', end='\\n', file=sys.stdout, flush=False)\n\nPrints the values to a stream, or to sys.stdout by default.\nOptional keyword arguments:\nfile:  a file-like object (stream); defaults to the current sys.stdout.\nsep:   string inserted between values, default a space.\nend:   string appended after the last value, default a newline.\nflush: whether to forcibly flush the stream.",property:"property(fget=None, fset=None, fdel=None, doc=None) -> property attribute\n\nfget is a function to be used for getting an attribute value, and likewise\nfset is a function for setting, and fdel a function for del'ing, an\nattribute.  Typical use is to define a managed attribute x:\n\nclass C(object):\n    def getx(self): return self._x\n    def setx(self, value): self._x = value\n    def delx(self): del self._x\n    x = property(getx, setx, delx, \"I'm the 'x' property.\")\n\nDecorators make defining new properties or modifying existing ones easy:\n\nclass C(object):\n    @property\n    def x(self):\n        \"I am the 'x' property.\"\n        return self._x\n    @x.setter\n    def x(self, value):\n        self._x = value\n    @x.deleter\n    def x(self):\n        del self._x\n",quit:"",range:"range(stop) -> range object\nrange(start, stop[, step]) -> range object\n\nReturn a virtual sequence of numbers from start to stop by step.",repr:"repr(object) -> string\n\nReturn the canonical string representation of the object.\nFor most object types, eval(repr(object)) == object.",reversed:"reversed(sequence) -> reverse iterator over values of the sequence\n\nReturn a reverse iterator",round:"round(number[, ndigits]) -> number\n\nRound a number to a given precision in decimal digits (default 0 digits).\nThis returns an int when called with one argument, otherwise the\nsame type as the number. ndigits may be negative.",set:"set() -> new empty set object\nset(iterable) -> new set object\n\nBuild an unordered collection of unique elements.",setattr:"setattr(object, name, value)\n\nSet a named attribute on an object; setattr(x, 'y', v) is equivalent to\n``x.y = v''.",slice:"slice(stop)\nslice(start, stop[, step])\n\nCreate a slice object.  This is used for extended slicing (e.g. a[0:10:2]).",sorted:"sorted(iterable, key=None, reverse=False) --> new sorted list",staticmethod:"staticmethod(function) -> method\n\nConvert a function to be a static method.\n\nA static method does not receive an implicit first argument.\nTo declare a static method, use this idiom:\n\n     class C:\n     def f(arg1, arg2, ...): ...\n     f = staticmethod(f)\n\nIt can be called either on the class (e.g. C.f()) or on an instance\n(e.g. C().f()).  The instance is ignored except for its class.\n\nStatic methods in Python are similar to those found in Java or C++.\nFor a more advanced concept, see the classmethod builtin.",str:"str(object='') -> str\nstr(bytes_or_buffer[, encoding[, errors]]) -> str\n\nCreate a new string object from the given object. If encoding or\nerrors is specified, then the object must expose a data buffer\nthat will be decoded using the given encoding and error handler.\nOtherwise, returns the result of object.__str__() (if defined)\nor repr(object).\nencoding defaults to sys.getdefaultencoding().\nerrors defaults to 'strict'.",sum:"sum(iterable[, start]) -> value\n\nReturn the sum of an iterable of numbers (NOT strings) plus the value\nof parameter 'start' (which defaults to 0).  When the iterable is\nempty, return start.",super:"super() -> same as super(__class__, <first argument>)\nsuper(type) -> unbound super object\nsuper(type, obj) -> bound super object; requires isinstance(obj, type)\nsuper(type, type2) -> bound super object; requires issubclass(type2, type)\nTypical use to call a cooperative superclass method:\nclass C(B):\n    def meth(self, arg):\n        super().meth(arg)\nThis works for class methods too:\nclass C(B):\n    @classmethod\n    def cmeth(cls, arg):\n        super().cmeth(arg)\n",tuple:"tuple() -> empty tuple\ntuple(iterable) -> tuple initialized from iterable's items\n\nIf the argument is a tuple, the return value is the same object.",type:"type(object_or_name, bases, dict)\ntype(object) -> the object's type\ntype(name, bases, dict) -> a new type",vars:"vars([object]) -> dictionary\n\nWithout arguments, equivalent to locals().\nWith an argument, equivalent to object.__dict__.",zip:"zip(iter1 [,iter2 [...]]) --> zip object\n\nReturn a zip object whose .__next__() method returns a tuple where\nthe i-th element comes from the i-th iterable argument.  The .__next__()\nmethod continues until the shortest iterable in the argument sequence\nis exhausted and then it raises StopIteration.",}
+__BRYTHON__.builtins_doc=docs
 ;
 ;(function($B){var _b_=$B.builtins
 function import_hooks(mod_name,_path,from_stdlib){var meta_path=$B.meta_path.slice(),_sys_modules=$B.imported,_loader,spec
@@ -13763,9 +14062,7 @@ $B.promise=function(obj){if(obj.__class__===$B.JSObject){return obj.js}else if(o
 if(typeof obj=="function"){return obj()}
 return obj}})(__BRYTHON__)
 ;
-
-
 __BRYTHON__.use_VFS = true;
-var scripts = {"$timestamp": 1580825320186, "_aio": [".js", "// Replacement for asyncio.\n//\n// CPython asyncio can't be implemented for Brython because it relies on\n// blocking function (eg run(), run_until_complete()), and such functions\n// can't be defined in Javascript. It also manages an event loop, and a\n// browser only has its own built-in event loop.\n//\n// This module exposes functions whose result can be \"await\"-ed inside\n// asynchrounous functions defined by \"async def\".\n\nvar $module = (function($B){\n\nvar _b_ = $B.builtins\n\nvar responseType = {\n    \"text\": \"text\",\n    \"binary\": \"arraybuffer\",\n    \"dataURL\": \"arraybuffer\"\n}\n\nfunction handle_kwargs(kw, method){\n    var data,\n        cache = \"no-cache\",\n        format = \"text\",\n        headers = {},\n        timeout = {}\n    for(var key in kw.$string_dict){\n        if(key == \"data\"){\n            var params = kw.$string_dict[key][0]\n            if(typeof params == \"string\"){\n                data = params\n            }else{\n                if(params.__class__ !== _b_.dict){\n                    throw _b_.TypeError.$factory(\"wrong type for data, \" +\n                        \"expected dict or str, got \" + $B.class_name(params))\n                }\n                params = params.$string_dict\n                var items = []\n                for(var key in params){\n                    items.push(encodeURIComponent(key) + \"=\" +\n                               encodeURIComponent(params[key][0]))\n                }\n                data = items.join(\"&\")\n            }\n        }else if(key == \"headers\"){\n            headers = _b_.dict.$to_obj(kw)\n        }else if(key.startsWith(\"on\")){\n            var event = key.substr(2)\n            if(event == \"timeout\"){\n                timeout.func = kw.$string_dict[key][0]\n            }else{\n                ajax.bind(self, event, kw.$string_dict[key][0])\n            }\n        }else if(key == \"timeout\"){\n            timeout.seconds = kw.$string_dict[key][0]\n        }else if(key == \"cache\"){\n            cache = kw.$string_dict[key][0]\n        }else if(key == \"format\"){\n            format = kw.$string_dict[key][0]\n        }\n    }\n    if(method == \"post\"){\n        // For POST requests, set default header\n        if(! headers.hasOwnProperty(\"Content-type\")){\n            headers[\"Content-Type\"] = \"application/x-www-form-urlencoded\"\n        }\n        if(data && !headers.hasOwnProperty(\"Content-Length\")){\n            headers[\"Content-Length\"] = data.length\n        }\n    }\n    return {\n        body: data,\n        cache: cache,\n        format: format,\n        timeout: timeout,\n        headers: headers\n    }\n}\n\nfunction ajax(){\n    var $ = $B.args(\"ajax\", 2, {method: null, url: null},\n            [\"method\", \"url\"], arguments, {},\n            null, \"kw\"),\n        method = $.method,\n        url = $.url,\n        kw = $.kw\n    var args = handle_kwargs(kw, \"get\")\n    if(! args.cache){\n        url = \"?ts\" + (new Date()).getTime() + \"=0\"\n    }\n    if(args.body){\n        url = url + (args.cache ? \"?\" : \"&\") + args.body\n    }\n    var func = function(){\n        return new Promise(function(resolve, reject){\n            var xhr = new XMLHttpRequest()\n            xhr.open(method, url, true)\n            for(key in args.headers){\n                xhr.setRequestHeader(key, args.headers[key])\n            }\n            xhr.format = args.format\n            xhr.responseType = responseType[args.format]\n            xhr.onreadystatechange = function(){\n                if(this.readyState == 4){\n                    this.__class__ = HTTPRequest\n                    resolve(this)\n                }\n            }\n            xhr.send()\n        })\n    }\n    func.$infos = {\n        __name__: \"ajax_\" + method\n    }\n    return {\n        __class__: $B.coroutine,\n        $args: [url, args],\n        $func: func\n    }\n}\n\nfunction event(){\n    // event(element, *names) is a Promise on the events \"names\" happening on\n    // the element. This promise always resolves (never rejects) with the\n    // first triggered DOM event.\n    var $ = $B.args(\"event\", 1, {element: null},\n            [\"element\"], arguments, {}, \"names\", null),\n        element = $.element,\n        names = $.names\n    return new Promise(function(resolve){\n        var callbacks = []\n        names.forEach(function(name){\n            var callback = function(evt){\n                // When one of the handled events is triggered, all bindings\n                // are removed\n                callbacks.forEach(function(items){\n                    $B.DOMNode.unbind(element, items[0], items[1])\n                })\n                resolve($B.$DOMEvent(evt))\n            }\n            callbacks.push([name, callback])\n            $B.DOMNode.bind(element, name, callback)\n        })\n    })\n}\n\nvar HTTPRequest = $B.make_class(\"Request\")\n\nHTTPRequest.data = _b_.property.$factory(function(self){\n    if(self.format == \"binary\"){\n        var view = new Uint8Array(self.response)\n        return _b_.bytes.$factory(Array.from(view))\n    }else if(self.format == \"text\"){\n        return self.responseText\n    }else if(self.format == \"dataURL\"){\n        var base64String = btoa(String.fromCharCode.apply(null,\n            new Uint8Array(self.response)))\n        return \"data:\" + self.getResponseHeader(\"Content-Type\") +\n            \";base64,\" + base64String\n    }\n})\n\nHTTPRequest.response_headers = _b_.property.$factory(function(self){\n    var headers = self.getAllResponseHeaders()\n    if(headers === null){return _b_.None}\n    var res = _b_.dict.$factory()\n    if(headers.length > 0){\n        // Convert the header string into an array\n        // of individual headers\n        var lines = headers.trim().split(/[\\r\\n]+/)\n        // Create a map of header names to values\n        lines.forEach(function(line){\n          var parts = line.split(': ')\n          var header = parts.shift()\n          var value = parts.join(': ')\n          _b_.dict.$setitem(res, header, value)\n        })\n    }\n    return res\n})\n\nfunction get(){\n    return ajax.bind(null, \"GET\").apply(null, arguments)\n}\n\nfunction iscoroutine(f){\n    return f.__class__ === $B.coroutine\n}\n\nfunction iscoroutinefunction(f){\n    return (f.$infos.__code__.co_flags & 128) != 0\n}\n\nfunction post(){\n    return ajax.bind(null, \"POST\").apply(null, arguments)\n}\n\nfunction run(coro){\n    var handle_success = function(){\n            $B.leave_frame()\n        },\n        handle_error = function(ev){\n            console.log(\"handle error, ev\", ev)\n            var err_msg = \"Traceback (most recent call last):\\n\"\n            err_msg += $B.print_stack(ev.$stack)\n            if(ev.__class){\n                err_msg += \"\\n\" + ev.__class__.$infos.__name__ +\n                    ': ' + ev.args[0]\n            }\n            $B.builtins.print(err_msg)\n            throw ev\n        }\n\n    var $ = $B.args(\"run\", 3, {coro: null, onsuccess: null, onerror: null},\n            [\"coro\", \"onsuccess\", \"onerror\"], arguments,\n            {onsuccess: handle_success, onerror: handle_error},\n            null, null),\n        coro = $.coro,\n        onsuccess = $.onsuccess,\n        onerror = $.onerror\n\n    if(onerror !== handle_error){\n        function error_func(exc){\n            try{\n                onerror(exc)\n            }catch(err){\n                handle_error(err)\n            }\n        }\n    }else{\n        error_func = handle_error\n    }\n    // Add top frame a second time to get the correct frame when the async\n    // function exits\n    $B.frames_stack.push($B.last($B.frames_stack))\n    $B.coroutine.send(coro).then(onsuccess).catch(error_func)\n    return _b_.None\n}\n\nfunction sleep(seconds){\n    var func = function(){\n        return new Promise(resolve => setTimeout(\n            function(){resolve(_b_.None)}, 1000 * seconds))\n    }\n    func.$infos = {\n        __name__: \"sleep\"\n    }\n    return {\n        __class__: $B.coroutine,\n        $args: [seconds],\n        $func: func\n    }\n}\n\nreturn {\n    ajax: ajax,\n    event: event,\n    get: get,\n    iscoroutine: iscoroutine,\n    iscoroutinefunction: iscoroutinefunction,\n    post: post,\n    run: run,\n    sleep: sleep\n}\n\n})(__BRYTHON__)\n"], "_ajax": [".js", "// ajax\nvar $module = (function($B){\n\neval($B.InjectBuiltins())\nvar $N = $B.builtins.None,\n    _b_ = $B.builtins\n\nvar add_to_res = function(res, key, val) {\n    if(isinstance(val, list)){\n        for (j = 0; j < val.length; j++) {\n            add_to_res(res, key, val[j])\n        }\n    }else if (val instanceof File || val instanceof Blob){\n        res.append(key, val)\n    }else{res.append(key,str.$factory(val))}\n}\n\nfunction set_timeout(self, timeout){\n    if(timeout.seconds !== undefined){\n        self.js.$requestTimer = setTimeout(\n            function() {\n                self.js.abort()\n                if(timeout.func){\n                    timeout.func()\n                }\n            },\n            timeout.seconds * 1000)\n    }\n}\n\nfunction _read(req){\n    var xhr = req.js,\n        res\n    if(xhr.responseType == \"json\"){\n        return $B.structuredclone2pyobj(xhr.response)\n    }\n    if(xhr.responseType == \"arraybuffer\"){\n        var abuf = new Uint8Array(xhr.response)\n        res = []\n        for(var i = 0, len = abuf.length; i < len; i++){\n            res.push(abuf[i])\n        }\n        return _b_.bytes.$factory(res)\n    }else{\n        return xhr.responseText\n    }\n}\n\nfunction handle_kwargs(self, kw, method){\n    var data,\n        headers,\n        cache,\n        mode,\n        timeout = {}\n    for(var key in kw.$string_dict){\n        if(key == \"data\"){\n            var params = kw.$string_dict[key][0]\n            if(typeof params == \"string\"){\n                data = params\n            }else{\n                if(params.__class__ !== _b_.dict){\n                    throw _b_.TypeError.$factory(\"wrong type for data, \" +\n                        \"expected dict or str, got \" + $B.class_name(params))\n                }\n                params = params.$string_dict\n                var items = []\n                for(var key in params){\n                    items.push(encodeURIComponent(key) + \"=\" +\n                               encodeURIComponent(params[key][0]))\n                }\n                data = items.join(\"&\")\n            }\n        }else if(key==\"headers\"){\n            headers = kw.$string_dict[key].$string_dict\n            for(var key in headers){\n                self.js.setRequestHeader(key, headers[key][0])\n            }\n        }else if(key.startsWith(\"on\")){\n            var event = key.substr(2)\n            if(event == \"timeout\"){\n                timeout.func = kw.$string_dict[key][0]\n            }else{\n                var f = kw.$string_dict[key][0]\n                ajax.bind(self, event, f)\n            }\n        }else if(key == \"mode\"){\n            if(kw.$string_dict[key][0] == \"binary\"){\n                self.js.responseType = \"arraybuffer\"\n                mode = \"binary\"\n            }else if(kw.$string_dict[key][0] == \"json\"){\n                self.js.responseType = \"json\"\n                mode = \"json\"\n            }\n        }else if(key == \"timeout\"){\n            timeout.seconds = kw.$string_dict[key][0]\n        }else if(key == \"cache\"){\n            cache = kw.$string_dict[key][0]\n        }\n    }\n    if((method == \"post\" || method == \"put\") && ! headers){\n        // For POST requests, set default header\n        self.js.setRequestHeader(\"Content-type\",\n                                 \"application/x-www-form-urlencoded\")\n    }\n    return {cache: cache, data:data, mode: mode, timeout: timeout}\n}\n\nvar ajax = {\n    __class__: _b_.type,\n    __mro__: [$B.JSObject, _b_.object],\n\n    __getattribute__ : function(self, attr){\n        // Special case for send : accept dict as parameters\n        if(attr == 'send'){\n            return function(params){\n                return ajax.send(self, params)\n            }\n        }else if(attr == 'xml'){ // alias\n            attr = 'responseXML'\n        }\n        // Otherwise default to JSObject method\n        return $B.JSObject.__getattribute__(self, attr)\n    },\n\n    __repr__ : function(self){return '<object Ajax>'},\n    __str__ : function(self){return '<object Ajax>'},\n\n    $infos: {\n        __module__: \"builtins\",\n        __name__: \"ajax\"\n    },\n\n    bind: function(self, evt, func){\n        // req.bind(evt,func) is the same as req.onevt = func\n        self.js['on' + evt] = function(){\n            try{\n                return func.apply(null, arguments)\n            }catch(err){\n                if(err.__class__ !== undefined){\n                    var msg = _b_.getattr(err, 'info') +\n                        '\\n' + err.__class__.$infos.__name__\n                    if(err.args){msg += ': ' + err.args[0]}\n                    try{getattr($B.stderr, \"write\")(msg)}\n                    catch(err){console.log(msg)}\n                }else{\n                    try{getattr($B.stderr, \"write\")(err)}\n                    catch(err1){console.log(err)}\n                }\n            }\n        }\n        return $N\n    },\n\n    send: function(self, params){\n        // params can be Python dictionary or string\n        var res = ''\n        if(!params){\n            self.js.send()\n            return $N\n        }else if(isinstance(params, str)){\n            res = params\n        }else if(isinstance(params, dict)){\n            if(self.headers['content-type'] == 'multipart/form-data'){\n                // The FormData object serializes the data in the 'multipart/form-data'\n                // content-type so we may as well override that header if it was set\n                // by the user.\n                res = new FormData()\n                var items = _b_.list.$factory(_b_.dict.items(params))\n                for(var i = 0, len = items.length; i < len; i++){\n                    add_to_res(res, str.$factory(items[i][0]), items[i][1])\n                }\n            }else{\n                var items = _b_.list.$factory(_b_.dict.items(params))\n                for(var i = 0, len = items.length; i < len; i++){\n                    var key = encodeURIComponent(str.$factory(items[i][0]));\n                    if(isinstance(items[i][1], list)){\n                        for (j = 0; j < items[i][1].length; j++) {\n                            res += key +'=' +\n                                encodeURIComponent(str.$factory(items[i][1][j])) + '&'\n                        }\n                    }else{\n                        res += key + '=' +\n                            encodeURIComponent(str.$factory(items[i][1])) + '&'\n                    }\n                }\n                res = res.substr(0, res.length - 1)\n            }\n        }else{\n            throw _b_.TypeError(\"send() argument must be string or dictionary, not '\" +\n                str.$factory(params.__class__) + \"'\")\n        }\n        self.js.send(res)\n        return $N\n    },\n\n    set_header: function(self,key,value){\n        self.js.setRequestHeader(key,value)\n        self.headers[key.toLowerCase()] = value.toLowerCase()\n    },\n\n    set_timeout: function(self, seconds, func){\n        self.js.$requestTimer = setTimeout(\n            function() {self.js.abort();func()},\n            seconds * 1000)\n    }\n}\n\najax.$factory = function(){\n\n    if(window.XMLHttpRequest){// code for IE7+, Firefox, Chrome, Opera, Safari\n        var xmlhttp = new XMLHttpRequest()\n    }else{// code for IE6, IE5\n        var xmlhttp = new ActiveXObject(\"Microsoft.XMLHTTP\")\n    }\n    xmlhttp.onreadystatechange = function(){\n        // here, \"this\" refers to xmlhttp\n        var state = this.readyState\n        if(this.responseType == \"\" || this.responseType == \"text\"){\n            res.js.text = this.responseText\n        }\n        var timer = this.$requestTimer\n        if(state == 0 && this.onuninitialized){this.onuninitialized(res)}\n        else if(state == 1 && this.onloading){this.onloading(res)}\n        else if(state == 2 && this.onloaded){this.onloaded(res)}\n        else if(state == 3 && this.oninteractive){this.oninteractive(res)}\n        else if(state == 4 && this.oncomplete){\n            if(timer !== null){window.clearTimeout(timer)}\n            this.oncomplete(res)\n        }\n    }\n    var res = {\n        __class__: ajax,\n        js: xmlhttp,\n        headers: {}\n    }\n    return res\n}\n\nfunction _request_without_body(method){\n    var $ = $B.args(method, 3, {method: null, url: null, blocking: null},\n        [\"method\", \"url\", \"blocking\"], arguments, {blocking: false},\n        null, \"kw\"),\n    method = $.method,\n    url = $.url,\n    async = !$.blocking,\n    kw = $.kw\n    var self = ajax.$factory(),\n        items = handle_kwargs(self, kw, method),\n        qs = items.data,\n        timeout = items.timeout\n    set_timeout(self, timeout)\n    if(qs){\n        url += \"?\" + qs\n    }\n    if(! (items.cache === true)){\n        url += (qs ? \"&\" : \"?\") + (new Date()).getTime()\n    }\n    // Add function read() to return str or bytes according to mode\n    self.js.read = function(){\n        return _read(self)\n    }\n    self.js.open(method.toUpperCase(), url, async)\n    self.js.send()\n}\n\nfunction _request_with_body(method){\n    var $ = $B.args(method, 3, {method: null, url: null, blocking: null},\n        [\"method\", \"url\", \"blocking\"], arguments, {blocking: false},\n        null, \"kw\"),\n    method = $.method,\n    url = $.url,\n    async = !$.blocking,\n    kw = $.kw\n\n    var self = ajax.$factory()\n    self.js.open(method.toUpperCase(), url, async)\n    var items = handle_kwargs(self, kw, method),\n        data = items.data,\n        timeout = items.timeout\n    set_timeout(self, timeout)\n    // Add function read() to return str or bytes according to mode\n    self.js.read = function(){\n        return _read(self)\n    }\n    self.js.send(data)\n}\n\nfunction _delete(){\n    _request_without_body.call(null, \"delete\", ...arguments)\n}\n\nfunction get(){\n    _request_without_body.call(null, \"get\", ...arguments)\n}\n\nfunction head(){\n    _request_without_body.call(null, \"head\", ...arguments)\n}\n\nfunction options(){\n    _request_without_body.call(null, \"options\", ...arguments)\n}\n\nfunction post(){\n    _request_with_body.call(null, \"post\", ...arguments)\n}\n\nfunction put(){\n    _request_with_body.call(null, \"put\", ...arguments)\n}\n\nfunction file_upload(){\n    var $ = $B.args(\"file_upload\", 2, {url: null, \"file\": file},\n            [\"url\", \"file\"], arguments, {}, null, \"kw\"),\n        url = $.url,\n        file = $.file,\n        kw = $.kw\n\n    var formdata = new FormData()\n    formdata.append('filetosave', file, file.name)\n\n    var self = ajax.$factory()\n    self.js.open('POST', url, True)\n    self.js.send(formdata)\n\n    for(key in kw.$string_dict){\n        if(key.startsWith(\"on\")){\n            ajax.bind(self, key.substr(2), kw.$string_dict[key][0])\n        }\n    }\n}\n\n$B.set_func_names(ajax)\n\nreturn {\n    ajax: ajax,\n    Ajax: ajax,\n    delete: _delete,\n    file_upload: file_upload,\n    get: get,\n    head: head,\n    options: options,\n    post: post,\n    put: put\n}\n\n})(__BRYTHON__)\n"], "browser.aio": [".py", "from _aio import *\n\ndef _task(coro,Id,block):\n async def _task():\n  block[Id]=None\n  try :\n   block[Id]=await coro\n  except Exception as e:\n   block[Id]=e\n   \n  if not block[Id]:\n   del block[Id]\n return _task()\n \nasync def gather(*coros,rate=0):\n dones={}\n counts=0\n for c in coros:\n  run(_task(c,f'task{counts}',dones))\n  counts +=1\n while not all(dones.values()):\n  await sleep(rate)\n return dones\n", ["_aio"]], "_ajax": [".js", "// ajax\nvar $module = (function($B){\n\neval($B.InjectBuiltins())\nvar $N = $B.builtins.None,\n    _b_ = $B.builtins\n\nvar add_to_res = function(res, key, val) {\n    if(isinstance(val, list)){\n        for (j = 0; j < val.length; j++) {\n            add_to_res(res, key, val[j])\n        }\n    }else if (val instanceof File || val instanceof Blob){\n        res.append(key, val)\n    }else{res.append(key,str.$factory(val))}\n}\n\nfunction set_timeout(self, timeout){\n    if(timeout.seconds !== undefined){\n        self.js.$requestTimer = setTimeout(\n            function() {\n                self.js.abort()\n                if(timeout.func){\n                    timeout.func()\n                }\n            },\n            timeout.seconds * 1000)\n    }\n}\n\nfunction _read(req){\n    var xhr = req.js,\n        res\n    if(xhr.responseType == \"json\"){\n        return $B.structuredclone2pyobj(xhr.response)\n    }\n    if(xhr.responseType == \"arraybuffer\"){\n        var abuf = new Uint8Array(xhr.response)\n        res = []\n        for(var i = 0, len = abuf.length; i < len; i++){\n            res.push(abuf[i])\n        }\n        return _b_.bytes.$factory(res)\n    }else{\n        return xhr.responseText\n    }\n}\n\nfunction handle_kwargs(self, kw, method){\n    var data,\n        headers,\n        cache,\n        mode,\n        timeout = {}\n    for(var key in kw.$string_dict){\n        if(key == \"data\"){\n            var params = kw.$string_dict[key][0]\n            if(typeof params == \"string\"){\n                data = params\n            }else{\n                if(params.__class__ !== _b_.dict){\n                    throw _b_.TypeError.$factory(\"wrong type for data, \" +\n                        \"expected dict or str, got \" + $B.class_name(params))\n                }\n                params = params.$string_dict\n                var items = []\n                for(var key in params){\n                    items.push(encodeURIComponent(key) + \"=\" +\n                               encodeURIComponent(params[key][0]))\n                }\n                data = items.join(\"&\")\n            }\n        }else if(key==\"headers\"){\n            headers = kw.$string_dict[key].$string_dict\n            for(var key in headers){\n                self.js.setRequestHeader(key, headers[key][0])\n            }\n        }else if(key.startsWith(\"on\")){\n            var event = key.substr(2)\n            if(event == \"timeout\"){\n                timeout.func = kw.$string_dict[key][0]\n            }else{\n                var f = kw.$string_dict[key][0]\n                ajax.bind(self, event, f)\n            }\n        }else if(key == \"mode\"){\n            if(kw.$string_dict[key][0] == \"binary\"){\n                self.js.responseType = \"arraybuffer\"\n                mode = \"binary\"\n            }else if(kw.$string_dict[key][0] == \"json\"){\n                self.js.responseType = \"json\"\n                mode = \"json\"\n            }\n        }else if(key == \"timeout\"){\n            timeout.seconds = kw.$string_dict[key][0]\n        }else if(key == \"cache\"){\n            cache = kw.$string_dict[key][0]\n        }\n    }\n    if((method == \"post\" || method == \"put\") && ! headers){\n        // For POST requests, set default header\n        self.js.setRequestHeader(\"Content-type\",\n                                 \"application/x-www-form-urlencoded\")\n    }\n    return {cache: cache, data:data, mode: mode, timeout: timeout}\n}\n\nvar ajax = {\n    __class__: _b_.type,\n    __mro__: [$B.JSObject, _b_.object],\n\n    __getattribute__ : function(self, attr){\n        // Special case for send : accept dict as parameters\n        if(attr == 'send'){\n            return function(params){\n                return ajax.send(self, params)\n            }\n        }else if(attr == 'xml'){ // alias\n            attr = 'responseXML'\n        }\n        // Otherwise default to JSObject method\n        return $B.JSObject.__getattribute__(self, attr)\n    },\n\n    __repr__ : function(self){return '<object Ajax>'},\n    __str__ : function(self){return '<object Ajax>'},\n\n    $infos: {\n        __module__: \"builtins\",\n        __name__: \"ajax\"\n    },\n\n    bind: function(self, evt, func){\n        // req.bind(evt,func) is the same as req.onevt = func\n        self.js['on' + evt] = function(){\n            try{\n                return func.apply(null, arguments)\n            }catch(err){\n                if(err.__class__ !== undefined){\n                    var msg = _b_.getattr(err, 'info') +\n                        '\\n' + err.__class__.$infos.__name__\n                    if(err.args){msg += ': ' + err.args[0]}\n                    try{getattr($B.stderr, \"write\")(msg)}\n                    catch(err){console.log(msg)}\n                }else{\n                    try{getattr($B.stderr, \"write\")(err)}\n                    catch(err1){console.log(err)}\n                }\n            }\n        }\n        return $N\n    },\n\n    send: function(self, params){\n        // params can be Python dictionary or string\n        var res = ''\n        if(!params){\n            self.js.send()\n            return $N\n        }else if(isinstance(params, str)){\n            res = params\n        }else if(isinstance(params, dict)){\n            if(self.headers['content-type'] == 'multipart/form-data'){\n                // The FormData object serializes the data in the 'multipart/form-data'\n                // content-type so we may as well override that header if it was set\n                // by the user.\n                res = new FormData()\n                var items = _b_.list.$factory(_b_.dict.items(params))\n                for(var i = 0, len = items.length; i < len; i++){\n                    add_to_res(res, str.$factory(items[i][0]), items[i][1])\n                }\n            }else{\n                var items = _b_.list.$factory(_b_.dict.items(params))\n                for(var i = 0, len = items.length; i < len; i++){\n                    var key = encodeURIComponent(str.$factory(items[i][0]));\n                    if(isinstance(items[i][1], list)){\n                        for (j = 0; j < items[i][1].length; j++) {\n                            res += key +'=' +\n                                encodeURIComponent(str.$factory(items[i][1][j])) + '&'\n                        }\n                    }else{\n                        res += key + '=' +\n                            encodeURIComponent(str.$factory(items[i][1])) + '&'\n                    }\n                }\n                res = res.substr(0, res.length - 1)\n            }\n        }else{\n            throw _b_.TypeError(\"send() argument must be string or dictionary, not '\" +\n                str.$factory(params.__class__) + \"'\")\n        }\n        self.js.send(res)\n        return $N\n    },\n\n    set_header: function(self,key,value){\n        self.js.setRequestHeader(key,value)\n        self.headers[key.toLowerCase()] = value.toLowerCase()\n    },\n\n    set_timeout: function(self, seconds, func){\n        self.js.$requestTimer = setTimeout(\n            function() {self.js.abort();func()},\n            seconds * 1000)\n    }\n}\n\najax.$factory = function(){\n\n    if(window.XMLHttpRequest){// code for IE7+, Firefox, Chrome, Opera, Safari\n        var xmlhttp = new XMLHttpRequest()\n    }else{// code for IE6, IE5\n        var xmlhttp = new ActiveXObject(\"Microsoft.XMLHTTP\")\n    }\n    xmlhttp.onreadystatechange = function(){\n        // here, \"this\" refers to xmlhttp\n        var state = this.readyState\n        if(this.responseType == \"\" || this.responseType == \"text\"){\n            res.js.text = this.responseText\n        }\n        var timer = this.$requestTimer\n        if(state == 0 && this.onuninitialized){this.onuninitialized(res)}\n        else if(state == 1 && this.onloading){this.onloading(res)}\n        else if(state == 2 && this.onloaded){this.onloaded(res)}\n        else if(state == 3 && this.oninteractive){this.oninteractive(res)}\n        else if(state == 4 && this.oncomplete){\n            if(timer !== null){window.clearTimeout(timer)}\n            this.oncomplete(res)\n        }\n    }\n    var res = {\n        __class__: ajax,\n        js: xmlhttp,\n        headers: {}\n    }\n    return res\n}\n\nfunction _request_without_body(method){\n    var $ = $B.args(method, 3, {method: null, url: null, blocking: null},\n        [\"method\", \"url\", \"blocking\"], arguments, {blocking: false},\n        null, \"kw\"),\n    method = $.method,\n    url = $.url,\n    async = !$.blocking,\n    kw = $.kw\n    var self = ajax.$factory(),\n        items = handle_kwargs(self, kw, method),\n        qs = items.data,\n        timeout = items.timeout\n    set_timeout(self, timeout)\n    if(qs){\n        url += \"?\" + qs\n    }\n    if(! (items.cache === true)){\n        url += (qs ? \"&\" : \"?\") + (new Date()).getTime()\n    }\n    // Add function read() to return str or bytes according to mode\n    self.js.read = function(){\n        return _read(self)\n    }\n    self.js.open(method.toUpperCase(), url, async)\n    self.js.send()\n}\n\nfunction _request_with_body(method){\n    var $ = $B.args(method, 3, {method: null, url: null, blocking: null},\n        [\"method\", \"url\", \"blocking\"], arguments, {blocking: false},\n        null, \"kw\"),\n    method = $.method,\n    url = $.url,\n    async = !$.blocking,\n    kw = $.kw\n\n    var self = ajax.$factory()\n    self.js.open(method.toUpperCase(), url, async)\n    var items = handle_kwargs(self, kw, method),\n        data = items.data,\n        timeout = items.timeout\n    set_timeout(self, timeout)\n    // Add function read() to return str or bytes according to mode\n    self.js.read = function(){\n        return _read(self)\n    }\n    self.js.send(data)\n}\n\nfunction _delete(){\n    _request_without_body.call(null, \"delete\", ...arguments)\n}\n\nfunction get(){\n    _request_without_body.call(null, \"get\", ...arguments)\n}\n\nfunction head(){\n    _request_without_body.call(null, \"head\", ...arguments)\n}\n\nfunction options(){\n    _request_without_body.call(null, \"options\", ...arguments)\n}\n\nfunction post(){\n    _request_with_body.call(null, \"post\", ...arguments)\n}\n\nfunction put(){\n    _request_with_body.call(null, \"put\", ...arguments)\n}\n\nfunction file_upload(){\n    var $ = $B.args(\"file_upload\", 2, {url: null, \"file\": file},\n            [\"url\", \"file\"], arguments, {}, null, \"kw\"),\n        url = $.url,\n        file = $.file,\n        kw = $.kw\n\n    var formdata = new FormData()\n    formdata.append('filetosave', file, file.name)\n\n    var self = ajax.$factory()\n    self.js.open('POST', url, True)\n    self.js.send(formdata)\n\n    for(key in kw.$string_dict){\n        if(key.startsWith(\"on\")){\n            ajax.bind(self, key.substr(2), kw.$string_dict[key][0])\n        }\n    }\n}\n\n$B.set_func_names(ajax)\n\nreturn {\n    ajax: ajax,\n    Ajax: ajax,\n    delete: _delete,\n    file_upload: file_upload,\n    get: get,\n    head: head,\n    options: options,\n    post: post,\n    put: put\n}\n\n})(__BRYTHON__)\n"], "browser.ajax": [".py", "from _ajax import *\n", ["_ajax"]]}
+var scripts = {"$timestamp": 1585834500814, "browser": [".py", "", [], 1], "_aio": [".js", "// Replacement for asyncio.\n//\n// CPython asyncio can't be implemented for Brython because it relies on\n// blocking function (eg run(), run_until_complete()), and such functions\n// can't be defined in Javascript. It also manages an event loop, and a\n// browser only has its own built-in event loop.\n//\n// This module exposes functions whose result can be \"await\"-ed inside\n// asynchrounous functions defined by \"async def\".\n\nvar $module = (function($B){\n\nvar _b_ = $B.builtins\n\nvar responseType = {\n    \"text\": \"text\",\n    \"binary\": \"arraybuffer\",\n    \"dataURL\": \"arraybuffer\"\n}\n\nfunction handle_kwargs(kw, method){\n    var data,\n        cache = \"no-cache\",\n        format = \"text\",\n        headers = {},\n        timeout = {}\n    for(var key in kw.$string_dict){\n        if(key == \"data\"){\n            var params = kw.$string_dict[key][0]\n            if(typeof params == \"string\"){\n                data = params\n            }else{\n                if(params.__class__ !== _b_.dict){\n                    throw _b_.TypeError.$factory(\"wrong type for data, \" +\n                        \"expected dict or str, got \" + $B.class_name(params))\n                }\n                params = params.$string_dict\n                var items = []\n                for(var key in params){\n                    items.push(encodeURIComponent(key) + \"=\" +\n                               encodeURIComponent(params[key][0]))\n                }\n                data = items.join(\"&\")\n            }\n        }else if(key == \"headers\"){\n            headers = _b_.dict.$to_obj(kw)\n        }else if(key.startsWith(\"on\")){\n            var event = key.substr(2)\n            if(event == \"timeout\"){\n                timeout.func = kw.$string_dict[key][0]\n            }else{\n                ajax.bind(self, event, kw.$string_dict[key][0])\n            }\n        }else if(key == \"timeout\"){\n            timeout.seconds = kw.$string_dict[key][0]\n        }else if(key == \"cache\"){\n            cache = kw.$string_dict[key][0]\n        }else if(key == \"format\"){\n            format = kw.$string_dict[key][0]\n        }\n    }\n    if(method == \"post\"){\n        // For POST requests, set default header\n        if(! headers.hasOwnProperty(\"Content-type\")){\n            headers[\"Content-Type\"] = \"application/x-www-form-urlencoded\"\n        }\n        if(data && !headers.hasOwnProperty(\"Content-Length\")){\n            headers[\"Content-Length\"] = data.length\n        }\n    }\n    return {\n        body: data,\n        cache: cache,\n        format: format,\n        timeout: timeout,\n        headers: headers\n    }\n}\n\nfunction ajax(){\n    var $ = $B.args(\"ajax\", 2, {method: null, url: null},\n            [\"method\", \"url\"], arguments, {},\n            null, \"kw\"),\n        method = $.method.toUpperCase(),\n        url = $.url,\n        kw = $.kw\n    var args = handle_kwargs(kw, \"get\")\n    if(! args.cache){\n        url = \"?ts\" + (new Date()).getTime() + \"=0\"\n    }\n    if(args.body && method == \"GET\"){\n        url = url + (args.cache ? \"?\" : \"&\") + args.body\n    }\n    var func = function(){\n        return new Promise(function(resolve, reject){\n            var xhr = new XMLHttpRequest()\n            xhr.open(method, url, true)\n            for(key in args.headers){\n                xhr.setRequestHeader(key, args.headers[key])\n            }\n            xhr.format = args.format\n            xhr.responseType = responseType[args.format]\n            xhr.onreadystatechange = function(){\n                if(this.readyState == 4){\n                    this.__class__ = HTTPRequest\n                    resolve(this)\n                }\n            }\n            if(method == \"POST\" && args.body){\n                xhr.send(args.body)\n            }else{\n                xhr.send()\n            }\n        })\n    }\n    func.$infos = {\n        __name__: \"ajax_\" + method\n    }\n    return {\n        __class__: $B.coroutine,\n        $args: [url, args],\n        $func: func\n    }\n}\n\nfunction event(){\n    // event(element, *names) is a Promise on the events \"names\" happening on\n    // the element. This promise always resolves (never rejects) with the\n    // first triggered DOM event.\n    var $ = $B.args(\"event\", 1, {element: null},\n            [\"element\"], arguments, {}, \"names\", null),\n        element = $.element,\n        names = $.names\n    return new Promise(function(resolve){\n        var callbacks = []\n        names.forEach(function(name){\n            var callback = function(evt){\n                // When one of the handled events is triggered, all bindings\n                // are removed\n                callbacks.forEach(function(items){\n                    $B.DOMNode.unbind(element, items[0], items[1])\n                })\n                resolve($B.$DOMEvent(evt))\n            }\n            callbacks.push([name, callback])\n            $B.DOMNode.bind(element, name, callback)\n        })\n    })\n}\n\nvar HTTPRequest = $B.make_class(\"Request\")\n\nHTTPRequest.data = _b_.property.$factory(function(self){\n    if(self.format == \"binary\"){\n        var view = new Uint8Array(self.response)\n        return _b_.bytes.$factory(Array.from(view))\n    }else if(self.format == \"text\"){\n        return self.responseText\n    }else if(self.format == \"dataURL\"){\n        var base64String = btoa(String.fromCharCode.apply(null,\n            new Uint8Array(self.response)))\n        return \"data:\" + self.getResponseHeader(\"Content-Type\") +\n            \";base64,\" + base64String\n    }\n})\n\nHTTPRequest.response_headers = _b_.property.$factory(function(self){\n    var headers = self.getAllResponseHeaders()\n    if(headers === null){return _b_.None}\n    var res = _b_.dict.$factory()\n    if(headers.length > 0){\n        // Convert the header string into an array\n        // of individual headers\n        var lines = headers.trim().split(/[\\r\\n]+/)\n        // Create a map of header names to values\n        lines.forEach(function(line){\n          var parts = line.split(': ')\n          var header = parts.shift()\n          var value = parts.join(': ')\n          _b_.dict.$setitem(res, header, value)\n        })\n    }\n    return res\n})\n\nfunction get(){\n    return ajax.bind(null, \"GET\").apply(null, arguments)\n}\n\nfunction iscoroutine(f){\n    return f.__class__ === $B.coroutine\n}\n\nfunction iscoroutinefunction(f){\n    return (f.$infos.__code__.co_flags & 128) != 0\n}\n\nfunction post(){\n    return ajax.bind(null, \"POST\").apply(null, arguments)\n}\n\nfunction run(coro){\n    var handle_success = function(){\n            $B.leave_frame()\n        },\n        handle_error = function(ev){\n            console.log(\"handle error, ev\", ev)\n            var err_msg = \"Traceback (most recent call last):\\n\"\n            err_msg += $B.print_stack(ev.$stack)\n            if(ev.__class){\n                err_msg += \"\\n\" + ev.__class__.$infos.__name__ +\n                    ': ' + ev.args[0]\n            }\n            $B.builtins.print(err_msg)\n            throw ev\n        }\n\n    var $ = $B.args(\"run\", 3, {coro: null, onsuccess: null, onerror: null},\n            [\"coro\", \"onsuccess\", \"onerror\"], arguments,\n            {onsuccess: handle_success, onerror: handle_error},\n            null, null),\n        coro = $.coro,\n        onsuccess = $.onsuccess,\n        onerror = $.onerror\n\n    if(onerror !== handle_error){\n        function error_func(exc){\n            try{\n                onerror(exc)\n            }catch(err){\n                handle_error(err)\n            }\n        }\n    }else{\n        error_func = handle_error\n    }\n    // Add top frame a second time to get the correct frame when the async\n    // function exits\n    $B.frames_stack.push($B.last($B.frames_stack))\n    $B.coroutine.send(coro).then(onsuccess).catch(error_func)\n    return _b_.None\n}\n\nfunction sleep(seconds){\n    var func = function(){\n        return new Promise(resolve => setTimeout(\n            function(){resolve(_b_.None)}, 1000 * seconds))\n    }\n    func.$infos = {\n        __name__: \"sleep\"\n    }\n    return {\n        __class__: $B.coroutine,\n        $args: [seconds],\n        $func: func\n    }\n}\n\nreturn {\n    ajax: ajax,\n    event: event,\n    get: get,\n    iscoroutine: iscoroutine,\n    iscoroutinefunction: iscoroutinefunction,\n    post: post,\n    run: run,\n    sleep: sleep\n}\n\n})(__BRYTHON__)\n"],"browser.aio": [".py", "from _aio import *\n\ndef _task(coro,Id,block):\n async def _task():\n  block[Id]=None\n  try :\n   block[Id]=await coro\n  except Exception as e:\n   block[Id]=e\n   \n  if not block[Id]:\n   del block[Id]\n return _task()\n \nasync def gather(*coros,rate=0):\n dones={}\n counts=0\n for c in coros:\n  run(_task(c,f'task{counts}',dones))\n  counts +=1\n while not all(dones.values()):\n  await sleep(rate)\n return dones\n", ["_aio"]], "_ajax": [".js", "// ajax\nvar $module = (function($B){\n\neval($B.InjectBuiltins())\nvar $N = $B.builtins.None,\n    _b_ = $B.builtins\n\nvar add_to_res = function(res, key, val) {\n    if(isinstance(val, list)){\n        for (j = 0; j < val.length; j++) {\n            add_to_res(res, key, val[j])\n        }\n    }else if (val instanceof File || val instanceof Blob){\n        res.append(key, val)\n    }else{res.append(key,str.$factory(val))}\n}\n\nfunction set_timeout(self, timeout){\n    if(timeout.seconds !== undefined){\n        self.js.$requestTimer = setTimeout(\n            function() {\n                self.js.abort()\n                if(timeout.func){\n                    timeout.func()\n                }\n            },\n            timeout.seconds * 1000)\n    }\n}\n\nfunction _read(req){\n    var xhr = req.js,\n        res\n    if(xhr.responseType == \"json\"){\n        return $B.structuredclone2pyobj(xhr.response)\n    }\n    if(xhr.responseType == \"arraybuffer\"){\n        var abuf = new Uint8Array(xhr.response)\n        res = []\n        for(var i = 0, len = abuf.length; i < len; i++){\n            res.push(abuf[i])\n        }\n        return _b_.bytes.$factory(res)\n    }else{\n        return xhr.responseText\n    }\n}\n\nfunction handle_kwargs(self, kw, method){\n    var data,\n        headers,\n        cache,\n        mode,\n        timeout = {}\n    for(var key in kw.$string_dict){\n        if(key == \"data\"){\n            var params = kw.$string_dict[key][0]\n            if(typeof params == \"string\"){\n                data = params\n            }else{\n                if(params.__class__ !== _b_.dict){\n                    throw _b_.TypeError.$factory(\"wrong type for data, \" +\n                        \"expected dict or str, got \" + $B.class_name(params))\n                }\n                params = params.$string_dict\n                var items = []\n                for(var key in params){\n                    items.push(encodeURIComponent(key) + \"=\" +\n                               encodeURIComponent(params[key][0]))\n                }\n                data = items.join(\"&\")\n            }\n        }else if(key==\"headers\"){\n            headers = kw.$string_dict[key].$string_dict\n            for(var key in headers){\n                self.js.setRequestHeader(key, headers[key][0])\n            }\n        }else if(key.startsWith(\"on\")){\n            var event = key.substr(2)\n            if(event == \"timeout\"){\n                timeout.func = kw.$string_dict[key][0]\n            }else{\n                var f = kw.$string_dict[key][0]\n                ajax.bind(self, event, f)\n            }\n        }else if(key == \"mode\"){\n            if(kw.$string_dict[key][0] == \"binary\"){\n                self.js.responseType = \"arraybuffer\"\n                mode = \"binary\"\n            }else if(kw.$string_dict[key][0] == \"json\"){\n                self.js.responseType = \"json\"\n                mode = \"json\"\n            }\n        }else if(key == \"timeout\"){\n            timeout.seconds = kw.$string_dict[key][0]\n        }else if(key == \"cache\"){\n            cache = kw.$string_dict[key][0]\n        }\n    }\n    if((method == \"post\" || method == \"put\") && ! headers){\n        // For POST requests, set default header\n        self.js.setRequestHeader(\"Content-type\",\n                                 \"application/x-www-form-urlencoded\")\n    }\n    return {cache: cache, data:data, mode: mode, timeout: timeout}\n}\n\nvar ajax = {\n    __class__: _b_.type,\n    __mro__: [$B.JSObject, _b_.object],\n\n    __getattribute__ : function(self, attr){\n        // Special case for send : accept dict as parameters\n        if(attr == 'send'){\n            return function(params){\n                return ajax.send(self, params)\n            }\n        }else if(attr == 'xml'){ // alias\n            attr = 'responseXML'\n        }\n        // Otherwise default to JSObject method\n        return $B.JSObject.__getattribute__(self, attr)\n    },\n\n    __repr__ : function(self){return '<object Ajax>'},\n    __str__ : function(self){return '<object Ajax>'},\n\n    $infos: {\n        __module__: \"builtins\",\n        __name__: \"ajax\"\n    },\n\n    bind: function(self, evt, func){\n        // req.bind(evt,func) is the same as req.onevt = func\n        self.js['on' + evt] = function(){\n            try{\n                return func.apply(null, arguments)\n            }catch(err){\n                if(err.__class__ !== undefined){\n                    var msg = _b_.getattr(err, 'info') +\n                        '\\n' + err.__class__.$infos.__name__\n                    if(err.args){msg += ': ' + err.args[0]}\n                    try{getattr($B.stderr, \"write\")(msg)}\n                    catch(err){console.log(msg)}\n                }else{\n                    try{getattr($B.stderr, \"write\")(err)}\n                    catch(err1){console.log(err)}\n                }\n            }\n        }\n        return $N\n    },\n\n    send: function(self, params){\n        // params can be Python dictionary or string\n        var res = ''\n        if(!params){\n            self.js.send()\n            return $N\n        }else if(isinstance(params, str)){\n            res = params\n        }else if(isinstance(params, dict)){\n            if(self.headers['content-type'] == 'multipart/form-data'){\n                // The FormData object serializes the data in the 'multipart/form-data'\n                // content-type so we may as well override that header if it was set\n                // by the user.\n                res = new FormData()\n                var items = _b_.list.$factory(_b_.dict.items(params))\n                for(var i = 0, len = items.length; i < len; i++){\n                    add_to_res(res, str.$factory(items[i][0]), items[i][1])\n                }\n            }else{\n                var items = _b_.list.$factory(_b_.dict.items(params))\n                for(var i = 0, len = items.length; i < len; i++){\n                    var key = encodeURIComponent(str.$factory(items[i][0]));\n                    if(isinstance(items[i][1], list)){\n                        for (j = 0; j < items[i][1].length; j++) {\n                            res += key +'=' +\n                                encodeURIComponent(str.$factory(items[i][1][j])) + '&'\n                        }\n                    }else{\n                        res += key + '=' +\n                            encodeURIComponent(str.$factory(items[i][1])) + '&'\n                    }\n                }\n                res = res.substr(0, res.length - 1)\n            }\n        }else{\n            throw _b_.TypeError(\"send() argument must be string or dictionary, not '\" +\n                str.$factory(params.__class__) + \"'\")\n        }\n        self.js.send(res)\n        return $N\n    },\n\n    set_header: function(self,key,value){\n        self.js.setRequestHeader(key,value)\n        self.headers[key.toLowerCase()] = value.toLowerCase()\n    },\n\n    set_timeout: function(self, seconds, func){\n        self.js.$requestTimer = setTimeout(\n            function() {self.js.abort();func()},\n            seconds * 1000)\n    }\n}\n\najax.$factory = function(){\n\n    if(window.XMLHttpRequest){// code for IE7+, Firefox, Chrome, Opera, Safari\n        var xmlhttp = new XMLHttpRequest()\n    }else{// code for IE6, IE5\n        var xmlhttp = new ActiveXObject(\"Microsoft.XMLHTTP\")\n    }\n    xmlhttp.onreadystatechange = function(){\n        // here, \"this\" refers to xmlhttp\n        var state = this.readyState\n        if(this.responseType == \"\" || this.responseType == \"text\"){\n            res.js.text = this.responseText\n        }\n        var timer = this.$requestTimer\n        if(state == 0 && this.onuninitialized){this.onuninitialized(res)}\n        else if(state == 1 && this.onloading){this.onloading(res)}\n        else if(state == 2 && this.onloaded){this.onloaded(res)}\n        else if(state == 3 && this.oninteractive){this.oninteractive(res)}\n        else if(state == 4 && this.oncomplete){\n            if(timer !== null){window.clearTimeout(timer)}\n            this.oncomplete(res)\n        }\n    }\n    var res = {\n        __class__: ajax,\n        js: xmlhttp,\n        headers: {}\n    }\n    return res\n}\n\nfunction _request_without_body(method){\n    var $ = $B.args(method, 3, {method: null, url: null, blocking: null},\n        [\"method\", \"url\", \"blocking\"], arguments, {blocking: false},\n        null, \"kw\"),\n    method = $.method,\n    url = $.url,\n    async = !$.blocking,\n    kw = $.kw\n    var self = ajax.$factory(),\n        items = handle_kwargs(self, kw, method),\n        qs = items.data,\n        timeout = items.timeout\n    set_timeout(self, timeout)\n    if(qs){\n        url += \"?\" + qs\n    }\n    if(! (items.cache === true)){\n        url += (qs ? \"&\" : \"?\") + (new Date()).getTime()\n    }\n    // Add function read() to return str or bytes according to mode\n    self.js.read = function(){\n        return _read(self)\n    }\n    self.js.open(method.toUpperCase(), url, async)\n    self.js.send()\n}\n\nfunction _request_with_body(method){\n    var $ = $B.args(method, 3, {method: null, url: null, blocking: null},\n        [\"method\", \"url\", \"blocking\"], arguments, {blocking: false},\n        null, \"kw\"),\n    method = $.method,\n    url = $.url,\n    async = !$.blocking,\n    kw = $.kw\n\n    var self = ajax.$factory()\n    self.js.open(method.toUpperCase(), url, async)\n    var items = handle_kwargs(self, kw, method),\n        data = items.data,\n        timeout = items.timeout\n    set_timeout(self, timeout)\n    // Add function read() to return str or bytes according to mode\n    self.js.read = function(){\n        return _read(self)\n    }\n    self.js.send(data)\n}\n\nfunction _delete(){\n    _request_without_body.call(null, \"delete\", ...arguments)\n}\n\nfunction get(){\n    _request_without_body.call(null, \"get\", ...arguments)\n}\n\nfunction head(){\n    _request_without_body.call(null, \"head\", ...arguments)\n}\n\nfunction options(){\n    _request_without_body.call(null, \"options\", ...arguments)\n}\n\nfunction post(){\n    _request_with_body.call(null, \"post\", ...arguments)\n}\n\nfunction put(){\n    _request_with_body.call(null, \"put\", ...arguments)\n}\n\nfunction file_upload(){\n    var $ = $B.args(\"file_upload\", 2, {url: null, \"file\": file},\n            [\"url\", \"file\"], arguments, {}, null, \"kw\"),\n        url = $.url,\n        file = $.file,\n        kw = $.kw\n\n    var formdata = new FormData()\n    formdata.append('filetosave', file, file.name)\n\n    var self = ajax.$factory()\n    self.js.open('POST', url, True)\n    self.js.send(formdata)\n\n    for(key in kw.$string_dict){\n        if(key.startsWith(\"on\")){\n            ajax.bind(self, key.substr(2), kw.$string_dict[key][0])\n        }\n    }\n}\n\n$B.set_func_names(ajax)\n\nreturn {\n    ajax: ajax,\n    Ajax: ajax,\n    delete: _delete,\n    file_upload: file_upload,\n    get: get,\n    head: head,\n    options: options,\n    post: post,\n    put: put\n}\n\n})(__BRYTHON__)\n"], "browser.ajax": [".py", "from _ajax import *\n", ["_ajax"]],"random": [".js", "// Javascript implementation of the random module\n// Based on Ian Bicking's implementation of the Mersenne twister\n\nvar $module = (function($B){\n\nvar _b_ = $B.builtins,\n    i\n\nvar VERSION = 3\n\n// Code copied from https://github.com/ianb/whrandom/blob/master/mersenne.js\n// by Ian Bicking\n\n// this program is a JavaScript version of Mersenne Twister,\n// a straight conversion from the original program, mt19937ar.c,\n// translated by y. okada on july 17, 2006.\n// and modified a little at july 20, 2006, but there are not any substantial differences.\n// modularized by Ian Bicking, March 25, 2013 (found original version at http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/VERSIONS/JAVASCRIPT/java-script.html)\n// in this program, procedure descriptions and comments of original source code were not removed.\n// lines commented with //c// were originally descriptions of c procedure. and a few following lines are appropriate JavaScript descriptions.\n// lines commented with /* and */ are original comments.\n// lines commented with // are additional comments in this JavaScript version.\n/*\n   A C-program for MT19937, with initialization improved 2002/1/26.\n   Coded by Takuji Nishimura and Makoto Matsumoto.\n\n   Before using, initialize the state by using init_genrand(seed)\n   or init_by_array(init_key, key_length).\n\n   Copyright (C) 1997 - 2002, Makoto Matsumoto and Takuji Nishimura,\n   All rights reserved.\n\n   Redistribution and use in source and binary forms, with or without\n   modification, are permitted provided that the following conditions\n   are met:\n\n     1. Redistributions of source code must retain the above copyright\n        notice, this list of conditions and the following disclaimer.\n\n     2. Redistributions in binary form must reproduce the above copyright\n        notice, this list of conditions and the following disclaimer in the\n        documentation and/or other materials provided with the distribution.\n\n     3. The names of its contributors may not be used to endorse or promote\n        products derived from this software without specific prior written\n        permission.\n\n   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n   \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\n   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\n   A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR\n   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,\n   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,\n   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR\n   PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF\n   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING\n   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\n   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n\n   Any feedback is very welcome.\n   http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/emt.html\n   email: m-mat @ math.sci.hiroshima-u.ac.jp (remove space)\n*/\n\nfunction RandomStream(seed) {\n\n    /*jshint bitwise:false */\n    /* Period parameters */\n    //c//#define N 624\n    //c//#define M 397\n    //c//#define MATRIX_A 0x9908b0dfUL   /* constant vector a */\n    //c//#define UPPER_MASK 0x80000000UL /* most significant w-r bits */\n    //c//#define LOWER_MASK 0x7fffffffUL /* least significant r bits */\n    var N = 624\n    var M = 397\n    var MATRIX_A = 0x9908b0df   /* constant vector a */\n    var UPPER_MASK = 0x80000000 /* most significant w-r bits */\n    var LOWER_MASK = 0x7fffffff /* least significant r bits */\n    //c//static unsigned long mt[N]; /* the array for the state vector  */\n    //c//static int mti=N+1; /* mti==N+1 means mt[N] is not initialized */\n    var mt = new Array(N)   /* the array for the state vector  */\n    var mti = N + 1           /* mti==N+1 means mt[N] is not initialized */\n\n    function unsigned32(n1){\n        // returns a 32-bits unsiged integer from an operand to which applied a\n        // bit operator.\n        return n1 < 0 ? (n1 ^ UPPER_MASK) + UPPER_MASK : n1\n    }\n\n    function subtraction32(n1, n2){\n    // emulates lowerflow of a c 32-bits unsiged integer variable, instead of\n    // the operator -. these both arguments must be non-negative integers\n    // expressible using unsigned 32 bits.\n        return n1 < n2 ? unsigned32((0x100000000 - (n2 - n1)) & 0xffffffff) :\n          n1 - n2\n    }\n\n    function addition32(n1, n2){\n        // emulates overflow of a c 32-bits unsiged integer variable, instead of\n        // the operator +. these both arguments must be non-negative integers\n        // expressible using unsigned 32 bits.\n        return unsigned32((n1 + n2) & 0xffffffff)\n    }\n\n    function multiplication32(n1, n2){\n        // emulates overflow of a c 32-bits unsiged integer variable, instead of the\n        // operator *. these both arguments must be non-negative integers\n        // expressible using unsigned 32 bits.\n        var sum = 0\n        for (var i = 0; i < 32; ++i){\n            if((n1 >>> i) & 0x1){\n                sum = addition32(sum, unsigned32(n2 << i))\n            }\n        }\n        return sum\n    }\n\n    /* initializes mt[N] with a seed */\n    //c//void init_genrand(unsigned long s)\n    function init_genrand(s) {\n        //c//mt[0]= s & 0xffffffff;\n        mt[0] = unsigned32(s & 0xffffffff)\n        for(mti = 1; mti < N; mti++){\n            mt[mti] =\n                //c//(1812433253 * (mt[mti-1] ^ (mt[mti-1] >> 30)) + mti);\n                addition32(multiplication32(1812433253,\n                    unsigned32(mt[mti - 1] ^ (mt[mti - 1] >>> 30))), mti)\n            /* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */\n            /* In the previous versions, MSBs of the seed affect   */\n            /* only MSBs of the array mt[].                        */\n            /* 2002/01/09 modified by Makoto Matsumoto             */\n            //c//mt[mti] &= 0xffffffff;\n            mt[mti] = unsigned32(mt[mti] & 0xffffffff);\n            /* for >32 bit machines */\n        }\n    }\n\n    /* initialize by an array with array-length */\n    /* init_key is the array for initializing keys */\n    /* key_length is its length */\n    /* slight change for C++, 2004/2/26 */\n    //c//void init_by_array(unsigned long init_key[], int key_length)\n    function init_by_array(init_key, key_length) {\n        //c//int i, j, k;\n        var i, j, k\n        init_genrand(19650218)\n        i = 1\n        j = 0\n        k = (N > key_length ? N : key_length)\n        for(; k; k--){\n          //c//mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 30)) * 1664525))\n          //c// + init_key[j] + j; /* non linear */\n          mt[i] = addition32(\n              addition32(unsigned32(mt[i] ^\n                  multiplication32(unsigned32(mt[i - 1] ^ (mt[i - 1] >>> 30)),\n                  1664525)),\n              init_key[j]), j)\n          mt[i] =\n              //c//mt[i] &= 0xffffffff; /* for WORDSIZE > 32 machines */\n              unsigned32(mt[i] & 0xffffffff)\n          i++\n          j++\n          if(i >= N){mt[0] = mt[N - 1]; i = 1}\n          if(j >= key_length){j = 0}\n        }\n        for(k = N - 1; k; k--){\n            //c//mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 30)) * 1566083941))\n            //c//- i; /* non linear */\n            mt[i] = subtraction32(\n                unsigned32(\n                    (mt[i]) ^\n                        multiplication32(\n                            unsigned32(mt[i - 1] ^ (mt[i - 1] >>> 30)),\n                    1566083941)),\n                i\n            )\n            //c//mt[i] &= 0xffffffff; /* for WORDSIZE > 32 machines */\n            mt[i] = unsigned32(mt[i] & 0xffffffff)\n            i++\n            if(i >= N){mt[0] = mt[N - 1]; i = 1}\n        }\n        mt[0] = 0x80000000; /* MSB is 1; assuring non-zero initial array */\n    }\n\n    /* generates a random number on [0,0xffffffff]-interval */\n    //c//unsigned long genrand_int32(void)\n    function genrand_int32() {\n        //c//unsigned long y;\n        //c//static unsigned long mag01[2]={0x0UL, MATRIX_A};\n        var y;\n        var mag01 = [0x0, MATRIX_A];\n        /* mag01[x] = x * MATRIX_A  for x=0,1 */\n\n        if(mti >= N){ /* generate N words at one time */\n            //c//int kk;\n            var kk\n\n            if(mti == N + 1){   /* if init_genrand() has not been called, */\n              init_genrand(Date.now()) /* a default initial seed is used */\n            }\n\n            for(kk = 0; kk < N - M; kk++){\n              //c//y = (mt[kk]&UPPER_MASK)|(mt[kk+1]&LOWER_MASK);\n              //c//mt[kk] = mt[kk+M] ^ (y >> 1) ^ mag01[y & 0x1];\n              y = unsigned32((mt[kk]&UPPER_MASK) | (mt[kk + 1]&LOWER_MASK))\n              mt[kk] = unsigned32(mt[kk + M] ^ (y >>> 1) ^ mag01[y & 0x1])\n            }\n            for(;kk < N - 1; kk++){\n              //c//y = (mt[kk]&UPPER_MASK)|(mt[kk+1]&LOWER_MASK);\n              //c//mt[kk] = mt[kk+(M-N)] ^ (y >> 1) ^ mag01[y & 0x1];\n              y = unsigned32((mt[kk]&UPPER_MASK) | (mt[kk + 1]&LOWER_MASK))\n              mt[kk] = unsigned32(mt[kk + (M - N)] ^ (y >>> 1) ^ mag01[y & 0x1])\n            }\n            //c//y = (mt[N-1]&UPPER_MASK)|(mt[0]&LOWER_MASK);\n            //c//mt[N-1] = mt[M-1] ^ (y >> 1) ^ mag01[y & 0x1];\n            y = unsigned32((mt[N - 1] & UPPER_MASK) | (mt[0] & LOWER_MASK))\n            mt[N - 1] = unsigned32(mt[M - 1] ^ (y >>> 1) ^ mag01[y & 0x1])\n            mti = 0\n        }\n\n        y = mt[mti++]\n\n        /* Tempering */\n        //c//y ^= (y >> 11);\n        //c//y ^= (y << 7) & 0x9d2c5680;\n        //c//y ^= (y << 15) & 0xefc60000;\n        //c//y ^= (y >> 18);\n        y = unsigned32(y ^ (y >>> 11))\n        y = unsigned32(y ^ ((y << 7) & 0x9d2c5680))\n        y = unsigned32(y ^ ((y << 15) & 0xefc60000))\n        y = unsigned32(y ^ (y >>> 18))\n\n        return y\n    }\n\n    /* generates a random number on [0,0x7fffffff]-interval */\n    //c//long genrand_int31(void)\n    function genrand_int31(){\n        //c//return (genrand_int32()>>1);\n        return (genrand_int32()>>>1)\n    }\n\n    /* generates a random number on [0,1]-real-interval */\n    //c//double genrand_real1(void)\n    function genrand_real1(){\n        return genrand_int32()*(1.0/4294967295.0)\n        /* divided by 2^32-1 */\n    }\n\n    /* generates a random number on [0,1)-real-interval */\n    //c//double genrand_real2(void)\n    function genrand_real2(){\n        return genrand_int32() * (1.0 / 4294967296.0)\n        /* divided by 2^32 */\n    }\n\n    /* generates a random number on (0,1)-real-interval */\n    //c//double genrand_real3(void)\n    function genrand_real3() {\n        return ((genrand_int32()) + 0.5) * (1.0 / 4294967296.0)\n        /* divided by 2^32 */\n    }\n\n    /* generates a random number on [0,1) with 53-bit resolution*/\n    //c//double genrand_res53(void)\n    function genrand_res53() {\n        //c//unsigned long a=genrand_int32()>>5, b=genrand_int32()>>6;\n        var a = genrand_int32() >>> 5,\n            b = genrand_int32() >>> 6\n        return (a * 67108864.0 + b) * (1.0 / 9007199254740992.0)\n    }\n    /* These real versions are due to Isaku Wada, 2002/01/09 added */\n\n    var random = genrand_res53\n\n    random.seed = function(seed){\n        if(! seed){seed = Date.now()}\n        if(typeof seed != \"number\"){seed = parseInt(seed, 10)}\n        if((seed !== 0 && ! seed) || isNaN(seed)){throw \"Bad seed\"}\n        init_genrand(seed)\n    }\n\n    random.seed(seed)\n\n    random.int31 = genrand_int31\n    random.real1 = genrand_real1\n    random.real2 = genrand_real2\n    random.real3 = genrand_real3\n    random.res53 = genrand_res53\n\n    // Added for compatibility with Python\n    random.getstate = function(){return [VERSION, mt, mti]}\n\n    random.setstate = function(state){\n        mt = state[1]\n        mti = state[2]\n    }\n\n    return random\n\n}\n\n// magic constants\n\nvar NV_MAGICCONST = 4 * Math.exp(-0.5)/Math.sqrt(2),\n    gauss_next = null,\n    NV_MAGICCONST = 1.71552776992141,\n    TWOPI = 6.28318530718,\n    LOG4 = 1.38629436111989,\n    SG_MAGICCONST = 2.50407739677627,\n    VERSION = VERSION\n\nvar Random = $B.make_class(\"Random\",\n    function(){\n        return {\n            __class__: Random,\n            _random: RandomStream()\n        }\n    }\n)\n\nRandom._randbelow = function(self, x){\n    return Math.floor(x * self._random())\n}\n\nRandom._urandom = function(self, n){\n    /*\n    urandom(n) -> str\n    Return n random bytes suitable for cryptographic use.\n    */\n\n    var randbytes = []\n    for(i = 0; i < n; i++){randbytes.push(parseInt(self._random() * 256))}\n    return _b_.bytes.$factory(randbytes)\n}\n\nRandom.betavariate = function(){\n    /* Beta distribution.\n\n    Conditions on the parameters are alpha > 0 and beta > 0.\n    Returned values range between 0 and 1.\n\n\n    # This version due to Janne Sinkkonen, and matches all the std\n    # texts (e.g., Knuth Vol 2 Ed 3 pg 134 \"the beta distribution\").\n    */\n\n    var $ = $B.args('betavariate', 3, {self: null, alpha:null, beta:null},\n            ['self', 'alpha', 'beta'], arguments, {}, null, null),\n        self = $.self,\n        alpha = $.alpha,\n        beta = $.beta\n\n    var y = Random.gammavariate(self, alpha, 1)\n    if(y == 0){return _b_.float.$factory(0)}\n    else{return y / (y + Random.gammavariate(self, beta, 1))}\n}\n\nRandom.choice = function(){\n    var $ = $B.args(\"choice\", 2,\n        {self: null, seq:null},[\"self\", \"seq\"],arguments, {}, null, null),\n        self = $.self,\n        seq = $.seq\n    var len, rank\n    if(Array.isArray(seq)){len = seq.length}\n    else{len = _b_.getattr(seq,\"__len__\")()}\n    if(len == 0){\n        throw _b_.IndexError.$factory(\"Cannot choose from an empty sequence\")\n    }\n    rank = parseInt(self._random() * len)\n    if(Array.isArray(seq)){return seq[rank]}\n    else{return _b_.getattr(seq, \"__getitem__\")(rank)}\n}\n\nRandom.choices = function(){\n    var $ = $B.args(\"choices\", 3,\n            {self: null,population:null, weights:null, cum_weights:null, k:null},\n            [\"self\", \"population\", \"weights\", \"cum_weights\", \"k\"], arguments,\n            {weights: _b_.None, cum_weights: _b_.None, k: 1}, \"*\", null),\n            self = $.self,\n            population = $.population,\n            weights = $.weights,\n            cum_weights = $.cum_weights,\n            k = $.k\n\n    if(population.length == 0){\n        throw _b_.ValueError.$factory(\"population is empty\")\n    }\n    population = _b_.list.$factory(population) // issue #1268\n    if(weights === _b_.None){\n        weights = []\n        population.forEach(function(){\n            weights.push(1)\n        })\n    }else if(cum_weights !== _b_.None){\n        throw _b_.TypeError.$factory(\"Cannot specify both weights and \" +\n            \"cumulative weights\")\n    }else{\n        if(weights.length != population.length){\n            throw _b_.ValueError.$factory('The number of weights does not ' +\n                'match the population')\n        }\n    }\n    if(cum_weights === _b_.None){\n        var cum_weights = [weights[0]]\n        weights.forEach(function(weight, rank){\n            if(rank > 0){\n                cum_weights.push(cum_weights[rank - 1] + weight)\n            }\n        })\n    }else if(cum_weights.length != population.length){\n        throw _b_.ValueError.$factory('The number of weights does not ' +\n            'match the population')\n    }\n\n    var result = []\n    for(var i = 0; i < k; i++){\n        var rand = self._random() * cum_weights[cum_weights.length - 1]\n        for(var rank = 0, len = population.length; rank < len; rank++){\n            if(cum_weights[rank] > rand){\n                result.push(population[rank])\n                break\n            }\n        }\n    }\n    return result\n}\n\nRandom.expovariate = function(self, lambd){\n    /*\n    Exponential distribution.\n\n    lambd is 1.0 divided by the desired mean.  It should be\n    nonzero.  (The parameter would be called \"lambda\", but that is\n    a reserved word in Python.)  Returned values range from 0 to\n    positive infinity if lambd is positive, and from negative\n    infinity to 0 if lambd is negative.\n\n    */\n    // lambd: rate lambd = 1/mean\n    // ('lambda' is a Python reserved word)\n\n    // we use 1-random() instead of random() to preclude the\n    // possibility of taking the log of zero.\n    return -Math.log(1.0 - self._random()) / lambd\n}\n\nRandom.gammavariate = function(self, alpha, beta){\n    /* Gamma distribution.  Not the gamma function!\n\n    Conditions on the parameters are alpha > 0 and beta > 0.\n\n    The probability distribution function is:\n\n                x ** (alpha - 1) * math.exp(-x / beta)\n      pdf(x) =  --------------------------------------\n                  math.gamma(alpha) * beta ** alpha\n\n    */\n\n    // alpha > 0, beta > 0, mean is alpha*beta, variance is alpha*beta**2\n\n    // Warning: a few older sources define the gamma distribution in terms\n    // of alpha > -1.0\n\n    var $ = $B.args('gammavariate', 3,\n            {self: null, alpha:null, beta:null},\n            ['self', 'alpha', 'beta'],\n            arguments, {}, null, null),\n        self = $.self,\n        alpha = $.alpha,\n        beta = $.beta,\n        LOG4 = Math.log(4),\n        SG_MAGICCONST = 1.0 + Math.log(4.5)\n\n    if(alpha <= 0.0 || beta <= 0.0){\n        throw _b_.ValueError.$factory('gammavariate: alpha and beta must be > 0.0')\n    }\n\n    if(alpha > 1.0){\n\n        // Uses R.C.H. Cheng, \"The generation of Gamma\n        // variables with non-integral shape parameters\",\n        // Applied Statistics, (1977), 26, No. 1, p71-74\n\n        var ainv = Math.sqrt(2.0 * alpha - 1.0),\n            bbb = alpha - LOG4,\n            ccc = alpha + ainv\n\n        while(true){\n            var u1 = self._random()\n            if(!((1e-7 < u1) && (u1 < .9999999))){\n                continue\n            }\n            var u2 = 1.0 - self._random(),\n                v = Math.log(u1 / (1.0 - u1)) / ainv,\n                x = alpha * Math.exp(v),\n                z = u1 * u1 * u2,\n                r = bbb + ccc * v - x\n            if((r + SG_MAGICCONST - 4.5 * z >= 0.0) || r >= Math.log(z)){\n                return x * beta\n            }\n        }\n    }else if(alpha == 1.0){\n        // expovariate(1)\n        var u = self._random()\n        while(u <= 1e-7){u = self._random()}\n        return -Math.log(u) * beta\n    }else{\n        // alpha is between 0 and 1 (exclusive)\n\n        // Uses ALGORITHM GS of Statistical Computing - Kennedy & Gentle\n\n        while(true){\n            var u = self._random(),\n                b = (Math.E + alpha)/Math.E,\n                p = b*u,\n                x\n            if(p <= 1.0){x = Math.pow(p, (1.0/alpha))}\n            else{x = -Math.log((b-p)/alpha)}\n            var u1 = self._random()\n            if(p > 1.0){\n                if(u1 <= Math.pow(x, alpha - 1.0)){\n                    break\n                }\n            }else if(u1 <= Math.exp(-x)){\n                break\n            }\n        }\n        return x * beta\n    }\n}\n\nRandom.gauss = function(){\n\n    /* Gaussian distribution.\n\n    mu is the mean, and sigma is the standard deviation.  This is\n    slightly faster than the normalvariate() function.\n\n    Not thread-safe without a lock around calls.\n\n    # When x and y are two variables from [0, 1), uniformly\n    # distributed, then\n    #\n    #    cos(2*pi*x)*sqrt(-2*log(1-y))\n    #    sin(2*pi*x)*sqrt(-2*log(1-y))\n    #\n    # are two *independent* variables with normal distribution\n    # (mu = 0, sigma = 1).\n    # (Lambert Meertens)\n    # (corrected version; bug discovered by Mike Miller, fixed by LM)\n\n    # Multithreading note: When two threads call this function\n    # simultaneously, it is possible that they will receive the\n    # same return value.  The window is very small though.  To\n    # avoid this, you have to use a lock around all calls.  (I\n    # didn't want to slow this down in the serial case by using a\n    # lock here.)\n    */\n\n    var $ = $B.args('gauss', 3, {self: null, mu:null, sigma:null},\n            ['self', 'mu', 'sigma'], arguments, {}, null, null),\n        self = $.self,\n        mu = $.mu,\n        sigma = $.sigma\n\n    var z = gauss_next\n    gauss_next = null\n    if(z === null){\n        var x2pi = self._random() * Math.PI * 2,\n            g2rad = Math.sqrt(-2.0 * Math.log(1.0 - self._random())),\n            z = Math.cos(x2pi) * g2rad\n        gauss_next = Math.sin(x2pi) * g2rad\n    }\n    return mu + z*sigma\n}\n\nRandom.getrandbits = function(){\n    var $ = $B.args(\"getrandbits\", 2,\n        {self: null, k:null},[\"self\", \"k\"],arguments, {}, null, null),\n        self = $.self,\n        k = $B.$GetInt($.k)\n    // getrandbits(k) -> x.  Generates a long int with k random bits.\n    if(k <= 0){\n        throw _b_.ValueError.$factory('number of bits must be greater than zero')\n    }\n    if(k != _b_.int.$factory(k)){\n        throw _b_.TypeError.$factory('number of bits should be an integer')\n    }\n    var numbytes = (k + 7), // bits / 8 and rounded up\n        x = _b_.int.from_bytes(Random._urandom(self, numbytes), 'big')\n    return _b_.getattr(x, '__rshift__')(\n        _b_.getattr(numbytes*8,'__sub__')(k))\n}\n\nRandom.getstate = function(){\n    // Return internal state; can be passed to setstate() later.\n    var $ = $B.args('getstate', 1, {self: null},\n        [\"self\"], arguments, {}, null, null)\n    return $.self._random.getstate()\n}\n\nRandom.lognormvariate = function(){\n    /*\n    Log normal distribution.\n\n    If you take the natural logarithm of this distribution, you'll get a\n    normal distribution with mean mu and standard deviation sigma.\n    mu can have any value, and sigma must be greater than zero.\n\n    */\n    return Math.exp(Random.normalvariate.apply(null, arguments))\n}\n\nRandom.normalvariate = function(){\n    /*\n    Normal distribution.\n\n    mu is the mean, and sigma is the standard deviation.\n\n    */\n\n    // mu = mean, sigma = standard deviation\n\n    // Uses Kinderman and Monahan method. Reference: Kinderman,\n    // A.J. and Monahan, J.F., \"Computer generation of random\n    // variables using the ratio of uniform deviates\", ACM Trans\n    // Math Software, 3, (1977), pp257-260.\n\n    var $ = $B.args(\"normalvariate\", 3,\n        {self: null, mu:null, sigma:null}, [\"self\", \"mu\", \"sigma\"],\n        arguments, {}, null, null),\n        self = $.self,\n        mu = $.mu,\n        sigma = $.sigma\n\n    while(true){\n        var u1 = self._random(),\n            u2 = 1.0 - self._random(),\n            z = NV_MAGICCONST * (u1 - 0.5) / u2,\n            zz = z * z / 4.0\n        if(zz <= -Math.log(u2)){break}\n    }\n    return mu + z * sigma\n}\n\nRandom.paretovariate = function(){\n    /* Pareto distribution.  alpha is the shape parameter.*/\n    // Jain, pg. 495\n\n    var $ = $B.args(\"paretovariate\", 2, {self: null, alpha:null},\n        [\"self\", \"alpha\"], arguments, {}, null, null)\n\n    var u = 1 - $.self._random()\n    return 1 / Math.pow(u, 1 / $.alpha)\n}\n\nfunction is_integer(x){\n    return _b_.isinstance(x, _b_.int) || (\n        _b_.isinstance(x, _b_.float) &&\n            x.valueOf() == Math.floor(x.valueOf()))\n}\n\nRandom.randint = function(self, a, b){\n    var $ = $B.args('randint', 3,\n        {self: null, a:null, b:null},\n        ['self', 'a', 'b'],\n        arguments, {}, null, null)\n    if(! is_integer($.a)){\n        throw _b_.ValueError.$factory(\"non-integer value for start\")\n    }\n    if(! is_integer($.b)){\n        throw _b_.ValueError.$factory(\"non-integer value for stop\")\n    }\n    return Random.randrange($.self, $.a, $B.add($.b, 1))\n}\n\nRandom.random = function(self){\n    var res = self._random()\n    if(! Number.isInteger(res)){return new Number(res)}\n    return res\n}\n\nRandom.randrange = function(){\n    var $ = $B.args('randrange', 4,\n        {self: null, x:null, stop:null, step:null},\n        ['self', 'x', 'stop', 'step'],\n        arguments, {stop:null, step:null}, null, null),\n        self = $.self,\n        _random = self._random\n\n    for(var i = 1, len = arguments.length; i < len; i++){\n        if(! is_integer(arguments[i])){\n            throw _b_.ValueError.$factory(\"non-integer arg \" + i +\n                \" for randrange()\")\n        }\n    }\n    if($.stop === null){\n        var start = 0, stop = $.x.valueOf(), step = 1\n    }else{\n        var start = $.x.valueOf(), stop = $.stop.valueOf(),\n            step = $.step === null ? 1 : $.step.valueOf()\n        if(step == 0){throw _b_.ValueError.$factory('step cannot be 0')}\n    }\n\n    if((step > 0 && start >= stop) || (step < 0 && start <= stop)){\n        throw _b_.ValueError.$factory(\"empty range for randrange() (\" +\n            start + \", \" + stop + \", \" + step + \")\")\n    }\n    if(typeof start == 'number' && typeof stop == 'number' &&\n            typeof step == 'number'){\n        return start + step * Math.floor(_random() *\n            Math.ceil((stop - start) / step))\n    }else{\n        var d = _b_.getattr(stop, '__sub__')(start)\n        d = _b_.getattr(d, '__floordiv__')(step)\n        // Force d to be a LongInt\n        d = $B.long_int.$factory(d)\n        // d is a long integer with n digits ; to choose a random number\n        // between 0 and d the most simple is to take a random digit\n        // at each position, except the first one\n        var s = d.value,\n            _len = s.length,\n            res = Math.floor(_random() * (parseInt(s.charAt(0)) +\n                (_len == 1 ? 0 : 1))) + ''\n        var same_start = res.charAt(0) == s.charAt(0)\n        for(var i = 1; i < _len; i++){\n            if(same_start){\n                // If it's the last digit, don't allow stop as valid\n                if(i == _len - 1){\n                    res += Math.floor(_random() * parseInt(s.charAt(i))) + ''\n                }else{\n                    res += Math.floor(_random() *\n                        (parseInt(s.charAt(i)) + 1)) + ''\n                    same_start = res.charAt(i) == s.charAt(i)\n                }\n            }else{\n                res += Math.floor(_random() * 10) + ''\n            }\n        }\n        var offset = {__class__: $B.long_int, value: res,\n            pos: true}\n        d = _b_.getattr(step, '__mul__')(offset)\n        d = _b_.getattr(start, '__add__')(d)\n        return _b_.int.$factory(d)\n    }\n}\n\nRandom.sample = function(){\n    /*\n    Chooses k unique random elements from a population sequence or set.\n\n    Returns a new list containing elements from the population while\n    leaving the original population unchanged.  The resulting list is\n    in selection order so that all sub-slices will also be valid random\n    samples.  This allows raffle winners (the sample) to be partitioned\n    into grand prize and second place winners (the subslices).\n\n    Members of the population need not be hashable or unique.  If the\n    population contains repeats, then each occurrence is a possible\n    selection in the sample.\n\n    To choose a sample in a range of integers, use range as an argument.\n    This is especially fast and space efficient for sampling from a\n    large population:   sample(range(10000000), 60)\n\n    # Sampling without replacement entails tracking either potential\n    # selections (the pool) in a list or previous selections in a set.\n\n    # When the number of selections is small compared to the\n    # population, then tracking selections is efficient, requiring\n    # only a small set and an occasional reselection.  For\n    # a larger number of selections, the pool tracking method is\n    # preferred since the list takes less space than the\n    # set and it doesn't suffer from frequent reselections.'\n\n    */\n    var $ = $B.args('sample', 3, {self: null, population: null,k: null},\n        ['self', 'population','k'], arguments, {}, null, null),\n        self = $.self,\n        population = $.population,\n        k = $.k\n\n    if(!_b_.hasattr(population, '__len__')){\n        throw _b_.TypeError.$factory(\"Population must be a sequence or set. \" +\n            \"For dicts, use list(d).\")\n    }\n    var n = _b_.getattr(population, '__len__')()\n\n    if(k < 0 || k > n){\n        throw _b_.ValueError.$factory(\"Sample larger than population\")\n    }\n    var result = [],\n        setsize = 21        // size of a small set minus size of an empty list\n    if(k > 5){\n        setsize += Math.pow(4, Math.ceil(Math.log(k * 3, 4))) // table size for big sets\n    }\n    if(n <= setsize){\n        // An n-length list is smaller than a k-length set\n        if(Array.isArray(population)){\n            var pool = population.slice()\n        }else{var pool = _b_.list.$factory(population)}\n        for(var i = 0; i < k; i++){ //invariant:  non-selected at [0,n-i)\n            var j = Random._randbelow(self, n - i)\n            result[i] = pool[j]\n            pool[j] = pool[n - i - 1]   // move non-selected item into vacancy\n        }\n    }else{\n        selected = {}\n        for(var i = 0; i < k; i++){\n            var j = Random._randbelow(self, n)\n            while(selected[j] !== undefined){\n                j = Random._randbelow(self, n)\n            }\n            selected[j] = true\n            result[i] = Array.isArray(population) ? population[j] :\n                            _b_.getattr(population, '__getitem__')(j)\n        }\n    }\n    return result\n}\n\nRandom.seed = function(){\n    /*\n    Initialize internal state from hashable object.\n\n    None or no argument seeds from current time or from an operating\n    system specific randomness source if available.\n\n    If *a* is an int, all bits are used.\n    */\n    var $ = $B.args('seed', 3, {self: null, a: null, version: null},\n        ['self', 'a', 'version'],\n        arguments, {a: new Date(), version: 2}, null, null),\n        self = $.self,\n        a = $.a,\n        version = $.version\n\n    if(version == 1){a = _b_.hash(a)}\n    else if(version == 2){\n        if(_b_.isinstance(a, _b_.str)){\n            a = _b_.int.from_bytes(_b_.bytes.$factory(a, 'utf-8'), 'big')\n        }else if(_b_.isinstance(a, [_b_.bytes, _b_.bytearray])){\n            a = _b_.int.from_bytes(a, 'big')\n        }else if(!_b_.isinstance(a, _b_.int)){\n            throw _b_.TypeError.$factory('wrong argument')\n        }\n        if(a.__class__ === $B.long_int){\n            // In this implementation, seed() only accepts safe integers\n            // Generate a random one from the underlying string value,\n            // using an arbitrary seed (99) to always return the same\n            // integer\n            var numbers = a.value,\n                res = '',\n                pos\n            self._random.seed(99)\n            for(var i = 0; i < 17; i++){\n                pos = parseInt(self._random() * numbers.length)\n                res += numbers.charAt(pos)\n            }\n            a = parseInt(res)\n        }\n    }else{\n        throw _b_.ValueError.$factory('version can only be 1 or 2')\n    }\n\n    self._random.seed(a)\n    gauss_next = null\n}\n\nRandom.setstate = function(state){\n    // Restore internal state from object returned by getstate().\n    var $ = $B.args('setstate', 2, {self: null, state:null}, ['self', 'state'],\n        arguments, {}, null, null),\n        self = $.self\n    var state = self._random.getstate()\n    if(! Array.isArray($.state)){\n        throw _b_.TypeError.$factory('state must be a list, not ' +\n            $B.class_name($.state))\n    }\n    if($.state.length < state.length){\n        throw _b_.ValueError.$factory(\"need more than \" + $.state.length +\n            \" values to unpack\")\n    }else if($.state.length > state.length){\n        throw _b_.ValueError.$factory(\"too many values to unpack (expected \" +\n            state.length + \")\")\n    }\n    if($.state[0] != 3){\n        throw _b_.ValueError.$factory(\"ValueError: state with version \" +\n            $.state[0] + \" passed to Random.setstate() of version 3\")\n    }\n    var second = _b_.list.$factory($.state[1])\n    if(second.length !== state[1].length){\n        throw _b_.ValueError.$factory('state vector is the wrong size')\n    }\n    for(var i = 0; i < second.length; i++){\n        if(typeof second[i] != 'number'){\n            throw _b_.ValueError.$factory('state vector items must be integers')\n        }\n    }\n    self._random.setstate($.state)\n}\n\nRandom.shuffle = function(x, random){\n    /*\n    x, random = random.random -> shuffle list x in place; return None.\n\n    Optional arg random is a 0-argument function returning a random\n    float in [0.0, 1.0); by default, the standard random.random.\n    */\n\n    var $ = $B.args('shuffle', 3, {self: null, x: null, random: null},\n        ['self', 'x','random'],\n        arguments, {random: null}, null, null),\n        self = $.self,\n        x = $.x,\n        random = $.random\n\n    if(random === null){random = self._random}\n\n    if(Array.isArray(x)){\n        for(var i = x.length - 1; i >= 0;i--){\n            var j = Math.floor(random() * (i + 1)),\n                temp = x[j]\n            x[j] = x[i]\n            x[i] = temp\n        }\n    }else{\n        var len = _b_.getattr(x, '__len__')(), temp,\n            x_get = _b_.getattr(x, '__getitem__'),\n            x_set = _b_.getattr(x, '__setitem__')\n\n        for(i = len - 1; i >= 0; i--){\n            var j = Math.floor(random() * (i + 1)),\n                temp = x_get(j)\n            x_set(j, x_get(i))\n            x_set(i, temp)\n        }\n    }\n}\n\nRandom.triangular = function(){\n    /*\n    Triangular distribution.\n\n    Continuous distribution bounded by given lower and upper limits,\n    and having a given mode value in-between.\n\n    http://en.wikipedia.org/wiki/Triangular_distribution\n    */\n    var $ = $B.args('triangular', 4,\n        {self: null, low: null, high: null, mode: null},\n        ['self', 'low', 'high', 'mode'],\n        arguments, {low: 0, high: 1, mode: null}, null, null),\n        low = $.low,\n        high = $.high,\n        mode = $.mode\n\n    var u = $.self._random(),\n        c = mode === null ? 0.5 : (mode - low) / (high - low)\n    if(u > c){\n        u = 1 - u\n        c = 1 - c\n        var temp = low\n        low = high\n        high = temp\n    }\n    return low + (high - low) * Math.pow(u * c, 0.5)\n}\n\nRandom.uniform = function(){\n    var $ = $B.args('uniform', 3, {self: null, a: null, b: null},\n        ['self', 'a', 'b'], arguments, {}, null, null),\n        a = $B.$GetInt($.a),\n        b = $B.$GetInt($.b)\n\n    return a + (b - a) * $.self._random()\n}\n\nRandom.vonmisesvariate = function(){\n    /* Circular data distribution.\n\n    mu is the mean angle, expressed in radians between 0 and 2*pi, and\n    kappa is the concentration parameter, which must be greater than or\n    equal to zero.  If kappa is equal to zero, this distribution reduces\n    to a uniform random angle over the range 0 to 2*pi.\n\n    */\n    // mu:    mean angle (in radians between 0 and 2*pi)\n    // kappa: concentration parameter kappa (>= 0)\n    // if kappa = 0 generate uniform random angle\n\n    // Based upon an algorithm published in: Fisher, N.I.,\n    // \"Statistical Analysis of Circular Data\", Cambridge\n    // University Press, 1993.\n\n    // Thanks to Magnus Kessler for a correction to the\n    // implementation of step 4.\n\n    var $ = $B.args('vonmisesvariate', 3,\n            {self: null, mu: null, kappa:null}, ['self', 'mu', 'kappa'],\n            arguments, {}, null, null),\n        self = $.self,\n        mu = $.mu,\n        kappa = $.kappa,\n        TWOPI = 2*Math.PI\n\n    if(kappa <= 1e-6){return TWOPI * self._random()}\n\n    var s = 0.5 / kappa,\n        r = s + Math.sqrt(1.0 + s * s)\n\n    while(true){\n        var u1 = self._random(),\n            z = Math.cos(Math.PI * u1),\n            d = z / (r + z),\n            u2 = self._random()\n        if((u2 < 1.0 - d * d) ||\n            (u2 <= (1.0 - d) * Math.exp(d))){\n                break\n        }\n    }\n    var q = 1.0 / r,\n        f = (q + z) / (1.0 + q * z),\n        u3 = self._random()\n    if(u3 > 0.5){var theta = (mu + Math.acos(f)) % TWOPI}\n    else{var theta = (mu - Math.acos(f)) % TWOPI}\n    return theta\n}\n\nRandom.weibullvariate = function(){\n    /*Weibull distribution.\n\n    alpha is the scale parameter and beta is the shape parameter.\n\n    */\n    // Jain, pg. 499; bug fix courtesy Bill Arms\n    var $ = $B.args(\"weibullvariate\", 3,\n        {self: null, alpha: null, beta: null},\n        [\"self\", \"alpha\", \"beta\"], arguments, {}, null, null)\n\n    var u = 1 - $.self._random()\n    return $.alpha * Math.pow(-Math.log(u), 1 / $.beta)\n}\n\n$B.set_func_names(Random, \"random\")\n\nvar $module = Random.$factory()\nfor(var attr in Random){\n    $module[attr] = (function(x){\n        return function(){return Random[x]($module, ...arguments)}\n    })(attr)\n    $module[attr].$infos = Random[attr].$infos\n}\n\n$module.Random = Random\n\nvar SystemRandom = $B.make_class(\"SystemRandom\",\n    function(){\n        return {__class__: SystemRandom}\n    }\n)\nSystemRandom.__getattribute__ = function(){\n    throw $B.builtins.NotImplementedError.$factory()\n}\n\n$module.SystemRandom = SystemRandom\n\nreturn $module\n\n})(__BRYTHON__)\n\n"],"_random": [".py", "from browser import window,alert\n\ndef _randint(a,b):\n return int(window.Math.random()*(b -a+1)+a)\n \ndef _rand_with_seed(x,rand_obj):\n\n\n degrees=rand_obj._state %360\n x=window.Math.sin(degrees /(2 *window.Math.PI))*10000\n \n \n \n \n \n if not hasattr(rand_obj,'incr'):\n  rand_obj.incr=1\n rand_obj._state +=rand_obj.incr\n return x -window.Math.floor(x)\n \ndef _urandom(n,rand_obj=None ):\n ''\n \n \n if rand_obj is None or rand_obj._state is None :\n  randbytes=[_randint(0,255)for i in range(n)]\n else :\n  randbytes=[]\n  for i in range(n):\n   randbytes.append(int(256 *_rand_with_seed(i,rand_obj)))\n return bytes(randbytes)\n \nclass Random:\n ''\n\n\n\n\n\n\n\n\n\n\n \n \n \n \n \n \n \n VERSION=3\n \n def __init__(self,x=None ):\n  ''\n\n\n  \n  \n  self._state=x\n  \n def seed(self,a=None ,version=2):\n  ''\n\n\n\n\n\n\n\n\n\n  \n  \n  self._state=a\n  self.gauss_next=None\n  \n def getstate(self):\n  ''\n  return self._state\n  \n def setstate(self,state):\n  ''\n  self._state=state\n  \n def random(self):\n  ''\n  return window.Math.random()\n  \n def getrandbits(self,k):\n  ''\n  if k <=0:\n   raise ValueError('number of bits must be greater than zero')\n  if k !=int(k):\n   raise TypeError('number of bits should be an integer')\n  numbytes=(k+7)//8\n  x=int.from_bytes(_urandom(numbytes,self),'big')\n  \n  return x >>(numbytes *8 -k)\n", ["browser"]],}
 
 __BRYTHON__.update_VFS(scripts)
