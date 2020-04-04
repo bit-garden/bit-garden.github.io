@@ -196,6 +196,26 @@ CodeMirror.Vim.map('<Tab>r', ':js alignRight()', 'visual')
 CodeMirror.Vim.map('<Tab>l', ':js alignLeft()', 'visual')
 CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
 
+CodeMirror.Vim.map('(', ':double_tap ()', 'insert')
+CodeMirror.Vim.map(')', ':double_tap )', 'insert')
+CodeMirror.Vim.map('{', ':double_tap {}', 'insert')
+CodeMirror.Vim.map('}', ':double_tap }', 'insert')
+CodeMirror.Vim.map('[', ':double_tap []', 'insert')
+CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
+CodeMirror.Vim.map('"', ':double_tap "', 'insert')
+CodeMirror.Vim.map("'", ":double_tap '", 'insert')
+
+CodeMirror.Vim.unmap('s', 'visual')
+CodeMirror.Vim.map('s(', ':surround ()', 'visual')
+CodeMirror.Vim.map('s)', ':surround ()', 'visual')
+CodeMirror.Vim.map('s[', ':surround []', 'visual')
+CodeMirror.Vim.map('s]', ':surround []', 'visual')
+CodeMirror.Vim.map('s{', ':surround {}', 'visual')
+CodeMirror.Vim.map('s}', ':surround {}', 'visual')
+
+CodeMirror.Vim.map("s'", ":surround ''", 'visual')
+CodeMirror.Vim.map('s"', ':surround ""', 'visual')
+
 // quick select column in pipe table
 CodeMirror.Vim.map('zv', ':vblock', 'normal')
 
@@ -466,6 +486,11 @@ function uuid4() {
   );
 }
 
+function insertTextAtCursor(editor, text) {
+    var doc = editor.getDoc();
+    var cursor = doc.getCursor();
+    doc.replaceRange(text, cursor);
+}
 
 
 </script>
@@ -897,6 +922,39 @@ def run_align(cm, params):
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
+def double_tap(cm, params):
+  try:
+    chars = params.argString.strip()
+    line = cm_editbox.getCursor().line
+    ch = cm_editbox.getCursor().ch
+    cur_line = cm_editbox.getLine(line)
+    if len(cur_line) > ch and cur_line[ch] == chars:
+      cm_editbox.setCursor({'line':line, 'ch': ch+1})
+    else:
+      if chars in ('"', "'"):
+        window.insertTextAtCursor(cm, chars*2)
+      else:
+        window.insertTextAtCursor(cm, chars)
+      cm_editbox.setCursor({'line':line, 'ch': ch+1})
+      #window.CodeMirror.Vim.exitInsertMode(cm_editbox)
+      #window.vdo('a')
+  except Exception as e:
+    import traceback
+    asyncio.run(popup(traceback.format_exc()))
+window.CodeMirror.Vim.defineEx("double_tap", None, double_tap)
+
+def run_surround(cm, params):
+  try:
+    chars = params.argString.strip()
+    window.vdo("gv")
+    data = cm_editbox.getSelection()
+    out = f'{chars[0]}{data}{chars[1]}'
+    cm_editbox.replaceSelection(out.strip('\n'))
+    window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
+  except Exception as e:
+    import traceback
+    asyncio.run(popup(traceback.format_exc()))
+window.CodeMirror.Vim.defineEx("surround", None, run_surround)
 
 
 
@@ -930,9 +988,22 @@ async def auto_saver():
       cm_editbox.save()
       await f.write(editbox.value)
       if 1 in save_me:
-        window.alert('saved')
+        #window.alert('saved')
+        asyncio.run(saved_notif())
       save_me.clear()
       print('Saved')
+
+async def saved_notif():
+  notif = DIV([
+      (time_display:=DIV('Saved'))],
+    Class='card',
+    style={
+      'right': 0,
+      'bottom': 0,
+      'position':'fixed',
+      'z-index': 99})
+  with El(notif, doc) as n:
+    await asyncio.sleep(1)
 
 def _e(cm, params):
   asyncio.run(auto_saver())
