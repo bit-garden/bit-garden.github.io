@@ -1,0 +1,109 @@
+<html>
+<title>Blackboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="shortcut icon" href="rabbit.png"><style>
+body { background: black; }
+
+@font-face {
+  font-family: Mono;
+  src: url("lib/RobotoMono-Light.ttf") format("truetype");
+}
+
+* {
+  font-family: Mono;
+  font-size: 16px;
+}
+
+pre, code, pre > * {
+  font-family: Mono;
+}
+
+dialog {
+  background-color: rgba(18,18,18,1);
+  color: rgba(255,255,255,.87);
+  border: none;
+  padding: 0px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+}
+.card {
+  background-color: rgba(18,18,18,1);
+  color: rgba(255,255,255,.87);
+  border: none;
+  padding: 12px 16px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+}
+
+button, textarea, input{
+  background: none;
+  color: rgba(255,255,255,.87);
+  border: none;
+  border-bottom: 2px solid #00ccff;
+  outline: none;
+}
+
+button{
+  padding: 12px 16px;
+  font-size: 16px;
+}
+
+.warn{
+  border-bottom: 2px solid #B00020;
+}
+
+::placeholder {
+  color: rgba(255,255,255,.6);
+}
+</style>
+<body onload="brython({indexedDB: false})"></body>
+<script src="lib/brython_aio.js"></script>
+<script type="text/python">
+from browser import window
+from browser import aio as asyncio
+from browser import document as doc
+from browser.html import *
+
+async def popup(*l, **kw):
+  d = DIALOG(*l, **kw)
+  doc <= d
+  d.showModal()
+  while d.open:
+    await asyncio.sleep(.5)
+  d.remove()
+  return d
+  
+class Popup:
+  def __init__(self, *l, **kw):
+    self.d = DIALOG(*l, **kw)
+    doc <= self.d
+  
+  def __enter__(self):
+    self.d.showModal()
+    return self.d
+    
+  def __exit__(self, *l):
+    self.d.open = False
+    self.d.remove()
+
+    
+    
+root = DIV([
+    DIV((user_guess:=INPUT(placeholder='Guess'))),
+    DIV((submit:=BUTTON('Submit'))),
+    DIV((result:=DIV('Result:')))],
+  Class='card')
+
+import random
+def on_click(ev):
+  if int(user_guess.value) == (guess:=random.randint(1,10)):
+    result.text = 'Result: Correct'
+  else:
+    result.text = 'Result: Incorrect'
+  user_guess.value = ''
+  user_guess.focus()
+submit.bind('click', on_click)
+
+
+#asyncio.run(popup(root))
+doc <= root
+</script>
+</html>
