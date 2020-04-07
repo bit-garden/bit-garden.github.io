@@ -957,9 +957,22 @@ async def auto_saver():
       cm_editbox.save()
       await f.write(editbox.value)
       if 1 in save_me:
-        window.alert('saved')
+        #window.alert('saved')
+        asyncio.run(saved_notif())
       save_me.clear()
       print('Saved')
+
+async def saved_notif():
+  notif = DIV([
+      (time_display:=DIV('Saved'))],
+    Class='card',
+    style={
+      'right': 0,
+      'bottom': 0,
+      'position':'fixed',
+      'z-index': 99})
+  with El(notif, doc) as n:
+    await asyncio.sleep(1)
 
 def _e(cm, params):
   asyncio.run(auto_saver())
@@ -1005,6 +1018,14 @@ class El:
     
   def __exit__(self, *l):
     self.el.remove()
+    
+def box(*l, base=DIV, **kw):
+  sty = kw.get('style', {})
+  sty['box-sizing'] = 'border-box'
+  sty['display'] = 'inline'
+  sty['position'] = 'absolute'
+  kw['style'] = sty
+  return base(*l, **kw)
 
 # import from notes file
 def grid_to_tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):

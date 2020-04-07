@@ -105,6 +105,7 @@ dialog {
   border: none;
   padding: 0px;
   box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+  box-sizing: border-box;
 }
 .card {
   background-color: rgba(18,18,18,1);
@@ -112,6 +113,7 @@ dialog {
   border: none;
   padding: 12px 16px;
   box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+  box-sizing: border-box;
 }
 
 button, textarea, input{
@@ -120,6 +122,7 @@ button, textarea, input{
   border: none;
   border-bottom: 2px solid #00ccff;
   outline: none;
+  box-sizing: border-box;
 }
 
 button{
@@ -1050,6 +1053,14 @@ class El:
   def __exit__(self, *l):
     self.el.remove()
 
+def box(*l, base=DIV, **kw):
+  sty = kw.get('style', {})
+  sty['box-sizing'] = 'border-box'
+  sty['display'] = 'inline'
+  sty['position'] = 'absolute'
+  kw['style'] = sty
+  return base(*l, **kw)
+
 
 # import from notes file
 def grid_to_tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
@@ -1111,6 +1122,8 @@ def grid_to_dims(grid, x=0, y=0, ex=None, ey=None):
   return columns[:-1][x], rows[:-1][y],\
       columns[1:][ex] - columns[:-1][x],\
       rows[1:][ey] - rows[:-1][y]
+      
+      
 # dark material height to tint
 opacities = {0: 0,
      1: .05,
