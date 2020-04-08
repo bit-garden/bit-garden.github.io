@@ -25,6 +25,38 @@
   src: url("lib/RobotoMono-Thin.ttf") format("truetype");
 }
 
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url("lib/MaterialIcons-Regular.ttf") format('truetype')
+}
+
+.material-icons {
+  font-family: 'Material Icons' !important;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+
 * {
         font-family: Mono !important;
 }
@@ -99,12 +131,43 @@ pre, code, pre > * {
         font-family: Mono;
 }
 
+.shadow_0 {
+  box-shadow: none
+}
+.shadow_1{
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20)
+}
+.shadow_2{
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20)
+}
+.shadow_3{
+  box-shadow: 0 3px 4px 0 rgba(0,0,0,0.14), 0 3px 3px -2px rgba(0,0,0,0.12), 0 1px 8px 0 rgba(0,0,0,0.20)
+}
+.shadow_4{
+  box-shadow: 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)
+}
+.shadow_6{
+  box-shadow: 0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12), 0 3px 5px -1px rgba(0,0,0,0.20)
+}
+.shadow_8{
+  box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.20)
+}
+.shadow_12{
+  box-shadow: 0 12px 17px 2px rgba(0,0,0,0.14), 0 5px 22px 4px rgba(0,0,0,0.12), 0 7px 8px -4px rgba(0,0,0,0.20)
+}
+.shadow_16{
+  box-shadow: 0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.20)
+}
+.shadow_24{
+  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20)
+}
+
 dialog {
   background-color: rgba(18,18,18,1);
   color: rgba(255,255,255,.87);
   border: none;
   padding: 0px;
-  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20);
   box-sizing: border-box;
 }
 .card {
@@ -112,7 +175,6 @@ dialog {
   color: rgba(255,255,255,.87);
   border: none;
   padding: 12px 16px;
-  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
   box-sizing: border-box;
 }
 
@@ -128,6 +190,21 @@ button, textarea, input{
 button{
   padding: 12px 16px;
   font-size: 16px;
+}
+
+.show_over {
+  opacity: 0;
+}
+div:hover > .hide_over {
+  opacity: 0;
+}
+div:hover > .show_over {
+  opacity: 1;
+}
+
+.animate { 
+  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: all 0.3s;
 }
 
 .warn{
@@ -1060,6 +1137,58 @@ def box(*l, base=DIV, **kw):
   sty['position'] = 'absolute'
   kw['style'] = sty
   return base(*l, **kw)
+  
+def icon(_icon, *l, **kw):
+  return I(_icon, *l, Class='material-icons', **kw)
+  
+def tile(text=None, _icon=None, title=None, background=None, 
+    font_size='24px', icon_size='64px', align='center', **kw):
+  sty = kw.get('style', {})
+  sty['overflow'] = 'hidden'
+  kw['style'] = sty
+  
+  out = []
+  if background:
+    out.append(DIV(style={
+        'width': '100%',
+        'height': '100%',
+        'background': f'url({background})',
+        'background-size': 'cover',
+        'background-position': 'center',
+        #'z-index': '-1',
+        'position': 'absolute',
+        'left': 0,
+        'top': 0,
+        }))
+  if _icon:
+    out.append(icon(_icon, 
+      style={
+        'position': 'absolute',
+        'left': '50%',
+        'top': '50%',
+        'transform': 'translate(-50%, -50%)',
+        'font-size': icon_size}))
+  if text:
+    out.append(DIV(text, 
+      style={
+        'position': 'absolute',
+        'left': '50%' if align=='center' else '0px',
+        'top': '50%',
+        'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
+        'font-size': font_size,
+        'text-align': align}))
+  if text and _icon:
+    out[-1].setAttribute('class', 'show_over animate')
+    out[-2].setAttribute('class', 'hide_over material-icons animate')
+  if title:
+    out.append(DIV(f'{title}', 
+      style={
+        'position': 'absolute',
+        'left': 0,
+        'bottom': 0,
+        'background': 'rgba(0,0,0,.5)',
+        'padding': '8px'}))
+  return box(out, **kw)
 
 
 # import from notes file
@@ -1122,6 +1251,14 @@ def grid_to_dims(grid, x=0, y=0, ex=None, ey=None):
   return columns[:-1][x], rows[:-1][y],\
       columns[1:][ex] - columns[:-1][x],\
       rows[1:][ey] - rows[:-1][y]
+
+# general element position and size for html elements
+def _gmap(track, el, x, y, ex=None, ey=None, padding=0):
+  x, y, w, h = grid_to_dims(track, x, y, ex, ey)
+  el.top = y + padding
+  el.left = x + padding
+  el.width = w - padding*2
+  el.height = h - padding*2
       
       
 # dark material height to tint
