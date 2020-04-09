@@ -2,11 +2,43 @@
 <title>Blackboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="shortcut icon" href="rabbit.png"><style>
-body { background: black; }
+body { background: black; color: rgba(255,255,255,.87);}
 
 @font-face {
   font-family: Mono;
   src: url("lib/RobotoMono-Light.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url("lib/MaterialIcons-Regular.ttf") format('truetype')
+}
+
+.material-icons {
+  font-family: 'Material Icons' !important;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
 }
 
 * {
@@ -18,19 +50,51 @@ pre, code, pre > * {
   font-family: Mono;
 }
 
+.shadow_0 {
+  box-shadow: none
+}
+.shadow_1{
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20)
+}
+.shadow_2{
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20)
+}
+.shadow_3{
+  box-shadow: 0 3px 4px 0 rgba(0,0,0,0.14), 0 3px 3px -2px rgba(0,0,0,0.12), 0 1px 8px 0 rgba(0,0,0,0.20)
+}
+.shadow_4{
+  box-shadow: 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)
+}
+.shadow_6{
+  box-shadow: 0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12), 0 3px 5px -1px rgba(0,0,0,0.20)
+}
+.shadow_8{
+  box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.20)
+}
+.shadow_12{
+  box-shadow: 0 12px 17px 2px rgba(0,0,0,0.14), 0 5px 22px 4px rgba(0,0,0,0.12), 0 7px 8px -4px rgba(0,0,0,0.20)
+}
+.shadow_16{
+  box-shadow: 0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.20)
+}
+.shadow_24{
+  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20)
+}
+
 dialog {
   background-color: rgba(18,18,18,1);
   color: rgba(255,255,255,.87);
   border: none;
   padding: 0px;
-  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20);
+  box-sizing: border-box;
 }
 .card {
   background-color: rgba(18,18,18,1);
   color: rgba(255,255,255,.87);
   border: none;
   padding: 12px 16px;
-  box-shadow: 0 0 40px rgba(0,0,0,0.1), 0 0 10px rgba(0,0,0,0.25);
+  box-sizing: border-box;
 }
 
 button, textarea, input{
@@ -39,11 +103,41 @@ button, textarea, input{
   border: none;
   border-bottom: 2px solid #00ccff;
   outline: none;
+  box-sizing: border-box;
 }
 
 button{
-  padding: 12px 16px;
-  font-size: 16px;
+  background: none;
+  color: rgba(255,255,255,.87);
+  border: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.tile_blue:hover, .tile_blue:focus{
+  box-shadow: 0 4px 5px 0 rgba(0,192,255,0.14), 0 1px 10px 0 rgba(0,192,255,0.12), 0 2px 4px -1px rgba(0,192,255,0.20);
+  background: rgb(0,96,128) !important;
+}
+.tile_red:hover, .tile_red:focus{
+  box-shadow: 0 4px 5px 0 rgba(255,0,0,0.14), 0 1px 10px 0 rgba(255,0,0,0.12), 0 2px 4px -1px rgba(255,0,0,0.20);
+  background: rgb(128,0,0) !important;
+}
+
+.show_over {
+  opacity: 0;
+}
+div:hover > .hide_over,
+div:focus > .hide_over {
+  opacity: 0;
+}
+div:hover > .show_over,
+div:focus > .show_over {
+  opacity: 1;
+}
+
+.animate { 
+  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: all 0.3s;
 }
 
 .warn{
@@ -53,6 +147,7 @@ button{
 ::placeholder {
   color: rgba(255,255,255,.6);
 }
+
 </style>
 <body onload="brython({indexedDB: false})"></body>
 <script src="lib/brython_aio.js"></script>
@@ -62,48 +157,172 @@ from browser import aio as asyncio
 from browser import document as doc
 from browser.html import *
 
-async def popup(*l, **kw):
-  d = DIALOG(*l, **kw)
-  doc <= d
-  d.showModal()
-  while d.open:
-    await asyncio.sleep(.5)
-  d.remove()
-  return d
+def box(*l, base=DIV, **kw):
+  sty = kw.get('style', {})
+  sty['box-sizing'] = 'border-box'
+  sty['display'] = 'inline'
+  sty['position'] = 'absolute'
+  kw['style'] = sty
+  return base(*l, **kw)
   
-class Popup:
-  def __init__(self, *l, **kw):
-    self.d = DIALOG(*l, **kw)
-    doc <= self.d
+def icon(_icon, *l, **kw):
+  return I(_icon, *l, Class='material-icons', **kw)
   
-  def __enter__(self):
-    self.d.showModal()
-    return self.d
+def tile(text=None, _icon=None, title=None, background=None, 
+    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
+  sty = kw.get('style', {})
+  sty['overflow'] = 'hidden'
+  kw['style'] = sty
+  
+  cla = kw.get('Class', '').split(' ')
+  cla += ['animate']
+  kw['Class'] = ' '.join(cla)
+  
+  out = []
+  if background:
+    out.append(DIV(style={
+        'width': '100%',
+        'height': '100%',
+        'background': f'url({background})',
+        'background-size': 'cover',
+        'background-position': 'center',
+        #'z-index': '-1',
+        'position': 'absolute',
+        'left': 0,
+        'top': 0,
+        }))
+  if _icon:
+    out.append(icon(_icon, 
+      style={
+        'position': 'absolute',
+        'left': '50%',
+        'top': '50%',
+        'transform': 'translate(-50%, -50%)',
+        'font-size': icon_size}))
+  if text:
+    out.append(DIV(text, 
+      style={
+        'position': 'absolute',
+        'left': '50%' if align=='center' else '0px',
+        'top': '50%',
+        'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
+        'font-size': font_size,
+        'text-align': align}))
+  if text and _icon:
+    out[-1].attrs['class'] = 'show_over animate'
+    out[-2].attrs['class'] = 'hide_over material-icons animate'
+  if title:
+    out.append(DIV(f'{title}', 
+      style={
+        'position': 'absolute',
+        'left': 0,
+        'bottom': 0,
+        'background': 'rgba(0,0,0,.5)',
+        'padding': '8px'}))
+  return box(out, base=base, **kw)
+  
+def grid_to_tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
+  # generates values to align a grid layout
+  _width = width
+  _cols = [0]
+  for c in cols:
+    if c == ...:
+      _cols.append(c)
+    elif c < 1:
+      _cols.append(_width - width + _width * c)
+      width -= _width * c
+    else:
+      _cols.append(_width - width + c)
+      width -= c
+      
+  _height = height
+  _rows = [0]
+  for c in rows:
+    if c == ...:
+      _rows.append(c)
+    elif c < 1:
+      _rows.append(_height - height + _height * c)
+      height -= _height * c
+    else:
+      _rows.append(_height - height + c)
+      height -= c
+  
+  if ... in _cols:
+    idx = _cols.index(...)
+    _cols[idx:idx+1] = [_cols[idx-1]]
+    _cols[idx:] = [i+width for i in _cols[idx:]]
+    width = 0
     
-  def __exit__(self, *l):
-    self.d.open = False
-    self.d.remove()
+  if ... in _rows:
+    idx = _rows.index(...)
+    _rows[idx:idx+1] = [_rows[idx-1]]
+    _rows[idx:] = [i+height for i in _rows[idx:]]
+    height = 0
+  
+  # optionally round
+  _cols = [round(i+offx+width//2) for i in _cols]
+  _rows = [round(i+offy+height//2) for i in _rows]
+      
+  return _cols, _rows
 
+
+def grid_to_dims(grid, x=0, y=0, ex=None, ey=None):
+  # uses a grid layout to return x,y/w,h values
+  columns, rows = grid
+  if ex is None:
+    ex = x
+  if ey is None:
+    ey = y
+
+  #return {'x': columns[:-1][x], 'y': rows[:-1][y],
+  #    'w': columns[1:][ex] - columns[:-1][x],
+  #    'h': rows[1:][ey] - rows[:-1][y]}
+  return columns[:-1][x], rows[:-1][y],\
+      columns[1:][ex] - columns[:-1][x],\
+      rows[1:][ey] - rows[:-1][y]
+
+# general element position and size for html elements
+def _gmap(track, el, x, y, ex=None, ey=None, padding=0):
+  x, y, w, h = grid_to_dims(track, x, y, ex, ey)
+  el.top = y + padding
+  el.left = x + padding
+  el.width = w - padding*2
+  el.height = h - padding*2
+  
+def partial(func, *args, **keywords):
+  def newfunc(*fargs, **fkeywords):
+    newkeywords = {**keywords, **fkeywords}
+    return func(*args, *fargs, **newkeywords)
+  newfunc.func = func
+  newfunc.args = args
+  newfunc.keywords = keywords
+  return newfunc
+  
+# end fake imports
+  
+tile_dim = 200, 450
+viewport = 500, 500
+width, height = viewport[0]//tile_dim[0], viewport[1]//tile_dim[1]
+
+track = grid_to_tracks([tile_dim[0]]*width, [tile_dim[1]]*height, *viewport)
+gmap = partial(_gmap, track, padding=4)
+
+main_tile = partial(tile, style={'background': 'rgb(40, 40, 40)'}, Class='tile_blue')
+
+root = [
+  (t1:=main_tile('hello world')),
+  (settings:=main_tile('', 'settings'))]
     
-    
-root = DIV([
-    DIV((user_guess:=INPUT(placeholder='Guess'))),
-    DIV((submit:=BUTTON('Submit'))),
-    DIV((result:=DIV('Result:')))],
-  Class='card')
-
-import random
-def on_click(ev):
-  if int(user_guess.value) == (guess:=random.randint(1,10)):
-    result.text = 'Result: Correct'
-  else:
-    result.text = 'Result: Incorrect'
-  user_guess.value = ''
-  user_guess.focus()
-submit.bind('click', on_click)
+maps = (
+  (t1, 0, 0),
+  (settings, 1, 0),
+  )
+  
+for m in maps:
+  gmap(*m)
 
 
-#asyncio.run(popup(root))
+
 doc <= root
 </script>
 </html>
