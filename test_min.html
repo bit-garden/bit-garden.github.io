@@ -300,9 +300,9 @@ def partial(func, *args, **keywords):
   
 # end fake imports
   
-tile_dim = 200, 450
-viewport = 500, 500
-width, height = viewport[0]//tile_dim[0], viewport[1]//tile_dim[1]
+tile_dim = 200, 350
+viewport = 750, 500
+width, height = (a//b for a, b in zip(viewport, tile_dim))
 
 track = grid_to_tracks([tile_dim[0]]*width, [tile_dim[1]]*height, *viewport)
 gmap = partial(_gmap, track, padding=4)
@@ -311,17 +311,36 @@ main_tile = partial(tile, style={'background': 'rgb(40, 40, 40)'}, Class='tile_b
 
 root = [
   (t1:=main_tile('hello world')),
-  (settings:=main_tile('', 'settings'))]
+  (settings:=main_tile('', 'settings')),
+  (rabbit:=main_tile('', '', 'Bit-garden', 'rabbit.png'))]
     
 maps = (
   (t1, 0, 0),
   (settings, 1, 0),
+  (rabbit, 2, 0),
   )
   
+
 for m in maps:
-  gmap(*m)
-
-
+  _gmap(track, *m, padding=4)
+  
+async def aclick(target):
+  target.style['z-index'] = 1
+  await asyncio.sleep(.10)
+  target.style.width = '100%'
+  target.style.height = '100%'
+  target.top = 0
+  target.left = 0
+  await asyncio.sleep(1)
+  for m in maps:
+    gmap(*m)
+  await asyncio.sleep(.3)
+  target.style['z-index'] = 0
+  
+def click(ev):
+  asyncio.run(aclick(ev.currentTarget))
+for i in root:
+  i.bind('click', click)
 
 doc <= root
 </script>
