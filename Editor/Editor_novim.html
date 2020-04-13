@@ -571,6 +571,11 @@ from browser import document as doc
 from browser.html import *
 import time
 
+crimson = (220, 20, 60)
+emerald = (0, 89, 11)
+cobalt = (0, 71, 171)
+gold = (255, 215, 0)
+
 from javascript import RegExp, String
 def dsplit(s, char=','):
   re = RegExp.new(r'(' + char + r')(?=(?:[^"]|"[^"]*")*$)')
@@ -786,13 +791,6 @@ def grouper(iterable, n, fillvalue=None):
   args = [iter(iterable)] * n
   return zip_longest(*args, fillvalue=fillvalue)
 
-def sub_group(dat):
-  gb = groupby(dat, key=lambda i: i[0][0])
-  gb = ((k, (*v,)) for k, v in gb)
-  for k, v in gb:
-    subs = ', '.join(f"{'/'.join(lcast(i.pop(0)[1:], str))}" for i in v)
-    zips = (f"({', '.join(lcast(i, str))})" for i in zip(*v))
-    yield [f'{k} ({subs})', *zips]
   
 def is_num(_in):
   try:
