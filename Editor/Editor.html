@@ -263,6 +263,9 @@ CodeMirror.Vim.map('<C-e>', ':run_file', 'normal')
 CodeMirror.Vim.map('<C-e>', ':run_file', 'insert')
 CodeMirror.Vim.map('<C-e>', ':do_py', 'visual')
 
+CodeMirror.Vim.map('<Tab><C-e>', ':run_shard', 'normal')
+CodeMirror.Vim.map('<Tab>v', ':visual_shard', 'normal')
+
 // Tab e to align table or selection
 CodeMirror.Vim.map('<Tab>e', ':vdo :kpos|vip|:align|:rpos|l', 'normal')
 CodeMirror.Vim.map('<Tab>e', ':vdo :align', 'visual')
@@ -963,8 +966,8 @@ def do_py() -> None:
       cm_editbox.replaceSelection(out.strip('\n'))
   except Exception as e:
     import traceback
-    print_red = traceback.format_exc().splitlines()
-    out = '\n'.join([data, '\n'.join(print_red)])
+    print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
+    out = '\n'.join([data, ''.join(print_red)])
     window.vdo("gv")
     cm_editbox.replaceSelection(out.strip('\n'))
 
@@ -979,6 +982,78 @@ def run_file(cm, params):
     import traceback
     print(traceback.format_exc())
 window.CodeMirror.Vim.defineEx("run_file", None, run_file)
+
+def run_shard(*l, **kw):
+  print_red = []
+  def print(*objects, sep=' ', end='\n'):
+    print_red.append(sep.join(str(o) for o in objects) + end)
+
+  cm_editbox.save()
+  cur_line = cm_editbox.getCursor().line
+  look_ahead = editbox.value.splitlines()[cur_line:]
+  look_behind = editbox.value.splitlines()[: cur_line]
+  start, end = 0, 0
+
+  count = 0
+  for idx, i in enumerate(look_ahead):
+    if not i.strip():
+      count += 1
+    else:
+      count = 0
+    if count > 1:
+      end = idx+cur_line - 1
+      break
+      
+  count = 0
+  for idx, i in enumerate([*reversed(look_behind)]):
+    if not i.strip():
+      count += 1
+    else:
+      count = 0
+    if count > 1:
+      start = cur_line - idx + 1
+      break
+    
+  #print(editbox.value.splitlines()[start:end])
+  try:
+    exec('\n'.join(editbox.value.splitlines()[start:end]))
+    if print_red:
+      asyncio.run(popup(TEXTAREA(''.join(print_red), style={'width': 750, 'height': 500})))
+  except Exception as e:
+    import traceback
+    print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
+    asyncio.run(popup(TEXTAREA(''.join(print_red), style={'width': 750, 'height': 500})))
+window.CodeMirror.Vim.defineEx("run_shard", None, run_shard)
+
+def visual_shard(*l, **kw):
+  cm_editbox.save()
+  cur_line = cm_editbox.getCursor().line
+  look_ahead = editbox.value.splitlines()[cur_line:]
+  look_behind = editbox.value.splitlines()[: cur_line]
+  start, end = 0, 0
+
+  count = 0
+  for idx, i in enumerate(look_ahead):
+    if not i.strip():
+      count += 1
+    else:
+      count = 0
+    if count > 1:
+      end = idx+cur_line - 1
+      break
+      
+  count = 0
+  for idx, i in enumerate([*reversed(look_behind)]):
+    if not i.strip():
+      count += 1
+    else:
+      count = 0
+    if count > 1:
+      start = cur_line - idx + 1
+      break
+  window.vdo(f'{start+1}ggV{end}gg')
+  #print(editbox.value.splitlines()[start:end])
+window.CodeMirror.Vim.defineEx("visual_shard", None, visual_shard)
 
 def do_tp() -> None:
   try:
