@@ -182,27 +182,27 @@ button, textarea, input{
   background: none;
   color: rgba(255,255,255,.87);
   border: none;
-  border-bottom: 2px solid rgb(220, 20, 60);
+  border-bottom: 2px solid rgb(0, 71, 171);
   outline: none;
   box-sizing: border-box;
 }
 
-.tile_crimson:hover, .tile_crimson:focus{
+.glow_crimson, .tile_crimson:hover, .tile_crimson:focus{
   box-shadow: 0 4px 5px 0 rgba(220, 20, 60, 0.14), 0 1px 10px 0 rgba(220, 20, 60, 0.12), 0 2px 4px -1px rgba(220, 20, 60, 0.20);
   background: rgb(220, 20, 60) !important;
 }
 
-.tile_emerald:hover, .tile_emerald:focus{
+.glow_emerald, .tile_emerald:hover, .tile_emerald:focus{
   box-shadow: 0 4px 5px 0 rgba(0, 89, 11, 0.14), 0 1px 10px 0 rgba(0, 89, 11, 0.12), 0 2px 4px -1px rgba(0, 89, 11, 0.20);
   background: rgb(0, 89, 11) !important;
 }
 
-.tile_cobalt:hover, .tile_cobalt:focus{
+.glow_cobalt, .tile_cobalt:hover, .tile_cobalt:focus{
   box-shadow: 0 4px 5px 0 rgba(0, 71, 171, 0.14), 0 1px 10px 0 rgba(0, 71, 171, 0.12), 0 2px 4px -1px rgba(0, 71, 171, 0.20);
   background: rgb(0, 71, 171) !important;
 }
 
-.tile_gold:hover, .tile_gold:focus{
+.glow_gold, .tile_gold:hover, .tile_gold:focus{
   box-shadow: 0 4px 5px 0 rgba(255, 215, 0, 0.14), 0 1px 10px 0 rgba(255, 215, 0, 0.12), 0 2px 4px -1px rgba(255, 215, 0, 0.20);
   background: rgb(255, 215, 0) !important;
 }
@@ -313,6 +313,9 @@ CodeMirror.Vim.map('s}', ':surround {}', 'visual')
 CodeMirror.Vim.map("s'", ":surround ''", 'visual')
 CodeMirror.Vim.map('s"', ':surround ""', 'visual')
 
+CodeMirror.Vim.map('<C-k>', ':runup', 'normal')
+CodeMirror.Vim.map('<C-j>', ':rundown', 'normal')
+
 // quick select column in pipe table
 CodeMirror.Vim.map('zv', ':vblock', 'normal')
 
@@ -324,7 +327,7 @@ editbox = document.querySelector('.editbox')
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
-            'lineNumbers':       false,
+            'lineNumbers':       true,
             "mode":              'simplemode',
             "theme":             "material",
             'tabSize':           2,
@@ -608,12 +611,32 @@ emerald = (0, 89, 11)
 cobalt = (0, 71, 171)
 gold = (255, 215, 0)
 
+      
+def parse_by(s, delim=',', quotes=('"', "'")):
+  # splits text by lines accounting for quotes
+  last = ''
+  last_idx = 0
+  ignore = False
+  row = []
 
-from javascript import RegExp, String
-def dsplit(s, char=','):
-  re = RegExp.new(r'(' + char + r')(?=(?:[^"]|"[^"]*")*$)')
-  return ([j.strip() for idx, j in enumerate(String.new(i).split(re)) if not idx % 2]
-      for i in s.splitlines() if i.strip())
+  for idx, i in enumerate(s):
+    if ignore: 
+      ignore = False
+      continue
+    if i in quotes and not last:
+      last = i
+    elif i in quotes and i == last:
+      last = ''
+    #elif i == '\\':
+    #  ignore = True
+    elif not last and i in (delim, '\n'):
+      row.append(''.join(s[last_idx: idx].strip()))
+      if i == '\n':
+        yield row
+        row = []
+      last_idx = idx + 1
+  row.append(''.join(s[last_idx:].strip()))
+  yield row
 
 
 # TODO
@@ -855,7 +878,16 @@ _options['window'] = window
 _options['limelight'] = None
 _options['relative_number'] = True
 
-
+def runup(cm, params):
+  cm_editbox.save()
+  tar = window.findMatches(cm_editbox.getTextArea().value, cm_editbox.getCursor().ch, cm_editbox.getCursor().line)[0]
+  window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(tar)+", 'ch':"+str(_options['editbox'].getCursor().ch)+"})")
+window.CodeMirror.Vim.defineEx("runup", None, runup)
+def rundown(cm, params):
+  cm_editbox.save()
+  tar = window.findMatches(_options['editbox'].getTextArea().value, _options['editbox'].getCursor().ch, _options['editbox'].getCursor().line)[-1]
+  window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(tar)+", 'ch':"+str(_options['editbox'].getCursor().ch)+"})")
+window.CodeMirror.Vim.defineEx("rundown", None, rundown)
 
 
 def overscroll(cm):
@@ -874,7 +906,7 @@ doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
 
 
 
-_options['_line_numbers'] = False
+_options['_line_numbers'] = True
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
   _options['_line_numbers'] = state
@@ -952,7 +984,7 @@ def do_tp() -> None:
   try:
     window.vdo("gvo")
     data = cm_editbox.getSelection()
-    data = list(list(i) for i in zip_longest(*dsplit(data, '\|')))
+    data = list(list(i) for i in zip_longest(*parse_by(data, '|', '"')))
     out = align(data)
     cm_editbox.replaceSelection(out.strip('\n'))
   except Exception as e:
@@ -1012,7 +1044,7 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  out = align(dsplit(data, '\|'))
+  out = align(parse_by(data, '|', '"'))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
