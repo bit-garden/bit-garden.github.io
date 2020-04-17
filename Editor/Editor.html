@@ -1059,7 +1059,8 @@ def do_tp() -> None:
   try:
     window.vdo("gvo")
     data = cm_editbox.getSelection()
-    data = list(list(i) for i in zip_longest(*parse_by(data, '|', '"')))
+    #data = list(list(i) for i in zip_longest(*parse_by(data, '|', '"')))
+    data = list(list(i) for i in zip_longest(*([j.strip() for j in i.split('|')] for i in data.splitlines())))
     out = align(data)
     cm_editbox.replaceSelection(out.strip('\n'))
   except Exception as e:
@@ -1119,7 +1120,8 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  out = align(parse_by(data, '|', '"'))
+  #out = align(parse_by(data, '|', '"'))
+  out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)

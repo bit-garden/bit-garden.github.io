@@ -262,6 +262,8 @@ CodeMirror.Vim.map('<C-e>', ':run_file', 'normal')
 CodeMirror.Vim.map('<C-e>', ':run_file', 'insert')
 CodeMirror.Vim.map('<C-e>', ':do_py', 'visual')
 
+
+
 // Tab e to align table or selection
 CodeMirror.Vim.map('<Tab>e', ':vdo :kpos|vip|:align|:rpos|l', 'normal')
 CodeMirror.Vim.map('<Tab>e', ':vdo :align', 'visual')
@@ -978,6 +980,8 @@ def do_tp() -> None:
     import traceback
     window.make_popup(traceback.format_exc())
 
+
+    
 def run_tp(cm, params):
   do_tp()
 window.CodeMirror.Vim.defineEx("do_tp", None, run_tp)
