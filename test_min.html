@@ -106,21 +106,24 @@ button, textarea, input{
   box-sizing: border-box;
 }
 
-button{
-  background: none;
-  color: rgba(255,255,255,.87);
-  border: none;
-  outline: none;
-  box-sizing: border-box;
+.glow_crimson, .tile_crimson:hover, .tile_crimson:focus{
+  box-shadow: 0 4px 5px 0 rgba(220, 20, 60, 0.14), 0 1px 10px 0 rgba(220, 20, 60, 0.12), 0 2px 4px -1px rgba(220, 20, 60, 0.20);
+  background: rgb(220, 20, 60) !important;
 }
 
-.tile_blue:hover, .tile_blue:focus{
-  box-shadow: 0 4px 5px 0 rgba(0,192,255,0.14), 0 1px 10px 0 rgba(0,192,255,0.12), 0 2px 4px -1px rgba(0,192,255,0.20);
-  background: rgb(0,96,128) !important;
+.glow_emerald, .tile_emerald:hover, .tile_emerald:focus{
+  box-shadow: 0 4px 5px 0 rgba(0, 89, 11, 0.14), 0 1px 10px 0 rgba(0, 89, 11, 0.12), 0 2px 4px -1px rgba(0, 89, 11, 0.20);
+  background: rgb(0, 89, 11) !important;
 }
-.tile_red:hover, .tile_red:focus{
-  box-shadow: 0 4px 5px 0 rgba(255,0,0,0.14), 0 1px 10px 0 rgba(255,0,0,0.12), 0 2px 4px -1px rgba(255,0,0,0.20);
-  background: rgb(128,0,0) !important;
+
+.glow_cobalt, .tile_cobalt:hover, .tile_cobalt:focus{
+  box-shadow: 0 4px 5px 0 rgba(0, 71, 171, 0.14), 0 1px 10px 0 rgba(0, 71, 171, 0.12), 0 2px 4px -1px rgba(0, 71, 171, 0.20);
+  background: rgb(0, 71, 171) !important;
+}
+
+.glow_gold, .tile_gold:hover, .tile_gold:focus{
+  box-shadow: 0 4px 5px 0 rgba(255, 215, 0, 0.14), 0 1px 10px 0 rgba(255, 215, 0, 0.12), 0 2px 4px -1px rgba(255, 215, 0, 0.20);
+  background: rgb(255, 215, 0) !important;
 }
 
 .show_over {
@@ -221,74 +224,6 @@ def tile(text=None, _icon=None, title=None, background=None,
         'padding': '8px'}))
   return box(out, base=base, **kw)
   
-def grid_to_tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
-  # generates values to align a grid layout
-  _width = width
-  _cols = [0]
-  for c in cols:
-    if c == ...:
-      _cols.append(c)
-    elif c < 1:
-      _cols.append(_width - width + _width * c)
-      width -= _width * c
-    else:
-      _cols.append(_width - width + c)
-      width -= c
-      
-  _height = height
-  _rows = [0]
-  for c in rows:
-    if c == ...:
-      _rows.append(c)
-    elif c < 1:
-      _rows.append(_height - height + _height * c)
-      height -= _height * c
-    else:
-      _rows.append(_height - height + c)
-      height -= c
-  
-  if ... in _cols:
-    idx = _cols.index(...)
-    _cols[idx:idx+1] = [_cols[idx-1]]
-    _cols[idx:] = [i+width for i in _cols[idx:]]
-    width = 0
-    
-  if ... in _rows:
-    idx = _rows.index(...)
-    _rows[idx:idx+1] = [_rows[idx-1]]
-    _rows[idx:] = [i+height for i in _rows[idx:]]
-    height = 0
-  
-  # optionally round
-  _cols = [round(i+offx+width//2) for i in _cols]
-  _rows = [round(i+offy+height//2) for i in _rows]
-      
-  return _cols, _rows
-
-
-def grid_to_dims(grid, x=0, y=0, ex=None, ey=None):
-  # uses a grid layout to return x,y/w,h values
-  columns, rows = grid
-  if ex is None:
-    ex = x
-  if ey is None:
-    ey = y
-
-  #return {'x': columns[:-1][x], 'y': rows[:-1][y],
-  #    'w': columns[1:][ex] - columns[:-1][x],
-  #    'h': rows[1:][ey] - rows[:-1][y]}
-  return columns[:-1][x], rows[:-1][y],\
-      columns[1:][ex] - columns[:-1][x],\
-      rows[1:][ey] - rows[:-1][y]
-
-# general element position and size for html elements
-def _gmap(track, el, x, y, ex=None, ey=None, padding=0):
-  x, y, w, h = grid_to_dims(track, x, y, ex, ey)
-  el.top = y + padding
-  el.left = x + padding
-  el.width = w - padding*2
-  el.height = h - padding*2
-  
 def partial(func, *args, **keywords):
   def newfunc(*fargs, **fkeywords):
     newkeywords = {**keywords, **fkeywords}
@@ -300,43 +235,58 @@ def partial(func, *args, **keywords):
   
 # end fake imports
   
-tile_dim = 200, 350
-viewport = 750, 500
-width, height = (a//b for a, b in zip(viewport, tile_dim))
+viewport = doc.select_one('body').width, \
+  doc.select_one('body').height
 
-track = grid_to_tracks([tile_dim[0]]*width, [tile_dim[1]]*height, *viewport)
-gmap = partial(_gmap, track, padding=4)
+cell_size = [viewport[1]//3 - 32]*2
+grid_size = [a//b for a, b in zip(viewport, cell_size)]
+width = grid_size[0]
+offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
 
-main_tile = partial(tile, style={'background': 'rgb(40, 40, 40)'}, Class='tile_blue')
+tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
+  for a, b, c in zip(offset, cell_size, grid_size)]
+
+coords_map=('left', 'top', 'width', 'height')
+def style_update(s, k, v):
+  for _k, _v in zip(k, v):
+    s[_k] = _v
+
+def tracks_to_coords(grid, i, x=0, y=0, ex=None, ey=None, padding=0):
+  # uses a grid layout to return x,y/w,h values
+  columns, rows = grid
+  if ex is None: ex = x
+  if ey is None: ey = y
+
+  coords = (columns[x][0] + padding, rows[y][0] + padding,
+    columns[ex][1] - columns[x][0] - padding*2,
+    rows[ey][1] - rows[y][0] - padding*2)
+    
+  style_update(i.style, coords_map, coords)
+    
+gmap = partial(tracks_to_coords, tracks, padding=8)
+
+main_tile = partial(tile, style={'background': 'rgb(40, 40, 40)'}, Class='tile_cobalt')
 
 root = [
   (t1:=main_tile('hello world')),
-  (settings:=main_tile('', 'settings')),
+  (settings:=main_tile('Settings', 'settings')),
   (rabbit:=main_tile('', '', 'Bit-garden', 'rabbit.png'))]
-    
-maps = (
-  (t1, 0, 0),
-  (settings, 1, 0),
-  (rabbit, 2, 0),
-  )
   
-
-for m in maps:
-  _gmap(track, *m, padding=4)
+for idx, i in enumerate(root):
+  gmap(i, idx%width, idx//width)
   
 async def aclick(target):
-  target.style['z-index'] = 1
-  await asyncio.sleep(.10)
-  target.style.width = '100%'
-  target.style.height = '100%'
-  target.top = 0
-  target.left = 0
-  await asyncio.sleep(1)
-  for m in maps:
-    gmap(*m)
-  await asyncio.sleep(.3)
-  target.style['z-index'] = 0
-  
+  if target.style['z-index'] != '1':
+    target.style['z-index'] = 1
+    await asyncio.sleep(.10)
+    style_update(target.style, coords_map, 
+      (0, 0, '100%', '100%'))
+  else:
+    for idx, i in enumerate(root):
+      gmap(i, idx%width, idx//width)
+    await asyncio.sleep(.3)
+    target.style['z-index'] = 0
+
 def click(ev):
   asyncio.run(aclick(ev.currentTarget))
 for i in root:
