@@ -1,0 +1,408 @@
+<html>
+<title>Launcher</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="shortcut icon" href="rabbit.png"><style>
+
+body { background: black; color: rgba(255,255,255,.87);}
+
+@font-face {
+  font-family: Mono;
+  src: url("lib/RobotoMono-Light.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url("lib/MaterialIcons-Regular.ttf") format('truetype')
+}
+
+.material-icons {
+  font-family: 'Material Icons' !important;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+
+* {
+  font-family: Mono;
+  font-size: 16px;
+}
+
+pre, code, pre > * {
+  font-family: Mono;
+}
+
+.shadow_0 {
+  box-shadow: none
+}
+.shadow_1{
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.14), 0 2px 1px -1px rgba(0,0,0,0.12), 0 1px 3px 0 rgba(0,0,0,0.20)
+}
+.shadow_2{
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20)
+}
+.shadow_3{
+  box-shadow: 0 3px 4px 0 rgba(0,0,0,0.14), 0 3px 3px -2px rgba(0,0,0,0.12), 0 1px 8px 0 rgba(0,0,0,0.20)
+}
+.shadow_4{
+  box-shadow: 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)
+}
+.shadow_6{
+  box-shadow: 0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12), 0 3px 5px -1px rgba(0,0,0,0.20)
+}
+.shadow_8{
+  box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.20)
+}
+.shadow_12{
+  box-shadow: 0 12px 17px 2px rgba(0,0,0,0.14), 0 5px 22px 4px rgba(0,0,0,0.12), 0 7px 8px -4px rgba(0,0,0,0.20)
+}
+.shadow_16{
+  box-shadow: 0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.20)
+}
+.shadow_24{
+  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20)
+}
+
+dialog {
+  background-color: rgba(18,18,18,1);
+  color: rgba(255,255,255,.87);
+  border: none;
+  padding: 0px;
+  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20);
+  box-sizing: border-box;
+}
+.card {
+  background-color: rgba(18,18,18,1);
+  color: rgba(255,255,255,.87);
+  border: none;
+  padding: 12px 16px;
+  box-sizing: border-box;
+}
+
+button, textarea, input{
+  background: none;
+  color: rgba(255,255,255,.87);
+  border: none;
+  border-bottom: 2px solid #00ccff;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.glow_crimson, .tile_crimson:hover, .tile_crimson:focus{
+  box-shadow: 0 4px 5px 0 rgba(220, 20, 60, 0.14), 0 1px 10px 0 rgba(220, 20, 60, 0.12), 0 2px 4px -1px rgba(220, 20, 60, 0.20);
+  background: rgb(220, 20, 60) !important;
+}
+
+.glow_emerald, .tile_emerald:hover, .tile_emerald:focus{
+  box-shadow: 0 4px 5px 0 rgba(0, 89, 11, 0.14), 0 1px 10px 0 rgba(0, 89, 11, 0.12), 0 2px 4px -1px rgba(0, 89, 11, 0.20);
+  background: rgb(0, 89, 11) !important;
+}
+
+.glow_cobalt, .tile_cobalt:hover, .tile_cobalt:focus{
+  box-shadow: 0 4px 5px 0 rgba(0, 71, 171, 0.14), 0 1px 10px 0 rgba(0, 71, 171, 0.12), 0 2px 4px -1px rgba(0, 71, 171, 0.20);
+  background: rgb(0, 71, 171) !important;
+}
+
+.glow_gold, .tile_gold:hover, .tile_gold:focus{
+  box-shadow: 0 4px 5px 0 rgba(255, 215, 0, 0.14), 0 1px 10px 0 rgba(255, 215, 0, 0.12), 0 2px 4px -1px rgba(255, 215, 0, 0.20);
+  background: rgb(255, 215, 0) !important;
+}
+
+.show_over {
+  opacity: 0;
+}
+div:hover > .hide_over,
+div:focus > .hide_over {
+  opacity: 0;
+}
+div:hover > .show_over,
+div:focus > .show_over {
+  opacity: 1;
+}
+
+.animate { 
+  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: all 0.3s;
+}
+
+.warn{
+  border-bottom: 2px solid #B00020;
+}
+
+::placeholder {
+  color: rgba(255,255,255,.6);
+}
+
+</style>
+<body onload="brython({indexedDB: false})"></body>
+<script src="lib/brython_aio.js"></script>
+<script type="text/python">
+from browser import window
+from browser import document as doc
+from browser import aio as asyncio
+from browser.html import *
+
+def box(*l, base=DIV, **kw):
+  sty = kw.get('style', {})
+  sty['box-sizing'] = 'border-box'
+  sty['display'] = 'inline'
+  sty['position'] = 'absolute'
+  kw['style'] = sty
+  return base(*l, **kw)
+  
+def icon(_icon, *l, **kw):
+  return I(_icon, *l, Class='material-icons', **kw)
+  
+def tile(text=None, _icon=None, title=None, background=None, 
+    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
+  sty = kw.get('style', {})
+  sty['overflow'] = 'hidden'
+  kw['style'] = sty
+  
+  cla = kw.get('Class', '').split(' ')
+  cla += ['animate']
+  kw['Class'] = ' '.join(cla)
+  
+  out = []
+  if background:
+    out.append(DIV(style={
+        'width': '100%',
+        'height': '100%',
+        'background': f'url({background})',
+        'background-size': 'cover',
+        'background-position': 'center',
+        #'z-index': '-1',
+        'position': 'absolute',
+        'left': 0,
+        'top': 0,
+        }))
+  if _icon:
+    out.append(icon(_icon, 
+      style={
+        'position': 'absolute',
+        'left': '50%',
+        'top': '50%',
+        'transform': 'translate(-50%, -50%)',
+        'font-size': icon_size}))
+  if text:
+    out.append(DIV(text, 
+      style={
+        'position': 'absolute',
+        'left': '50%' if align=='center' else '0px',
+        'top': '50%',
+        'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
+        'font-size': font_size,
+        'text-align': align}))
+  if text and _icon:
+    out[-1].attrs['class'] = 'show_over animate'
+    out[-2].attrs['class'] = 'hide_over material-icons animate'
+  if title:
+    out.append(DIV(f'{title}', 
+      style={
+        'position': 'absolute',
+        'left': 0,
+        'bottom': 0,
+        'background': 'rgba(0,0,0,.5)',
+        'padding': '8px'}))
+  return box(out, base=base, **kw)
+  
+def partial(func, *args, **keywords):
+  def newfunc(*fargs, **fkeywords):
+    newkeywords = {**keywords, **fkeywords}
+    return func(*args, *fargs, **newkeywords)
+  newfunc.func = func
+  newfunc.args = args
+  newfunc.keywords = keywords
+  return newfunc
+  
+  
+coords_map=('left', 'top', 'width', 'height')
+def style_update(s, k, v):
+  for _k, _v in zip(k, v):
+    s[_k] = _v
+
+def tracks_to_coords(grid, i, x=0, y=0, ex=None, ey=None, padding=0):
+  # uses a grid layout to return x,y/w,h values
+  columns, rows = grid
+  if ex is None: ex = x
+  if ey is None: ey = y
+
+  coords = (columns[x][0] + padding, rows[y][0] + padding,
+    columns[ex][1] - columns[x][0] - padding*2,
+    rows[ey][1] - rows[y][0] - padding*2)
+
+  style_update(i.style, coords_map, coords)
+
+# end of import ish stuff
+# -----------------------
+
+task_stack = []
+
+
+async def launcher(q):
+  state = 'visible'
+  
+  viewport = doc.select_one('body').width, \
+    doc.select_one('body').height
+
+  cell_size = [viewport[1]//3 - 32]*2
+  grid_size = [a//b for a, b in zip(viewport, cell_size)]
+  width = grid_size[0]
+  offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
+
+  tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
+    for a, b, c in zip(offset, cell_size, grid_size)]
+
+  gmap = partial(tracks_to_coords, tracks, padding=8)
+  
+  #def tile(text=None, _icon=None, title=None, background=None, 
+  #    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
+  launch_tile = partial(tile, style={'background': 'rgba(40, 40, 40, 1)'}, Class='tile_cobalt')
+  root = [
+      (match_tile:=launch_tile('Match game', 'view_module')),
+      (test_tile:=launch_tile('other game'))]
+    
+  async def _launch_match(ev):
+    nonlocal state
+  
+    step = int(viewport[0]*.1)
+    for i in root:
+      i.left -= step
+      i.style.opacity = 0
+      
+    match_game_task = match_game(match_game_taskq:=[])
+    task_stack[0:0] = match_game_taskq
+    asyncio.run(match_game_task)
+    
+    await asyncio.sleep(.3)
+    state = 'hidden'
+    for i in root:  
+      i.remove()
+        
+  def launch_match(ev):
+    asyncio.run(_launch_match(ev))
+    
+  match_tile.bind('click', launch_match)
+  
+  for idx, i in enumerate(root):
+    gmap(i, idx//width, idx%width)
+    
+    
+  #maps = (
+  #  (match_tile, 0, 0),
+  #  (test_tile, 1, 0))
+  #
+  #for i in maps:
+  #  gmap(*i)
+    
+  doc <= root
+  
+  while 'cancel' not in q:
+    await asyncio.sleep(1)
+    
+  for el in root:
+    el.remove()
+      
+  # garbage collect on closure
+  
+
+async def match_game(q):
+  import random
+
+  state = 'visible'
+
+  viewport = doc.select_one('body').width, \
+    doc.select_one('body').height
+
+  cell_size = [viewport[1]//4]*2
+  grid_size = 4, 4
+  width = grid_size[1]
+  offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
+
+  tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
+    for a, b, c in zip(offset, cell_size, grid_size)]
+
+  gmap = partial(tracks_to_coords, tracks, padding=8)
+
+  #def tile(text=None, _icon=None, title=None, background=None, 
+  #    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
+  game_tile = partial(tile, style={'background': 'rgba(40, 40, 40, 1)'}, Class='tile_cobalt')
+  
+  #print(slot('Item', 'contents hidden _element', True, None, verbose=True))
+  class Item:
+    __slots__ = ('contents', 'hidden', '_element')
+    def __init__(self,
+        contents, hidden=True, _element=None):
+      self.contents = contents
+      self.hidden = hidden
+      self._element = _element
+   
+  selected = None
+
+  def peek(target):
+    global selected
+    target = grid[target]
+
+    if selected is None:
+      selected = target
+      target.hidden = False
+      emit('show', target)
+
+  # setup tile obects into list and shuffle
+  items = 'apple', 'banana', 'cucumber', 'date'
+  grid = [*items, *items]
+  grid = [Item(i) for i in grid]
+  random.shuffle(grid)
+  
+  for idx, i in enumerate(grid):
+    i._element = game_tile(i.contents)
+    gmap(i._element, idx%width, idx//width)
+
+  root = [i._element for i in grid]
+  
+  doc <= root
+  
+  while 'cancel' not in q:
+    await asyncio.sleep(1)
+    
+  for el in root:
+    el.remove()
+
+
+async def main():
+  l = launcher(lq:=[])
+  task_stack[0:0] = lq
+  asyncio.run(l)
+  
+  while 'done' not in lq:
+    await asyncio.sleep(5)
+    
+  print('Launcher closed, this shouldn\'t happen.')
+  
+  #await asyncio.sleep(3)
+  #
+  #current_task.close()
+  
+asyncio.run(main())
+
+</script>
+</html>
