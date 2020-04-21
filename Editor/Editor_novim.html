@@ -831,6 +831,15 @@ def align(*d):
     col[:] = [f'{i}'.rjust(l) if is_num(i) else f'{i}'.ljust(l) for i in col]
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*d))
 
+def attr_map(i, **kw):
+  for k, v in kw.items():
+    setattr(i, k, v)
+
+def recycle(items, data, how=attr_map):
+  buff = max(len(items) - len(data), 0)
+  for i, d in zip(items, data + [{}]*buff):
+    how(i, **d)
+  
 # --- end focus
 
 

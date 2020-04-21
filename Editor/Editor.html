@@ -864,6 +864,16 @@ def align(*d):
     l = max(len(f'{i}') for i in col)
     col[:] = [f'{i}'.rjust(l) if is_num(i) else f'{i}'.ljust(l) for i in col]
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*d))
+  
+def attr_map(i, **kw):
+  for k, v in kw.items():
+    setattr(i, k, v)
+
+def recycle(items, data, how=attr_map):
+  buff = max(len(items) - len(data), 0)
+  for i, d in zip(items, data + [{}]*buff):
+    how(i, **d)
+
 
 # --- end focus
 
@@ -984,6 +994,8 @@ def run_file(cm, params):
 window.CodeMirror.Vim.defineEx("run_file", None, run_file)
 
 def run_shard(*l, **kw):
+  viewport = doc.select_one('body').width//1.2, \
+    doc.select_one('body').height//1.2
   print_red = []
   def print(*objects, sep=' ', end='\n'):
     print_red.append(sep.join(str(o) for o in objects) + end)
@@ -1018,11 +1030,11 @@ def run_shard(*l, **kw):
   try:
     exec('\n'.join(editbox.value.splitlines()[start:end]))
     if print_red:
-      asyncio.run(popup(TEXTAREA(''.join(print_red), style={'width': 750, 'height': 500})))
+      asyncio.run(popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]})))
   except Exception as e:
     import traceback
     print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
-    asyncio.run(popup(TEXTAREA(''.join(print_red), style={'width': 750, 'height': 500})))
+    asyncio.run(popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]})))
 window.CodeMirror.Vim.defineEx("run_shard", None, run_shard)
 
 def visual_shard(*l, **kw):
