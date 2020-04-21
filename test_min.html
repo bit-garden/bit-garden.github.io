@@ -192,22 +192,20 @@ def partial(func, *args, **keywords):
   
 # recycle test
 #header
-coords_map=('left', 'top', 'width', 'height')
-def style_update(s, k, v):
-  for _k, _v in zip(k, v):
-    s[_k] = _v
-
-def tracks_to_coords(grid, i, x=0, y=0, ex=None, ey=None, padding=0):
-  # uses a grid layout to return x,y/w,h values
-  columns, rows = grid
+def tracks_to_coords(tracks, x=0, y=0, ex=None, ey=None, padding=0):
+  # uses a tracks layout to return x,y/w,h values
+  columns, rows = tracks
   if ex is None: ex = x
   if ey is None: ey = y
 
-  coords = (columns[x][0] + padding, rows[y][0] + padding,
+  return (columns[x][0] + padding, rows[y][0] + padding,
     columns[ex][1] - columns[x][0] - padding*2,
     rows[ey][1] - rows[y][0] - padding*2)
     
-  style_update(i.style, coords_map, coords)
+coords_map = 'left', 'top', 'width', 'height'
+def _gmap(instance, *l, **kw):
+  for k, v in zip(coords_map, tracks_to_coords(*l, **kw)):
+    instance.style[k] = v
   
 # in task
 def tile(text='', _icon='', title='', background='', 
