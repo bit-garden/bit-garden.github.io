@@ -171,59 +171,15 @@ def box(*l, base=DIV, **kw):
 def icon(_icon, *l, **kw):
   return I(_icon, *l, Class='material-icons', **kw)
   
-def tile(text=None, _icon=None, title=None, background=None, 
-    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
-  sty = kw.get('style', {})
-  sty['overflow'] = 'hidden'
-  kw['style'] = sty
-  
-  cla = kw.get('Class', '').split(' ')
-  cla += ['animate']
-  kw['Class'] = ' '.join(cla)
-  
-  out = []
-  if background:
-    out.append(DIV(style={
-        'width': '100%',
-        'height': '100%',
-        'background': f'url({background})',
-        'background-size': 'cover',
-        'background-position': 'center',
-        #'z-index': '-1',
-        'position': 'absolute',
-        'left': 0,
-        'top': 0,
-        }))
-  if _icon:
-    out.append(icon(_icon, 
-      style={
-        'position': 'absolute',
-        'left': '50%',
-        'top': '50%',
-        'transform': 'translate(-50%, -50%)',
-        'font-size': icon_size}))
-  if text:
-    out.append(DIV(text, 
-      style={
-        'position': 'absolute',
-        'left': '50%' if align=='center' else '0px',
-        'top': '50%',
-        'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
-        'font-size': font_size,
-        'text-align': align}))
-  if text and _icon:
-    out[-1].attrs['class'] = 'show_over animate'
-    out[-2].attrs['class'] = 'hide_over material-icons animate'
-  if title:
-    out.append(DIV(f'{title}', 
-      style={
-        'position': 'absolute',
-        'left': 0,
-        'bottom': 0,
-        'background': 'rgba(0,0,0,.5)',
-        'padding': '8px'}))
-  return box(out, base=base, **kw)
-  
+def attr_map(i, **kw):
+  for k, v in kw.items():
+    setattr(i, k, v)
+
+def recycle(items, data, how=attr_map):
+  buff = max(len(items) - len(data), 0)
+  for i, d in zip(items, data + [{}]*buff):
+    how(i, **d)
+
 def partial(func, *args, **keywords):
   def newfunc(*fargs, **fkeywords):
     newkeywords = {**keywords, **fkeywords}
@@ -233,19 +189,9 @@ def partial(func, *args, **keywords):
   newfunc.keywords = keywords
   return newfunc
   
-# end fake imports
   
-viewport = doc.select_one('body').width, \
-  doc.select_one('body').height
-
-cell_size = [viewport[1]//3 - 32]*2
-grid_size = [a//b for a, b in zip(viewport, cell_size)]
-width = grid_size[0]
-offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
-
-tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
-  for a, b, c in zip(offset, cell_size, grid_size)]
-
+# recycle test
+#header
 coords_map=('left', 'top', 'width', 'height')
 def style_update(s, k, v):
   for _k, _v in zip(k, v):
@@ -262,35 +208,113 @@ def tracks_to_coords(grid, i, x=0, y=0, ex=None, ey=None, padding=0):
     rows[ey][1] - rows[y][0] - padding*2)
     
   style_update(i.style, coords_map, coords)
+  
+# in task
+def tile(text='', _icon='', title='', background='', 
+    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
+  sty = kw.get('style', {})
+  sty['overflow'] = 'hidden'
+  kw['style'] = sty
+  
+  cla = kw.get('Class', '').split(' ')
+  cla += ['animate']
+  kw['Class'] = ' '.join(cla)
+  
+  out = []
+  out.append(DIV(style={
+      'width': '100%',
+      'height': '100%',
+      'background': f'url({background})' or 'none',
+      'background-size': 'cover',
+      'background-position': 'center',
+      #'z-index': '-1',
+      'position': 'absolute',
+      'left': 0,
+      'top': 0,
+      }))
+      
+  out.append(icon(_icon or '', 
+    style={
+      'position': 'absolute',
+      'left': '50%',
+      'top': '50%',
+      'transform': 'translate(-50%, -50%)',
+      'font-size': icon_size}))
+      
+  out.append(DIV(text or '', 
+    style={
+      'position': 'absolute',
+      'left': '50%' if align=='center' else '0px',
+      'top': '50%',
+      'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
+      'font-size': font_size,
+      'text-align': align}))
     
+  out.append(DIV(f'{title}' or '', 
+    style={
+      'position': 'absolute',
+      'left': 0,
+      'bottom': 0,
+      'display': 'initial' if title else 'none',
+      'background': 'rgba(0,0,0,.5)',
+      'padding': '8px'}))
+      
+  return box(out, base=base, **kw)
+
+def update_tile(instance, text='', _icon='', title='', background=''):
+  ui_background, ui_icon, ui_text, ui_title = instance.children
+  
+  ui_background.style['background-image'] = f'url({background})' if background else 'none'
+  ui_icon.text = _icon or ''
+  ui_text.text = text or ''
+  
+  if text and _icon:
+    ui_text.attrs['class'] = 'show_over animate'
+    ui_icon.attrs['class'] = 'hide_over material-icons animate'
+  else:
+    ui_text.attrs['class'] = 'animate'
+    ui_icon.attrs['class'] = 'material-icons animate'
+  
+  ui_title.text = title or ''
+  ui_title.style['display'] = 'initial' if title else 'none'
+  
+  if not any([text, _icon, title, title, background]):
+    instance.style['display'] = 'none'
+  else:
+    instance.style['display'] = 'initial'
+  
+viewport = doc.select_one('body').width//1.2, \
+  doc.select_one('body').height//1.2
+
+cell_size = [viewport[1]//3 - 32]*2
+grid_size = [a//b for a, b in zip(viewport, cell_size)]
+offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
+
+tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
+  for a, b, c in zip(offset, cell_size, grid_size)]
+
 gmap = partial(tracks_to_coords, tracks, padding=8)
 
 main_tile = partial(tile, style={'background': 'rgb(40, 40, 40)'}, Class='tile_cobalt')
 
-root = [
-  (t1:=main_tile('hello world')),
-  (settings:=main_tile('Settings', 'settings')),
-  (rabbit:=main_tile('', '', 'Bit-garden', 'rabbit.png'))]
-  
-for idx, i in enumerate(root):
-  gmap(i, idx%width, idx//width)
-  
-async def aclick(target):
-  if target.style['z-index'] != '1':
-    target.style['z-index'] = 1
-    await asyncio.sleep(.10)
-    style_update(target.style, coords_map, 
-      (0, 0, '100%', '100%'))
-  else:
-    for idx, i in enumerate(root):
-      gmap(i, idx%width, idx//width)
-    await asyncio.sleep(.3)
-    target.style['z-index'] = 0
+scroll = 0
+page_size = 3
 
-def click(ev):
-  asyncio.run(aclick(ev.currentTarget))
-for i in root:
-  i.bind('click', click)
+data = [{'title': 'Match game', '_icon': 'view_module'}]
+
+root = [main_tile(f'{i}') for i in range(grid_size[0]*grid_size[1])]
+
+for idx, i in enumerate(root):
+  gmap(i, idx//grid_size[1], idx%grid_size[1])
+  
+async def main():
+  asyncio.run(popup(DIV(root, style={'width': viewport[0], 'height': viewport[1]})))
+  recycle(root, data[page_size*scroll:], update_tile)
+  #for i in range(8):
+  #  recycle(root, data[page_size*i:], update_tile)
+  #  await asyncio.sleep(1)
+    
+asyncio.run(main())
 
 doc <= root
 </script>
