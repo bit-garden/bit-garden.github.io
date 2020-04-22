@@ -1331,74 +1331,48 @@ def tile(text=None, _icon=None, title=None, background=None,
   return box(out, base=base, **kw)
 
 
+
 # import from notes file
-def grid_to_tracks(cols=[], rows=[], width=0, height=0, offx=0, offy=0):
-  # generates values to align a grid layout
-  _width = width
-  _cols = [0]
-  for c in cols:
-    if c == ...:
-      _cols.append(c)
-    elif c < 1:
-      _cols.append(_width - width + _width * c)
-      width -= _width * c
-    else:
-      _cols.append(_width - width + c)
-      width -= c
-      
-  _height = height
-  _rows = [0]
-  for c in rows:
-    if c == ...:
-      _rows.append(c)
-    elif c < 1:
-      _rows.append(_height - height + _height * c)
-      height -= _height * c
-    else:
-      _rows.append(_height - height + c)
-      height -= c
+
+#viewport = doc.select_one('body').width//1.2, \
+#  doc.select_one('body').height//1.2
+#
+#cell_size = [min(viewport)//3 - 32]*2
+#grid_size = [a//b for a, b in zip(viewport, cell_size)]
+#offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
+#tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
+#  for a, b, c in zip(offset, cell_size, grid_size)]
+
+def axis_to_tracks(axis, viewport):
+  # Used to generate a non-uniform grid.
+  axis = [[v*b if isinstance(b, float) else b for b in a] 
+    for v, a in zip(viewport, axis)]
+
+  for v, a in zip(viewport, axis):
+    if (count:=len([i for i in a if i is ...])):
+      fill = (v - sum(i for i in a if i is not ...))/count
+      while ... in a:
+        a[a.index(...)] = fill
+
+  axis = [[round(sum(a[:i])) for i in range(len(a)+1)] for a in axis]
+  axis = [[(a[i], a[i+1]) for i in range(len(a)-1)] for a in axis]
   
-  if ... in _cols:
-    idx = _cols.index(...)
-    _cols[idx:idx+1] = [_cols[idx-1]]
-    _cols[idx:] = [i+width for i in _cols[idx:]]
-    width = 0
+  return axis
+
+def tracks_to_coords(tracks, x=0, y=0, ex=None, ey=None, padding=0):
+  # uses a tracks layout to return x,y/w,h values
+  columns, rows = tracks
+  if ex is None: ex = x
+  if ey is None: ey = y
+
+  return (columns[x][0] + padding, rows[y][0] + padding,
+    columns[ex][1] - columns[x][0] - padding*2,
+    rows[ey][1] - rows[y][0] - padding*2)
     
-  if ... in _rows:
-    idx = _rows.index(...)
-    _rows[idx:idx+1] = [_rows[idx-1]]
-    _rows[idx:] = [i+height for i in _rows[idx:]]
-    height = 0
-  
-  # optionally round
-  _cols = [round(i+offx+width//2) for i in _cols]
-  _rows = [round(i+offy+height//2) for i in _rows]
-      
-  return _cols, _rows
-
-
-def grid_to_dims(grid, x=0, y=0, ex=None, ey=None):
-  # uses a grid layout to return x,y/w,h values
-  columns, rows = grid
-  if ex is None:
-    ex = x
-  if ey is None:
-    ey = y
-
-  #return {'x': columns[:-1][x], 'y': rows[:-1][y],
-  #    'w': columns[1:][ex] - columns[:-1][x],
-  #    'h': rows[1:][ey] - rows[:-1][y]}
-  return columns[:-1][x], rows[:-1][y],\
-      columns[1:][ex] - columns[:-1][x],\
-      rows[1:][ey] - rows[:-1][y]
-
-# general element position and size for html elements
-def _gmap(track, el, x, y, ex=None, ey=None, padding=0):
-  x, y, w, h = grid_to_dims(track, x, y, ex, ey)
-  el.top = y + padding
-  el.left = x + padding
-  el.width = w - padding*2
-  el.height = h - padding*2
+coords_map = 'left', 'top', 'width', 'height'
+def gmap(instance, *l, **kw):
+  for k, v in zip(coords_map, tracks_to_coords(*l, **kw)):
+    instance.style[k] = v
       
       
 # dark material height to tint
