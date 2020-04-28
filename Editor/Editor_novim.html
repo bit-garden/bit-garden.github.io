@@ -840,7 +840,10 @@ def attr_map(i, **kw):
 def recycle(items, data, how=attr_map):
   buff = max(len(items) - len(data), 0)
   for i, d in zip(items, data + [{}]*buff):
-    how(i, **d)
+    if isinstance(d, dict):
+      how(i, **d)
+    else:
+      how(i, **{k: getattr(d, k) for k in d.__slots__})
   
 # --- end focus
 

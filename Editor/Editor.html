@@ -875,7 +875,10 @@ def attr_map(i, **kw):
 def recycle(items, data, how=attr_map):
   buff = max(len(items) - len(data), 0)
   for i, d in zip(items, data + [{}]*buff):
-    how(i, **d)
+    if isinstance(d, dict):
+      how(i, **d)
+    else:
+      how(i, **{k: getattr(d, k) for k in d.__slots__})
 
 
 # --- end focus
@@ -1522,8 +1525,9 @@ def fix_name(s):
     
   return ''.join(i if i in safe else '_' for i in s)
 
-def Tabel(s, char='|', extras=[], cast=None):
-  ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines())
+def Table(s, char='|', extras=[], cast=None):
+  ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
+      if (_i:=i.strip()) and not _i.startswith('#'))
   heads = next(ds)
   Row = slot('Row', ' '.join(fix_name(i) for i in heads+extras), *['' for i in extras])
   if cast:
