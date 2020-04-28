@@ -693,6 +693,8 @@ class {name}:
       {all_args}):
     {sargs}
 
+  def __repr__(self):
+    return f'{{self.__class__.__name__}}({{", ".join(f"{{k}}={{getattr(self, k)!r}}" for k in self.__slots__)}})'
 '''.strip()
   # Verbosity to print out generated code.
   if verbose:
@@ -1222,10 +1224,10 @@ def axis_to_tracks(axis, viewport):
 
   for v, a in zip(viewport, axis):
     if (count:=len([i for i in a if i is ...])):
-      fill = (v - sum(i for i in a if i is not ...))/count
+      fill = max((v - sum(i for i in a if i is not ...))/count, 0)
       while ... in a:
         a[a.index(...)] = fill
-
+  
   axis = [[round(sum(a[:i])) for i in range(len(a)+1)] for a in axis]
   axis = [[(a[i], a[i+1]) for i in range(len(a)-1)] for a in axis]
   
