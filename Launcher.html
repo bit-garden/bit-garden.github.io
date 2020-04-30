@@ -154,13 +154,25 @@ div:focus > .show_over {
 
 </style>
 <body onload="brython({indexedDB: false})"></body>
-<script src="lib/brython_aio.js"></script>
+<script src="lib/brython.js"></script>
 <script type="text/python">
 from browser import window
 from browser import document as doc
-from browser import aio as asyncio
+#from browser import aio as asyncio
 from browser.html import *
 
+import math
+import random
+
+def partial(func, *args, **keywords):
+  def newfunc(*fargs, **fkeywords):
+    newkeywords = {**keywords, **fkeywords}
+    return func(*args, *fargs, **newkeywords)
+  newfunc.func = func
+  newfunc.args = args
+  newfunc.keywords = keywords
+  return newfunc
+  
 def box(*l, base=DIV, **kw):
   sty = kw.get('style', {})
   sty['box-sizing'] = 'border-box'
@@ -172,7 +184,19 @@ def box(*l, base=DIV, **kw):
 def icon(_icon, *l, **kw):
   return I(_icon, *l, Class='material-icons', **kw)
   
-def tile(text=None, _icon=None, title=None, background=None, 
+def attr_map(i, **kw):
+  for k, v in kw.items():
+    setattr(i, k, v)
+
+def recycle(items, data, how=attr_map):
+  buff = max(len(items) - len(data), 0)
+  for i, d in zip(items, data + [{}]*buff):
+    if isinstance(d, dict):
+      how(i, **d)
+    else:
+      how(i, **{k: getattr(d, k) for k in d.__slots__})
+
+def tile(text='', _icon='', title='', background='', 
     font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
   sty = kw.get('style', {})
   sty['overflow'] = 'hidden'
@@ -183,226 +207,523 @@ def tile(text=None, _icon=None, title=None, background=None,
   kw['Class'] = ' '.join(cla)
   
   out = []
-  if background:
-    out.append(DIV(style={
-        'width': '100%',
-        'height': '100%',
-        'background': f'url({background})',
-        'background-size': 'cover',
-        'background-position': 'center',
-        #'z-index': '-1',
-        'position': 'absolute',
-        'left': 0,
-        'top': 0,
-        }))
-  if _icon:
-    out.append(icon(_icon, 
-      style={
-        'position': 'absolute',
-        'left': '50%',
-        'top': '50%',
-        'transform': 'translate(-50%, -50%)',
-        'font-size': icon_size}))
-  if text:
-    out.append(DIV(text, 
-      style={
-        'position': 'absolute',
-        'left': '50%' if align=='center' else '0px',
-        'top': '50%',
-        'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
-        'font-size': font_size,
-        'text-align': align}))
-  if text and _icon:
-    out[-1].attrs['class'] = 'show_over animate'
-    out[-2].attrs['class'] = 'hide_over material-icons animate'
-  if title:
-    out.append(DIV(f'{title}', 
-      style={
-        'position': 'absolute',
-        'left': 0,
-        'bottom': 0,
-        'background': 'rgba(0,0,0,.5)',
-        'padding': '8px'}))
+  out.append(DIV(style={
+      'width': '100%',
+      'height': '100%',
+      'background': f'url({background})' or 'none',
+      'background-size': 'cover',
+      'background-position': 'center',
+      #'z-index': '-1',
+      'position': 'absolute',
+      'left': 0,
+      'top': 0,
+      }))
+      
+  out.append(icon(_icon or '', 
+    style={
+      'position': 'absolute',
+      'left': '50%',
+      'top': '50%',
+      'transform': 'translate(-50%, -50%)',
+      'font-size': icon_size}))
+      
+  out.append(DIV(text or '', 
+    style={
+      'position': 'absolute',
+      'left': '50%' if align=='center' else '0px',
+      'top': '50%',
+      'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
+      'font-size': font_size,
+      'text-align': align}))
+    
+  out.append(DIV(f'{title}' or '', 
+    style={
+      'position': 'absolute',
+      'left': 0,
+      'bottom': 0,
+      'display': 'initial' if title else 'none',
+      'background': 'rgba(0,0,0,.5)',
+      'padding': '8px'}))
+      
   return box(out, base=base, **kw)
-  
-def partial(func, *args, **keywords):
-  def newfunc(*fargs, **fkeywords):
-    newkeywords = {**keywords, **fkeywords}
-    return func(*args, *fargs, **newkeywords)
-  newfunc.func = func
-  newfunc.args = args
-  newfunc.keywords = keywords
-  return newfunc
-  
-  
-coords_map=('left', 'top', 'width', 'height')
-def style_update(s, k, v):
-  for _k, _v in zip(k, v):
-    s[_k] = _v
 
-def tracks_to_coords(grid, i, x=0, y=0, ex=None, ey=None, padding=0):
-  # uses a grid layout to return x,y/w,h values
-  columns, rows = grid
+def update_tile(instance, text='', _icon='', title='', background='', **kw):
+  ui_background, ui_icon, ui_text, ui_title = instance.children
+  
+  ui_background.style['background-image'] = f'url({background})' if background else 'none'
+  ui_icon.text = _icon or ''
+  ui_text.text = text or ''
+  
+  if text and _icon:
+    ui_text.attrs['class'] = 'show_over animate'
+    ui_icon.attrs['class'] = 'hide_over material-icons animate'
+  else:
+    ui_text.attrs['class'] = 'animate'
+    ui_icon.attrs['class'] = 'material-icons animate'
+  
+  ui_title.text = title or ''
+  ui_title.style['display'] = 'initial' if title else 'none'
+  
+  if not any([text, _icon, title, title, background]):
+    instance.style['display'] = 'none'
+  else:
+    instance.style['display'] = 'initial'
+  
+def tracks_to_coords(tracks, x=0, y=0, ex=None, ey=None, padding=0):
+  # uses a tracks layout to return x,y/w,h values
+  columns, rows = tracks
   if ex is None: ex = x
   if ey is None: ey = y
 
-  coords = (columns[x][0] + padding, rows[y][0] + padding,
+  return (columns[x][0] + padding, rows[y][0] + padding,
     columns[ex][1] - columns[x][0] - padding*2,
     rows[ey][1] - rows[y][0] - padding*2)
+    
+coords_map = 'left', 'top', 'width', 'height'
+def gmap(instance, *l, **kw):
+  for k, v in zip(coords_map, tracks_to_coords(*l, **kw)):
+    instance.style[k] = v
 
-  style_update(i.style, coords_map, coords)
+def axis_to_tracks(axis, viewport):
+  # Used to generate a non-uniform grid.
+  axis = [[v*b if isinstance(b, float) else b for b in a] 
+    for v, a in zip(viewport, axis)]
+
+  for v, a in zip(viewport, axis):
+    if (count:=len([i for i in a if i is ...])):
+      fill = (v - sum(i for i in a if i is not ...))/count
+      while ... in a:
+        a[a.index(...)] = fill
+
+  axis = [[round(sum(a[:i])) for i in range(len(a)+1)] for a in axis]
+  axis = [[(a[i], a[i+1]) for i in range(len(a)-1)] for a in axis]
+  
+  return axis
+
+def slot(name, *components, verbose=False):
+  'Slot class generator. Similar to named tuple, but mutable.'
+  if isinstance(components[0], str):
+    components = [*components]
+    slots = components.pop(0)
+    defaults = components
+    args = tuple(slots.split(' '))
+    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+  else:
+    base = {}
+    for c in components:
+      base.update(c)
+
+    args = tuple(base.keys())
+    defaults = tuple(base.values())
+    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+
+  # Gather list of collections
+  collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
+      if type(v) in (list, tuple, dict, set)}
+
+  # Set default signature.
+  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
+  all_args = ', '.join(i for i in [largs, kwargs] if i)
+
+  # Self setters.
+  sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
+
+
+  slot_template = f'''
+class {name}:
+  __slots__ = {repr(args)}
+  def __init__(self,
+      {all_args}):
+    {sargs}
+    
+  def __repr__(self):
+    return f'{{self.__class__.__name__}}({{", ".join(f"{{k}}={{getattr(self, k)!r}}" for k in self.__slots__)}})'
+'''.strip()
+  # Verbosity to print out generated code.
+  if verbose:
+    return slot_template
+
+  local = {}
+  exec(slot_template, local)
+  return local[name]
+
+class Observable:
+  def __init__(self, *events):
+    self.callbacks = {i:[] for i in events}
+
+  def on(self, *event):
+    def _on(f):
+      for _event in event:
+        self.callbacks[_event].append(f)
+      return f
+    return _on
+
+  def bind(self, **kw):
+    for k, v in kw.items():
+      self.callbacks[k].append(v)
+
+  def unbind(self, **kw):
+    for k, v in kw.items():
+      self.callbacks[k].remove(v)
+
+  def emit(self, *event, **kw):
+    for _event in event:
+      for e in self.callbacks[_event]:
+        e(_event, **kw)
+
+class Task:
+  def __init__(self):
+    pass
+
+  def build(self):
+    pass
+
+  def resize(self):
+    pass
+  
+  def close(self):
+    pass
+
+  def focus(self):
+    pass
+
+  def blur(self):
+    pass
+
+def delay(d):
+  def _delay(f):
+    return Delay(d, f)
+  return _delay
+
+def stagger(l, d):
+  d = d/len(l)
+  def _stagger(f):
+    for idx, i in enumerate(l, 1):
+      if isinstance(i, (tuple, list)):
+        Delay(idx*d, f, *i)
+      elif isinstance(i, (dict)):
+        Delay(idx*d, f, **i)
+      else:
+        Delay(idx*d, f, i)
+  return _stagger
+
+class Delay(Observable):
+  def __init__(self, d, fun, *l, **kw):
+    self.d = d*1000
+    self.fun = fun
+    self.l = l
+    self.kw = kw
+    self.start = window.Date.now()
+    self.running = True
+    self.timer = window.setTimeout(self.tick, self.d)
+
+    Observable.__init__(self, 'tick', 'end', 'cancel')
+
+  def tick(self):
+    self.emit('tick')
+    if self.fun(*self.l, **self.kw) is True and self.d:
+      self.timer = window.setTimeout(self.tick, (self.start - window.Date.now())%self.d)
+    else:
+      self.running = False
+      self.emit('end')
+
+  def cancel(self):
+    window.clearTimeout(self.timer)
+    self.running = False
+    self.emit('cancel')
+
+class Loop(Observable):
+  def __init__(self, d, fun):
+    self.d = d*1000
+    self.fun = fun
+    self.start = window.Date.now()
+    self.running = True
+    self.last = self.start
+    self.timer = window.setTimeout(self.tick, self.d)
+
+    Observable.__init__(self, 'tick', 'end', 'cancel')
+
+  def tick(self):
+    dt = window.Date.now() - self.last
+    self.last += dt
+    self.emit('tick')
+    if self.fun(dt) is not False and self.d:
+      self.timer = window.setTimeout(self.tick, (self.start - window.Date.now())%self.d)
+    else:
+      self.running = False
+      self.emit('end')
+
+  def cancel(self):
+    window.clearTimeout(self.timer)
+    self.running = False
+    self.emit('cancel')
 
 # end of import ish stuff
 # -----------------------
 
 task_stack = []
 
+class Launcher(Task, Observable):
+  def __init__(self):
+    self.visible = False
 
-async def launcher(q):
-  state = 'visible'
-  
-  viewport = doc.select_one('body').width, \
-    doc.select_one('body').height
-
-  cell_size = [viewport[1]//3 - 32]*2
-  grid_size = [a//b for a, b in zip(viewport, cell_size)]
-  width = grid_size[0]
-  offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
-
-  tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
-    for a, b, c in zip(offset, cell_size, grid_size)]
-
-  gmap = partial(tracks_to_coords, tracks, padding=8)
-  
-  #def tile(text=None, _icon=None, title=None, background=None, 
-  #    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
-  launch_tile = partial(tile, style={'background': 'rgba(40, 40, 40, 1)'}, Class='tile_cobalt')
-  root = [
-      (match_tile:=launch_tile('Match game', 'view_module')),
-      (test_tile:=launch_tile('other game'))]
+    self.launch_tile = partial(tile, style={'background': 'rgba(40, 40, 40, 1)'}, Class='tile_cobalt')
     
-  async def _launch_match(ev):
-    nonlocal state
-  
-    step = int(viewport[0]*.1)
-    for i in root:
-      i.left -= step
+    self.viewport = []
+    self.cell_size = []
+    self.grid_size = []
+    self.offset = []
+    self.tracks = []
+
+    self.tiles = []
+    self.root = []
+    self.scroll = 0
+
+    self.items = [
+      {'title': 'Match game', '_icon': 'view_module', 'launch': Match_game},
+      ]
+
+    Observable.__init__(self, 'resize')
+
+  def build(self):
+    self.viewport = doc.select_one('body').width, \
+      doc.select_one('body').height
+
+    self.cell_size = [min(self.viewport)//3 - 32]*2
+    self.grid_size = [a//b for a, b in zip(self.viewport, self.cell_size)]
+    self.offset = [(a-b*c)/2 for a, b, c in zip(self.viewport, self.cell_size, self.grid_size)]
+
+    self.tracks = [[(round(a+b*i), round(a+b+b*i)) for i in range(c)]  # (coord, length) pairs
+      for a, b, c in zip(self.offset, self.cell_size, self.grid_size)]
+
+    for el in self.root:
+      el.remove()
+
+    self.tiles = [self.launch_tile() for i in range(self.grid_size[0]*self.grid_size[1])]
+    def on_click(event):
+      idx = self.tiles.index(event.currentTarget)
+      tar = self.items[min(self.grid_size)*self.scroll:][idx]
+      new_task = tar['launch']()
+      task_stack[0:0] = [new_task]
+      new_task.focus()
+      self.blur()
+
+    for i in self.tiles:
+      i.bind('click', on_click)
+
+    self.root = [*self.tiles]
+
+    recycle(self.tiles, self.items[min(self.grid_size)*self.scroll:], update_tile)
+
+    for idx, i in enumerate(self.root):
+      gmap(i, self.tracks, idx//self.grid_size[1], idx%self.grid_size[1], padding=8)
+      if not self.visible:
+        i.style.opacity = 0
+
+    doc <= self.root
+
+  def blur(self):
+    self.visible = False
+
+    for i in self.root:
       i.style.opacity = 0
+
+    @delay(.3)
+    def _blur():
+      for el in self.root:
+        el.remove()
+
+  def focus(self):
+    self.build()
+    self.visible = True
+
+    @delay(.05)
+    def anim_in():
+      for idx, i in enumerate(self.root):
+        i.style.opacity = 1
+  
+  def resize(self):
+    if self.visible:
+      self.build()
+
       
-    match_game_task = match_game(match_game_taskq:=[])
-    task_stack[0:0] = match_game_taskq
-    asyncio.run(match_game_task)
+class Match_game(Task, Observable):
+  def __init__(self):
+    self.visible = False
+
+    self.game_tile = partial(tile, style={'background': 'rgba(40, 40, 40, 1)'}, Class='tile_cobalt')
+
+    self.Tile = slot('Tile', 'value hidden matched', '', True, False)
     
-    await asyncio.sleep(.3)
-    state = 'hidden'
-    for i in root:  
-      i.remove()
-        
-  def launch_match(ev):
-    asyncio.run(_launch_match(ev))
+    items = ['apple', 'banana', 'cucumber', 'date']*2
+    self.tiles = [self.Tile(i) for i in items]
+    random.shuffle(self.tiles)
     
-  match_tile.bind('click', launch_match)
-  
-  for idx, i in enumerate(root):
-    gmap(i, idx//width, idx%width)
+    self.viewport = []
+    self.cell_size = []
+    self.grid_size = []
+    self.offset = []
+    self.tracks = []
+
+    #self.tiles = []
+    self.root = []
+    self.scroll = 0
     
-    
-  #maps = (
-  #  (match_tile, 0, 0),
-  #  (test_tile, 1, 0))
-  #
-  #for i in maps:
-  #  gmap(*i)
-    
-  doc <= root
+  def update_game_tile(self, instance, value='', hidden=True, matched=False):
+    ui_background, ui_icon, ui_text, ui_title = instance.children
+    ui_text.style['opacity'] = 0 if hidden else 1
+
+    if matched:
+      update_tile(instance)
+    else:
+      update_tile(instance, text=value)
+
+  def build(self):
+    self.viewport = doc.select_one('body').width, \
+      doc.select_one('body').height
+
+    self.cell_size = [min(self.viewport)//4]*2
+    self.grid_size = 4, 2
+    self.offset = [(a-b*c)/2 for a, b, c in zip(self.viewport, self.cell_size, self.grid_size)]
+
+    self.tracks = [[(round(a+b*i), round(a+b+b*i)) for i in range(c)]  # (coord, length) pairs
+      for a, b, c in zip(self.offset, self.cell_size, self.grid_size)]
   
-  while 'cancel' not in q:
-    await asyncio.sleep(1)
-    
-  for el in root:
-    el.remove()
-      
-  # garbage collect on closure
+    for el in self.root:
+      el.remove()
+
+    self.ui_tiles = [self.game_tile() for i in range(self.grid_size[0]*self.grid_size[1])]
+    #self.close_button = 
+    self.root = [*self.ui_tiles]
+
+    recycle(self.ui_tiles, self.tiles, self.update_game_tile)
+
+    for idx, i in enumerate(self.ui_tiles):
+      gmap(i, self.tracks, idx//self.grid_size[1], idx%self.grid_size[1], padding=8)
+      if not self.visible:
+        i.style.opacity = 0
+
+    doc <= self.root
+
+    Delay(1, self.close)
+
+  def blur(self):
+    self.visible = False
+
+    @stagger(self.ui_tiles, .25)
+    def anim_in(i):
+      i.style.opacity = 0
+
+    @delay(.55)
+    def _blur():
+      for el in self.root:
+        el.remove()
+
+  def focus(self):
+    self.build()
+    self.visible = True
+
+    @stagger(self.ui_tiles, .25)
+    def anim_in(i):
+      i.style.opacity = 1
+  
+  def resize(self):
+    if self.visible:
+      self.build()
+
+  def close(self):
+    task_stack.remove(self)
+    launcher.focus()
+    self.blur()
+
   
 
-async def match_game(q):
-  import random
+#async def match_game(q):
+#
+#  state = 'visible'
+#
+#  viewport = doc.select_one('body').width, \
+#    doc.select_one('body').height
+#
+#  cell_size = [min(viewport)//4]*2
+#  grid_size = 4, 4
+#  width = grid_size[1]
+#  offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
+#
+#  tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
+#    for a, b, c in zip(offset, cell_size, grid_size)]
+#
+#
+#  #def tile(text=None, _icon=None, title=None, background=None, 
+#  #    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
+#  game_tile = partial(tile, style={'background': 'rgba(40, 40, 40, 1)'}, Class='tile_cobalt')
+#  
+#  #print(slot('Item', 'contents hidden _element', True, None, verbose=True))
+#  class Item:
+#    __slots__ = ('contents', 'hidden', '_element')
+#    def __init__(self,
+#        contents, hidden=True, _element=None):
+#      self.contents = contents
+#      self.hidden = hidden
+#      self._element = _element
+#   
+#  selected = None
+#
+#  def peek(target):
+#    global selected
+#    target = grid[target]
+#
+#    if selected is None:
+#      selected = target
+#      target.hidden = False
+#      emit('show', target)
+#
+#  # setup tile obects into list and shuffle
+#  items = 'apple', 'banana', 'cucumber', 'date', \
+#    'taco', 'corn', 'fish', 'octopus'
+#  grid = [*items, *items]
+#  grid = [Item(i) for i in grid]
+#  random.shuffle(grid)
+#  
+#  for idx, i in enumerate(grid):
+#    i._element = game_tile(i.contents)
+#    gmap(i._element, tracks, idx%width, idx//width)
+#
+#  root = [i._element for i in grid]
+#  
+#  doc <= root
+#  
+#  while 'cancel' not in q:
+#    await asyncio.sleep(1)
+#    
+#  for el in root:
+#    el.remove()
 
-  state = 'visible'
 
-  viewport = doc.select_one('body').width, \
-    doc.select_one('body').height
+launcher = Launcher()
 
-  cell_size = [viewport[1]//4]*2
-  grid_size = 4, 4
-  width = grid_size[1]
-  offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
+launcher.focus()
 
-  tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
-    for a, b, c in zip(offset, cell_size, grid_size)]
+def on_resize(*l, **kw):
+  if task_stack:
+    task_stack[0].resize()
+  launcher.resize()
 
-  gmap = partial(tracks_to_coords, tracks, padding=8)
+window.onresize = on_resize
 
-  #def tile(text=None, _icon=None, title=None, background=None, 
-  #    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
-  game_tile = partial(tile, style={'background': 'rgba(40, 40, 40, 1)'}, Class='tile_cobalt')
-  
-  #print(slot('Item', 'contents hidden _element', True, None, verbose=True))
-  class Item:
-    __slots__ = ('contents', 'hidden', '_element')
-    def __init__(self,
-        contents, hidden=True, _element=None):
-      self.contents = contents
-      self.hidden = hidden
-      self._element = _element
-   
-  selected = None
+#asyncio.run(main())
+#next(l)
 
-  def peek(target):
-    global selected
-    target = grid[target]
+</script>
+<script>
+var _logger = function(msg){
+  if(msg != "using indexedDB for stdlib modules cache"){
+    alert(msg)
+  }
+}
 
-    if selected is None:
-      selected = target
-      target.hidden = False
-      emit('show', target)
-
-  # setup tile obects into list and shuffle
-  items = 'apple', 'banana', 'cucumber', 'date'
-  grid = [*items, *items]
-  grid = [Item(i) for i in grid]
-  random.shuffle(grid)
-  
-  for idx, i in enumerate(grid):
-    i._element = game_tile(i.contents)
-    gmap(i._element, idx%width, idx//width)
-
-  root = [i._element for i in grid]
-  
-  doc <= root
-  
-  while 'cancel' not in q:
-    await asyncio.sleep(1)
-    
-  for el in root:
-    el.remove()
-
-
-async def main():
-  l = launcher(lq:=[])
-  task_stack[0:0] = lq
-  asyncio.run(l)
-  
-  while 'done' not in lq:
-    await asyncio.sleep(5)
-    
-  print('Launcher closed, this shouldn\'t happen.')
-  
-  #await asyncio.sleep(3)
-  #
-  #current_task.close()
-  
-asyncio.run(main())
-
+console.log=_logger
+console.error=_logger
+console.warning=_logger
 </script>
 </html>
