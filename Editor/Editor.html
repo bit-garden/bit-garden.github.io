@@ -1535,5 +1535,110 @@ def Table(s, char='|', extras=[], cast=None):
   else:
     return [Row(*i) for i in ds]
     
+
+class Observable:
+  def __init__(self, *events):
+    self.callbacks = {i:[] for i in events}
+
+  def on(self, *event):
+    def _on(f):
+      for _event in event:
+        self.callbacks[_event].append(f)
+      return f
+    return _on
+
+  def bind(self, **kw):
+    for k, v in kw.items():
+      self.callbacks[k].append(v)
+
+  def unbind(self, **kw):
+    for k, v in kw.items():
+      self.callbacks[k].remove(v)
+
+  def emit(self, *event, **kw):
+    for _event in event:
+      for e in self.callbacks[_event]:
+        e(_event, **kw)
+    
+def delay(d):
+  def _delay(f):
+    return Delay(d, f)
+  return _delay
+
+def stagger(l, d):
+  d = d/len(l)
+  def _stagger(f):
+    for idx, i in enumerate(l, 1):
+      if isinstance(i, (tuple, list)):
+        Delay(idx*d, f, *i)
+      elif isinstance(i, (dict)):
+        Delay(idx*d, f, **i)
+      else:
+        Delay(idx*d, f, i)
+  return _stagger
+
+class Delay(Observable):
+  def __init__(self, d, fun, *l, **kw):
+    self.d = d*1000
+    self.fun = fun
+    self.l = l
+    self.kw = kw
+    self.start = window.Date.now()
+    self.running = True
+    self.timer = window.setTimeout(self.tick, self.d)
+
+    Observable.__init__(self, 'tick', 'end', 'cancel')
+
+  def tick(self):
+    self.emit('tick')
+    if self.fun(*self.l, **self.kw) is True and self.d:
+      self.timer = window.setTimeout(self.tick, (self.start - window.Date.now())%self.d)
+    else:
+      self.running = False
+      self.emit('end')
+
+  def cancel(self):
+    window.clearTimeout(self.timer)
+    self.running = False
+    self.emit('cancel')
+
+class Loop(Observable):
+  def __init__(self, d, fun):
+    self.d = d*1000
+    self.fun = fun
+    self.start = window.Date.now()
+    self.running = True
+    self.last = self.start
+    self.timer = window.setTimeout(self.tick, self.d)
+
+    Observable.__init__(self, 'tick', 'end', 'cancel')
+
+  def tick(self):
+    dt = window.Date.now() - self.last
+    self.last += dt
+    self.emit('tick')
+    if self.fun(dt) is not False and self.d:
+      self.timer = window.setTimeout(self.tick, (self.start - window.Date.now())%self.d)
+    else:
+      self.running = False
+      self.emit('end')
+
+  def cancel(self):
+    window.clearTimeout(self.timer)
+    self.running = False
+    self.emit('cancel')
+    
+def debounce(d):
+  _delay = None
+  def _debounce(f):
+    def __debounce(*l, **kw):
+      nonlocal _delay
+      if _delay:
+        _delay.cancel()
+      _delay = Delay(d, f, *l, **kw)
+    return __debounce
+  return _debounce
+
+    
 </script>
 </html>
