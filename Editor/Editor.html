@@ -1639,6 +1639,25 @@ def debounce(d):
     return __debounce
   return _debounce
 
-    
+def throttle(d):
+  _delay, last, _l, _kw = None, -1, [], {}
+  def _throttle(f):
+    def do():
+      nonlocal last
+      last = window.Date.now()
+      f(*_l, **_kw)
+    def __throttle(*l, **kw):
+      nonlocal _delay, last, _l, _kw
+      if _delay and _delay.running:
+        _l, _kw = l, kw
+      elif ~last and window.Date.now() - last < d*1000:
+        _l, _kw = l, kw
+        _delay = Delay(d - (window.Date.now() - last)/1000, do)
+      else: 
+        last = window.Date.now()
+        f(*l, **kw)
+    return __throttle
+  return _throttle
+  
 </script>
 </html>
