@@ -1036,11 +1036,11 @@ def run_shard(*l, **kw):
   try:
     exec('\n'.join(editbox.value.splitlines()[start:end]))
     if print_red:
-      asyncio.run(popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]})))
+      popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
   except Exception as e:
     import traceback
     print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
-    asyncio.run(popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]})))
+    popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
 window.CodeMirror.Vim.defineEx("run_shard", None, run_shard)
 
 def visual_shard(*l, **kw):
@@ -1238,27 +1238,33 @@ window.CodeMirror.Vim.defineEx("edit", None, _e)
 #
 #asyncio.run(main())
 
-async def popup(*l, **kw):
-  d = DIALOG(*l, **kw)
+def popup(root, width='auto', height='auto'):
+  if isinstance(root, (tuple, list, str, int, float)):
+    root = DIV(root)
+  d = DIALOG(root)
+  root.style['width'] = width
+  root.style['height'] = height
+      
+  @bind('close', d)
+  def _(ev):
+    d.remove()
+    cm_editbox.focus()
+    
   doc <= d
+  
   d.showModal()
-  while d.open:
-    await asyncio.sleep(.5)
-  d.remove()
+  
   return d
   
 class Popup:
   def __init__(self, *l, **kw):
-    self.d = DIALOG(*l, **kw)
-    doc <= self.d
-  
+    self.d = popup(*l, **kw)
+    
   def __enter__(self):
-    self.d.showModal()
-    return self.d
+    return self
     
   def __exit__(self, *l):
-    self.d.open = False
-    self.d.remove()
+    self.d.close()
     
 class El:
   def __init__(self, el, parent=None):
@@ -1658,6 +1664,29 @@ def throttle(d):
         f(*l, **kw)
     return __throttle
   return _throttle
+
+def bind(events, *element):
+  def _bind(f):
+    for e in events.split(' '):
+      for _e in element:
+        _e.bind(e, f)
+    return f
+  return _bind
+  
+def bind_once(events, *element):
+  def _bind(f):
+    def _unbind(*l, **kw):
+      for e in events.split(' '):
+        for _e in element:
+          _e.unbind(e, _unbind)
+      return f(*l, **kw)
+        
+    for e in events.split(' '):
+      for _e in element:
+        _e.bind(e, _unbind)
+    return f
+    
+  return _bind
   
 </script>
 </html>
