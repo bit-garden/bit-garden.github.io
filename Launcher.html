@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="shortcut icon" href="rabbit.png"><style>
 
-body { background: black; color: rgba(255,255,255,.87);}
+body { background: rgba(18, 18, 18, 1); color: rgba(255,255,255,.87);}
 
 @font-face {
   font-family: Mono;
@@ -183,6 +183,33 @@ def box(*l, base=DIV, **kw):
   
 def icon(_icon, *l, **kw):
   return I(_icon, *l, Class='material-icons', **kw)
+
+def popup(root, width='auto', height='auto'):
+  if isinstance(root, (tuple, list, str, int, float, dict, set)):
+    root = DIV(root)
+  d = DIALOG(root)
+  root.style['width'] = width
+  root.style['height'] = height
+      
+  @bind('close', d)
+  def _(ev):
+    d.remove()
+
+  doc <= d
+  
+  d.showModal()
+  
+  return d
+  
+class Popup:
+  def __init__(self, *l, **kw):
+    self.d = popup(*l, **kw)
+    
+  def __enter__(self):
+    return self
+    
+  def __exit__(self, *l):
+    self.d.close()
   
 def attr_map(i, **kw):
   for k, v in kw.items():
@@ -235,6 +262,13 @@ def tile(text='', _icon='', title='', background='',
       'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
       'font-size': font_size,
       'text-align': align}))
+
+  if text and _icon:
+    out[-1].attrs['class'] = 'show_over animate'
+    out[-2].attrs['class'] = 'hide_over material-icons animate'
+  else:
+    out[-1].attrs['class'] = 'animate'
+    out[-2].attrs['class'] = 'material-icons animate'
     
   out.append(DIV(f'{title}' or '', 
     style={
@@ -458,6 +492,61 @@ class Loop(Observable):
     self.running = False
     self.emit('cancel')
 
+def debounce(d):
+  _delay = None
+  def _debounce(f):
+    def __debounce(*l, **kw):
+      nonlocal _delay
+      if _delay:
+        _delay.cancel()
+      _delay = Delay(d, f, *l, **kw)
+    return __debounce
+  return _debounce
+
+def throttle(d):
+  _delay, last, _l, _kw = None, -1, [], {}
+  def _throttle(f):
+    def do():
+      nonlocal last
+      last = window.Date.now()
+      f(*_l, **_kw)
+    def __throttle(*l, **kw):
+      nonlocal _delay, last, _l, _kw
+      if _delay and _delay.running:
+        _l, _kw = l, kw
+      elif ~last and window.Date.now() - last < d*1000:
+        _l, _kw = l, kw
+        _delay = Delay(d - (window.Date.now() - last)/1000, do)
+      else: 
+        last = window.Date.now()
+        f(*l, **kw)
+    return __throttle
+  return _throttle
+
+def bind(events, *element):
+  def _bind(f):
+    for e in events.split(' '):
+      for _e in element:
+        _e.bind(e, f)
+    return f
+  return _bind
+  
+def bind_once(events, *element):
+  def _bind(f):
+    def _unbind(*l, **kw):
+      for e in events.split(' '):
+        for _e in element:
+          _e.unbind(e, _unbind)
+      return f(*l, **kw)
+        
+    for e in events.split(' '):
+      for _e in element:
+        _e.bind(e, _unbind)
+    return f
+    
+  return _bind
+
+
 # end of import ish stuff
 # -----------------------
 
@@ -500,6 +589,8 @@ class Launcher(Task, Observable):
       el.remove()
 
     self.tiles = [self.launch_tile() for i in range(self.grid_size[0]*self.grid_size[1])]
+
+    @bind_once('click', *self.tiles)
     def on_click(event):
       idx = self.tiles.index(event.currentTarget)
       tar = self.items[min(self.grid_size)*self.scroll:][idx]
@@ -507,9 +598,6 @@ class Launcher(Task, Observable):
       task_stack[0:0] = [new_task]
       new_task.focus()
       self.blur()
-
-    for i in self.tiles:
-      i.bind('click', on_click)
 
     self.root = [*self.tiles]
 
@@ -537,7 +625,7 @@ class Launcher(Task, Observable):
     self.build()
     self.visible = True
 
-    @delay(.05)
+    @delay(0)
     def anim_in():
       for idx, i in enumerate(self.root):
         i.style.opacity = 1
@@ -555,7 +643,7 @@ class Match_game(Task, Observable):
 
     self.Tile = slot('Tile', 'value hidden matched', '', True, False)
     
-    items = ['apple', 'banana', 'cucumber', 'date']*2
+    items = ['Apple', 'Banana', 'Cat', 'Dog', 'Echo', 'Fly', 'Taco', 'Run']*2
     self.tiles = [self.Tile(i) for i in items]
     random.shuffle(self.tiles)
     
@@ -578,12 +666,20 @@ class Match_game(Task, Observable):
     else:
       update_tile(instance, text=value)
 
+  def check_selection(self, s1, s2):
+    if s1.value == s2.value:
+      s1.matched = True
+      s2.matched = True
+    else:
+      s1.hidden = True
+      s2.hidden = True
+
   def build(self):
     self.viewport = doc.select_one('body').width, \
       doc.select_one('body').height
 
     self.cell_size = [min(self.viewport)//4]*2
-    self.grid_size = 4, 2
+    self.grid_size = 4, 4
     self.offset = [(a-b*c)/2 for a, b, c in zip(self.viewport, self.cell_size, self.grid_size)]
 
     self.tracks = [[(round(a+b*i), round(a+b+b*i)) for i in range(c)]  # (coord, length) pairs
@@ -593,8 +689,37 @@ class Match_game(Task, Observable):
       el.remove()
 
     self.ui_tiles = [self.game_tile() for i in range(self.grid_size[0]*self.grid_size[1])]
-    #self.close_button = 
-    self.root = [*self.ui_tiles]
+
+    @bind('click', *self.ui_tiles)
+    def _(ev):
+      idx = self.ui_tiles.index(ev.currentTarget)
+
+      if not self.tiles[idx].matched and self.tiles[idx].hidden:
+        self.tiles[idx].hidden = False
+
+        recycle(self.ui_tiles, self.tiles, self.update_game_tile)
+
+        selected = [i for i in self.tiles if not i.hidden and not i.matched]
+        if len(selected) > 1:
+          self.check_selection(*selected)
+
+          @delay(1)
+          def _():
+            recycle(self.ui_tiles, self.tiles, self.update_game_tile)
+
+    self.close_button = tile('close', 'close',
+        style={
+          'left': 0,
+          'top': 0,
+          'background': 'rgba(40, 40, 40, 1)',
+          'width': self.cell_size[0]//1.5,
+          'height': self.cell_size[0]//1.5,
+          'opacity': 1 if self.visible else 0},
+        Class='tile_crimson')
+
+    bind_once('click', self.close_button)(self.close)
+
+    self.root = [self.close_button, *self.ui_tiles]
 
     recycle(self.ui_tiles, self.tiles, self.update_game_tile)
 
@@ -602,19 +727,25 @@ class Match_game(Task, Observable):
       gmap(i, self.tracks, idx//self.grid_size[1], idx%self.grid_size[1], padding=8)
       if not self.visible:
         i.style.opacity = 0
+        i.children[2].style.opacity = 1
+
+    @delay(len(self.tiles)/4)
+    def _():
+      @stagger([*zip(self.ui_tiles, self.tiles)], .3)
+      def __(ui, data):
+        if data.hidden:
+          ui.children[2].style.opacity = 0
 
     doc <= self.root
-
-    Delay(1, self.close)
 
   def blur(self):
     self.visible = False
 
-    @stagger(self.ui_tiles, .25)
+    @stagger(self.root, .3)
     def anim_in(i):
       i.style.opacity = 0
 
-    @delay(.55)
+    @delay(.6)
     def _blur():
       for el in self.root:
         el.remove()
@@ -623,7 +754,7 @@ class Match_game(Task, Observable):
     self.build()
     self.visible = True
 
-    @stagger(self.ui_tiles, .25)
+    @stagger(self.root, .3)
     def anim_in(i):
       i.style.opacity = 1
   
@@ -631,79 +762,18 @@ class Match_game(Task, Observable):
     if self.visible:
       self.build()
 
-  def close(self):
+  def close(self, *l, **kw):
     task_stack.remove(self)
     launcher.focus()
     self.blur()
 
-  
-
-#async def match_game(q):
-#
-#  state = 'visible'
-#
-#  viewport = doc.select_one('body').width, \
-#    doc.select_one('body').height
-#
-#  cell_size = [min(viewport)//4]*2
-#  grid_size = 4, 4
-#  width = grid_size[1]
-#  offset = [(a-b*c)//2 for a, b, c in zip(viewport, cell_size, grid_size)]
-#
-#  tracks = [[(a+b*i, a+b+b*i) for i in range(c)]  # (coord, length) pairs
-#    for a, b, c in zip(offset, cell_size, grid_size)]
-#
-#
-#  #def tile(text=None, _icon=None, title=None, background=None, 
-#  #    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
-#  game_tile = partial(tile, style={'background': 'rgba(40, 40, 40, 1)'}, Class='tile_cobalt')
-#  
-#  #print(slot('Item', 'contents hidden _element', True, None, verbose=True))
-#  class Item:
-#    __slots__ = ('contents', 'hidden', '_element')
-#    def __init__(self,
-#        contents, hidden=True, _element=None):
-#      self.contents = contents
-#      self.hidden = hidden
-#      self._element = _element
-#   
-#  selected = None
-#
-#  def peek(target):
-#    global selected
-#    target = grid[target]
-#
-#    if selected is None:
-#      selected = target
-#      target.hidden = False
-#      emit('show', target)
-#
-#  # setup tile obects into list and shuffle
-#  items = 'apple', 'banana', 'cucumber', 'date', \
-#    'taco', 'corn', 'fish', 'octopus'
-#  grid = [*items, *items]
-#  grid = [Item(i) for i in grid]
-#  random.shuffle(grid)
-#  
-#  for idx, i in enumerate(grid):
-#    i._element = game_tile(i.contents)
-#    gmap(i._element, tracks, idx%width, idx//width)
-#
-#  root = [i._element for i in grid]
-#  
-#  doc <= root
-#  
-#  while 'cancel' not in q:
-#    await asyncio.sleep(1)
-#    
-#  for el in root:
-#    el.remove()
 
 
 launcher = Launcher()
 
 launcher.focus()
 
+@debounce(.01)
 def on_resize(*l, **kw):
   if task_stack:
     task_stack[0].resize()
