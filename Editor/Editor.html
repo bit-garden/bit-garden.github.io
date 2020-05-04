@@ -1565,11 +1565,6 @@ class Observable:
     for _event in event:
       for e in self.callbacks[_event]:
         e(_event, **kw)
-    
-def delay(d):
-  def _delay(f):
-    return Delay(d, f)
-  return _delay
 
 def stagger(l, d):
   d = d/len(l)
@@ -1583,56 +1578,44 @@ def stagger(l, d):
         Delay(idx*d, f, i)
   return _stagger
 
-class Delay(Observable):
-  def __init__(self, d, fun, *l, **kw):
-    self.d = d*1000
-    self.fun = fun
-    self.l = l
-    self.kw = kw
-    self.start = window.Date.now()
-    self.running = True
-    self.timer = window.setTimeout(self.tick, self.d)
-
-    Observable.__init__(self, 'tick', 'end', 'cancel')
-
-  def tick(self):
-    self.emit('tick')
-    if self.fun(*self.l, **self.kw) is True and self.d:
-      self.timer = window.setTimeout(self.tick, (self.start - window.Date.now())%self.d)
-    else:
-      self.running = False
-      self.emit('end')
-
-  def cancel(self):
-    window.clearTimeout(self.timer)
-    self.running = False
-    self.emit('cancel')
-
-class Loop(Observable):
-  def __init__(self, d, fun):
-    self.d = d*1000
-    self.fun = fun
-    self.start = window.Date.now()
-    self.running = True
-    self.last = self.start
-    self.timer = window.setTimeout(self.tick, self.d)
-
-    Observable.__init__(self, 'tick', 'end', 'cancel')
-
-  def tick(self):
-    dt = window.Date.now() - self.last
-    self.last += dt
-    self.emit('tick')
-    if self.fun(dt) is not False and self.d:
-      self.timer = window.setTimeout(self.tick, (self.start - window.Date.now())%self.d)
-    else:
-      self.running = False
-      self.emit('end')
-
-  def cancel(self):
-    window.clearTimeout(self.timer)
-    self.running = False
-    self.emit('cancel')
+class Ticker:
+  def __init__(self):
+    self.last_tick = window.Date.now()
+    self.last_diff = self.last_tick
+    
+  def tick(self, sec):
+    n = window.Date.now()
+    _s = sec*1000
+    diff = self.last_tick + _s - n
+    self.last_tick += _s
+    
+    return max(diff/1000, 0)
+    
+  def diff(self):
+    _diff = window.Date.now() - self.last_diff
+    self.last_diff += _diff
+    
+    return _diff/1000
+    
+async def loop(d, f, running=True):
+  t = Ticker()
+  while f(t.diff()) is not False and running:
+    await asyncio.sleep(t.tick(d))
+    
+def delay(d, running=True):
+  def _delay(f, *l, **kw):
+    async def __delay():
+      await asyncio.sleep(d)
+      if running:
+        running[0] = f(*l, **kw)
+    asyncio.run(__delay())
+    return f
+  return _delay
+  
+def Delay(d, f, *l, **kw):
+  task = ['running']
+  delay(d, task)(f, *l, **kw)
+  return task
     
 def debounce(d):
   _delay = None
@@ -1640,11 +1623,11 @@ def debounce(d):
     def __debounce(*l, **kw):
       nonlocal _delay
       if _delay:
-        _delay.cancel()
+        _delay.clear()
       _delay = Delay(d, f, *l, **kw)
     return __debounce
   return _debounce
-
+  
 def throttle(d):
   _delay, last, _l, _kw = None, -1, [], {}
   def _throttle(f):
@@ -1654,7 +1637,7 @@ def throttle(d):
       f(*_l, **_kw)
     def __throttle(*l, **kw):
       nonlocal _delay, last, _l, _kw
-      if _delay and _delay.running:
+      if _delay:
         _l, _kw = l, kw
       elif ~last and window.Date.now() - last < d*1000:
         _l, _kw = l, kw
@@ -1687,6 +1670,7 @@ def bind_once(events, *element):
     return f
     
   return _bind
+
   
 </script>
 </html>
