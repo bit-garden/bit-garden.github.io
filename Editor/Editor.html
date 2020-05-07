@@ -740,15 +740,37 @@ class {name}:
   return local[name]
 
 # pure python versions for faster load
+#def itemgetter(*items):
+#  if len(items) == 1:
+#    item = items[0]
+#    def g(obj):
+#      return obj[item]
+#  else:
+#    def g(obj):
+#      return tuple(obj[item] for item in items)
+#  return g
+
+# hacky exec version of attrgetter for speed
+# slower creation, but faster execute for more than 1 item
 def itemgetter(*items):
-  if len(items) == 1:
-    item = items[0]
-    def g(obj):
-      return obj[item]
-  else:
-    def g(obj):
-      return tuple(obj[item] for item in items)
-  return g
+  template = f'''def f(i): return {", ".join(f"i['{i}']" for i in items)}'''
+  loc = {}
+  exec(template, {}, loc)
+  return loc['f']
+
+# hacky exec version of attrgetter for speed
+# slower creation, but faster execute
+def attrgetter(*items):
+  template = f'''def f(i): return {", ".join(f"i.{i}" for i in items)}'''
+  loc = {}
+  exec(template, {}, loc)
+  return loc['f']
+
+
+def resolve_attr(obj, attr):
+    for name in attr.split("."):
+        obj = getattr(obj, name)
+    return obj
 
 class groupby:
   # [k for k, g in groupby('AAAABBBCCDAABBB')] --> A B C D A B
@@ -1602,18 +1624,22 @@ async def loop(d, f, running=True):
   while f(t.diff()) is not False and running:
     await asyncio.sleep(t.tick(d))
     
-def delay(d, running=True):
+def delay(d, running=None):
+  if not running:
+    running = [None, 'running']
   def _delay(f, *l, **kw):
     async def __delay():
       await asyncio.sleep(d)
       if running:
-        running[0] = f(*l, **kw)
+        running[:] = [f(*l, **kw), 'done']
+      else:
+        running[:] = [None, 'cancelled']
     asyncio.run(__delay())
     return f
   return _delay
   
 def Delay(d, f, *l, **kw):
-  task = ['running']
+  task = [None, 'running']
   delay(d, task)(f, *l, **kw)
   return task
     
