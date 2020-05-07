@@ -553,7 +553,7 @@ function findMatches(text, tar, start=1) {
   var allLines = text.split("\n");
   //console.log(allLines[start].charAt(tar))
   var character = allLines[start].charAt(tar)
-	var pattern = RegExp("(?<=^.{"+tar+"})\[^"+character+"]")
+	var pattern = RegExp("(?<=^.{"+tar+"})\[^ ]")
 	var last = 0
     for (var i = 0; i < allLines.length; i++) {
         if (allLines[i].match(pattern)) {
@@ -750,7 +750,7 @@ class {name}:
 #      return tuple(obj[item] for item in items)
 #  return g
 
-# hacky exec version of attrgetter for speed
+# hacky exec version of itemgetter for speed
 # slower creation, but faster execute for more than 1 item
 def itemgetter(*items):
   template = f'''def f(i): return {", ".join(f"i['{i}']" for i in items)}'''
@@ -765,12 +765,6 @@ def attrgetter(*items):
   loc = {}
   exec(template, {}, loc)
   return loc['f']
-
-
-def resolve_attr(obj, attr):
-    for name in attr.split("."):
-        obj = getattr(obj, name)
-    return obj
 
 class groupby:
   # [k for k, g in groupby('AAAABBBCCDAABBB')] --> A B C D A B
@@ -799,34 +793,27 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
 
-def repeat(object, times=None):
-  # repeat(10, 3) --> 10 10 10
-  if times is None:
-    while True:
-      yield object
-  else:
-    for i in range(times):
-      yield object
-
-def zip_longest(*args, fillvalue=None):
-  # zip_longest('ABCD', 'xy', fillvalue='-') --> Ax By C- D-
-  iterators = [iter(it) for it in args]
-  num_active = len(iterators)
-  if not num_active:
-    return
-  while True:
-    values = []
-    for i, it in enumerate(iterators):
+class zip_longest:
+  def __init__(self, *args, fillvalue = None):
+    self.args = [iter(arg) for arg in args]
+    self.fillvalue = fillvalue
+    self.units = len(args)
+  
+  def __iter__(self):
+    return self
+  
+  def __next__(self):
+    temp = []
+    nb = 0
+    for i in range(self.units):
       try:
-        value = next(it)
+        temp.append(next(self.args[i]))
+        nb += 1
       except StopIteration:
-        num_active -= 1
-        if not num_active:
-          return
-        iterators[i] = repeat(fillvalue)
-        value = fillvalue
-      values.append(value)
-    yield tuple(values)
+        temp.append(self.fillvalue)
+    if nb==0:
+      raise StopIteration
+    return tuple(temp)
 
 def partial(func, *args, **keywords):
   def newfunc(*fargs, **fkeywords):
@@ -837,36 +824,44 @@ def partial(func, *args, **keywords):
   newfunc.keywords = keywords
   return newfunc
   
-def permutations(iterable, r=None):
-  # permutations('ABCD', 2) --> AB AC AD BA BC BD CA CB CD DA DB DC
-  # permutations(range(3)) --> 012 021 102 120 201 210
-  pool = tuple(iterable)
-  n = len(pool)
-  r = n if r is None else r
-  if r > n:
-    return
-  indices = list(range(n))
-  cycles = list(range(n, n-r, -1))
-  yield tuple(pool[i] for i in indices[:r])
-  while n:
-    for i in reversed(range(r)):
-      cycles[i] -= 1
-      if cycles[i] == 0:
-        indices[i:] = indices[i+1:] + indices[i:i+1]
-        cycles[i] = n - i
-      else:
-        j = cycles[i]
+class permutations:
+  def __init__(self, iterable, r = None):
+    self.pool = tuple(iterable)
+    self.n = len(self.pool)
+    self.r = self.n if r is None else r
+    self.indices = list(range(self.n))
+    self.cycles = list(range(self.n, self.n - self.r, -1))
+    self.zero = False
+    self.stop = False
+
+  def __iter__(self):
+    return self
+
+  def __next__(self):
+    indices = self.indices
+    if self.r > self.n:
+      raise StopIteration
+    if not self.zero:
+      self.zero = True
+      return tuple(self.pool[i] for i in indices[:self.r])
+    
+    i = self.r - 1
+    while i >= 0:
+      j = self.cycles[i] - 1
+      if j > 0:
+        self.cycles[i] = j
         indices[i], indices[-j] = indices[-j], indices[i]
-        yield tuple(pool[i] for i in indices[:r])
-        break
-    else:
-      return
+        return tuple(self.pool[i] for i in indices[:self.r])
+      self.cycles[i] = len(indices) - i
+      n1 = len(indices) - 1
+      assert n1 >= 0
+      num = indices[i]
+      for k in range(i, n1):
+        indices[k] = indices[k+1]
+      indices[n1] = num
+      i -= 1
+    raise StopIteration
       
-def chain(*iterables):
-  # chain('ABC', 'DEF') --> A B C D E F
-  for it in iterables:
-    for element in it:
-      yield element
 
 
 def grouper(iterable, n, fillvalue=None):
