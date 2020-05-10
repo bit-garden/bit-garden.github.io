@@ -1256,7 +1256,7 @@ window.CodeMirror.Vim.defineEx("edit", None, _e)
 #asyncio.run(main())
 
 def popup(root, width='auto', height='auto'):
-  if isinstance(root, (tuple, list, str, int, float)):
+  if isinstance(root, (tuple, list, str, int, float, set, dict)):
     root = DIV(root)
   d = DIALOG(root)
   root.style['width'] = width
