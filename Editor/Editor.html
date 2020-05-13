@@ -999,6 +999,8 @@ def do_py() -> None:
     out = '\n'.join([data, ''.join(print_red)])
     window.vdo("gv")
     cm_editbox.replaceSelection(out.strip('\n'))
+    global watch_depth
+    watch_depth = -1
 
 def run_py(cm, params):
   do_py()
@@ -1010,6 +1012,8 @@ def run_file(cm, params):
   except Exception as e:
     import traceback
     print(traceback.format_exc())
+    global watch_depth
+    watch_depth = -1
 window.CodeMirror.Vim.defineEx("run_file", None, run_file)
 
 def run_shard(*l, **kw):
@@ -1054,6 +1058,8 @@ def run_shard(*l, **kw):
     import traceback
     print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
     popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
+    global watch_depth
+    watch_depth = -1
 window.CodeMirror.Vim.defineEx("run_shard", None, run_shard)
 
 def visual_shard(*l, **kw):
@@ -1609,26 +1615,48 @@ def Table(s, char='|', extras=[], cast=None):
 
         
 # hook into events.
+func_type = type(lambda:True)
+watch_depth = -1
 def watch(f):
   if isinstance(f, type):
     class _watch(f):
       if hasattr(f, '__slots__'):
-        __slots__ = (*(f.__slots__), '__post_init__')
-
-      def __init__(self, *l, **kw):
-        super().__init__(*l, **kw)
-        self.__post_init__ = True
+        __slots__ = f.__slots__
 
       def __setattr__(self, key, value):
-        if hasattr(self, '__post_init__') and getattr(self, key) != value:
-          print(f'{f.__name__}.setattr({self!r}, {key}={value!r})')
+        if (hasattr(self, key) and 
+            getattr(self, key) != value):
+          print(f'{"| "*(watch_depth+1)}{f.__qualname__}.__setattr__({self!r}, {key!r}, {value!r})')
         super().__setattr__(key, value)
+
+    defs = [i for i in {*dir(_watch)} - {*dir(object)} 
+        if not i.startswith('__') and callable(getattr(_watch, i))]
+
+    for i in defs:
+      setattr(_watch, i, watch(getattr(_watch, i)))
+
+  elif not isinstance(f, func_type):
+    def _watch(self, *l, **kw):
+      global watch_depth
+      watch_depth += 1
+      print(f'{"| "*watch_depth}{f.__qualname__}('\
+          + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])+ ')')
+      ret = f(*l, **kw)
+      if ret is not None:
+        print(f'{"| "*(watch_depth)}|-> {ret!r}')
+      watch_depth -= 1
+      return ret
+
   else:
     def _watch(*l, **kw):
+      global watch_depth
+      watch_depth += 1
+      print(f'{"| "*watch_depth}{f.__qualname__}('\
+          + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])+ ')')
       ret = f(*l, **kw)
-      print(f'{f.__qualname__}('\
-          + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])\
-          + f') -> {ret!r}')
+      if ret is not None:
+        print(f'{"| "*(watch_depth)}|-> {ret!r}')
+      watch_depth -= 1
       return ret
 
   _watch.__name__ = f.__name__
