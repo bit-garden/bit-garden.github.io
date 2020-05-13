@@ -692,22 +692,15 @@ class fopen():
     pass
 
 
-def slot(name, *components, verbose=False):
-  'Slot class generator. Similar to named tuple, but mutable.'
-  if isinstance(components[0], str):
-    components = [*components]
-    slots = components.pop(0)
-    defaults = components
-    args = tuple(slots.split(' '))
-    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+def slot(f, args='', *defaults, verbose=False):
+  if callable(f):
+    args = tuple(f.__annotations__.keys())
+    defaults = [getattr(f, i) for i in args if hasattr(f, i)]
+    name = f.__name__
   else:
-    base = {}
-    for c in components:
-      base.update(c)
-
-    args = tuple(base.keys())
-    defaults = tuple(base.values())
-    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+    args = tuple(args.split(' '))
+    name = f
+  largs = ', '.join(args[:-len(defaults)] if defaults else args)
 
   # Gather list of collections
   collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
@@ -720,25 +713,27 @@ def slot(name, *components, verbose=False):
   # Self setters.
   sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
 
-
   slot_template = f'''
 class {name}:
   __slots__ = {repr(args)}
   def __init__(self,
       {all_args}):
     {sargs}
-    
+
   def __repr__(self):
     return f"""{{self.__class__.__name__}}({{", ".join(f"{{k}}={{getattr(self, k)!r}}" 
       for k in self.__slots__)}})"""
 '''.strip()
-  # Verbosity to print out generated code.
+
   if verbose:
-    return slot_template
+    viewport = doc.select_one('body').width//1.2, \
+      doc.select_one('body').height//1.2
+    popup(TEXTAREA(slot_template), *viewport)
 
   local = {}
   exec(slot_template, local)
   return local[name]
+  #return slot(f.__name__, ' '.join(props), *defaults)
 
 # pure python versions for faster load
 #def itemgetter(*items):
@@ -1611,49 +1606,35 @@ def Table(s, char='|', extras=[], cast=None):
     return [Row(*lcast(i, *cast)) for i in ds]
   else:
     return [Row(*i) for i in ds]
-    
 
-class Observable:
-  def __init__(self, *events):
-    self.callbacks = {i:[] for i in events}
-
-  def on(self, *event):
-    def _on(f):
-      for _event in event:
-        self.callbacks[_event].append(f)
-      return f
-    return _on
-
-  def bind(self, **kw):
-    for k, v in kw.items():
-      self.callbacks[k].append(v)
-
-  def unbind(self, **kw):
-    for k, v in kw.items():
-      self.callbacks[k].remove(v)
-
-  def emit(self, *event, **kw):
-    for _event in event:
-      for e in self.callbacks[_event]:
-        e(_event, **kw)
         
 # hook into events.
-def watch(instance, f):
-  orig = getattr(instance, f)
-  def on_event(*l, **kw):
-    ret = orig(*l, **kw)
-    print(f'{f}(' + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()]) + f') -> {ret!r}')
-  setattr(instance, f, on_event)
-    
-def on(instance, function_name):
-  orig = getattr(instance, function_name)
-  def _on(f):
-    def __on(*l, **kw):
-      ret = orig(*l, **kw)
-      f(instance, *l, **kw, _return=ret)
-    setattr(instance, function_name, __on)
-    return __on
-  return _on
+def watch(f):
+  if isinstance(f, type):
+    class _watch(f):
+      if hasattr(f, '__slots__'):
+        __slots__ = (*(f.__slots__), '__post_init__')
+
+      def __init__(self, *l, **kw):
+        super().__init__(*l, **kw)
+        self.__post_init__ = True
+
+      def __setattr__(self, key, value):
+        if hasattr(self, '__post_init__') and getattr(self, key) != value:
+          print(f'{f.__name__}.setattr({self!r}, {key}={value!r})')
+        super().__setattr__(key, value)
+  else:
+    def _watch(*l, **kw):
+      ret = f(*l, **kw)
+      print(f'{f.__qualname__}('\
+          + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])\
+          + f') -> {ret!r}')
+      return ret
+
+  _watch.__name__ = f.__name__
+  _watch.__qualname__ = f.__qualname__
+
+  return _watch
 
 def stagger(l, d):
   d = d/len(l)
