@@ -1368,7 +1368,6 @@ def make_ripple(el, base_color=(18,18,18,1), no_key=False):
   pulse_color = mutator(.4, *base_color[:3], 1)
   
   glows = [(*(base_color[:3]), i) for i in (.14, .12, .2)]
-  print(glows)
   
   @bind('mouseout blur', el)
   def prep_ripple(*_):
