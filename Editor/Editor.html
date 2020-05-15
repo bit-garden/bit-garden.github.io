@@ -609,10 +609,14 @@ from browser.html import *
 import time
 
 
-crimson = (220, 20, 60)
-emerald = (0, 89, 11)
-cobalt = (0, 71, 171)
-gold = (255, 215, 0)
+class COLOR:
+  crimson = (220, 20, 60)
+  emerald = (0, 89, 11)
+  cobalt = (0, 71, 171)
+  gold = (255, 215, 0)
+  red = (255, 0, 0)
+  blue = (0, 0, 255)
+  green = (0, 255, 0)
 
 
      
@@ -1426,36 +1430,40 @@ def make_ripple(el, base_color=(18,18,18,1), no_key=False):
 #tracks = [[(round(a+b*i), round(a+b+b*i)) for i in range(c)]  # (coord, length) pairs
 #  for a, b, c in zip(offset, cell_size, grid_size)]
 
-def axis_to_tracks(axis, viewport):
-  # Used to generate a non-uniform grid.
+def axis_to_tracks(axis, viewport, offset=None):
+  """ Used to generate a non-uniform grid. """
   axis = [[v*b if isinstance(b, float) else b for b in a] 
     for v, a in zip(viewport, axis)]
 
   for v, a in zip(viewport, axis):
     if (count:=len([i for i in a if i is ...])):
-      fill = max((v - sum(i for i in a if i is not ...))/count, 0)
+      fill = (v - sum(i for i in a if i is not ...))/count
       while ... in a:
         a[a.index(...)] = fill
-  
+
   axis = [[round(sum(a[:i])) for i in range(len(a)+1)] for a in axis]
-  axis = [[(a[i], a[i+1]) for i in range(len(a)-1)] for a in axis]
+  axis = [[(a[i]+o, a[i+1]+o) for i in range(len(a)-1)] 
+      for a, o in zip(axis, offset or [0]*len(axis))]
   
   return axis
 
-def tracks_to_coords(tracks, x=0, y=0, ex=None, ey=None, padding=0):
-  # uses a tracks layout to return x,y/w,h values
-  columns, rows = tracks
-  if ex is None: ex = x
-  if ey is None: ey = y
+def tracks_to_coords(tracks, cell, ecell=None, padding=None):
+  """ Returns pairs of start and end of each axis in tracks. """
+  return [(t[c][0]+p, t[ec or c][1]-p*2) 
+      for c, ec, t, p in zip(
+          cell, ecell or [None]*len(cell), 
+          tracks, padding or [0]*len(cell))]
 
-  return (columns[x][0] + padding, rows[y][0] + padding,
-    columns[ex][1] - columns[x][0] - padding*2,
-    rows[ey][1] - rows[y][0] - padding*2)
+def point_to_cell(tracks, point=(0, 0)):
+  """ Get cell that point is in on tracks. """
+  return [next((idx for idx, i in enumerate(t) if i[0] <= p <= i[1]), None)
+      for t, p in zip(tracks, point)]
     
-coords_map = 'left', 'top', 'width', 'height'
+coords_map = ('left', 'width'), ('top', 'height')
 def gmap(instance, *l, **kw):
   for k, v in zip(coords_map, tracks_to_coords(*l, **kw)):
-    instance.style[k] = v
+    instance.style[k[0]] = v[0]
+    instance.style[k[1]] = v[1] - v[0]
       
       
 # dark material height to tint
@@ -1510,6 +1518,35 @@ def complement(r, g, b, *_):
 
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
+
+def axis_to_tracks(axis, viewport, offset=None):
+  """ Used to generate a non-uniform grid. """
+  axis = [[v*b if isinstance(b, float) else b for b in a] 
+    for v, a in zip(viewport, axis)]
+
+  for v, a in zip(viewport, axis):
+    if (count:=len([i for i in a if i is ...])):
+      fill = (v - sum(i for i in a if i is not ...))/count
+      while ... in a:
+        a[a.index(...)] = fill
+
+  axis = [[round(sum(a[:i])) for i in range(len(a)+1)] for a in axis]
+  axis = [[(a[i]+o, a[i+1]+o) for i in range(len(a)-1)] 
+      for a, o in zip(axis, offset or [0]*len(axis))]
+  
+  return axis
+
+def tracks_to_coords(tracks, cell, ecell=None, padding=None):
+  """ Returns pairs of start and end of each axis in tracks. """
+  return [(t[c][0]+p, t[ec or c][1]-p*2) 
+      for c, ec, t, p in zip(
+          cell, ecell or [None]*len(cell), 
+          tracks, padding or [0]*len(cell))]
+
+def point_to_cell(tracks, point=(0, 0)):
+  """ Get cell that point is in on tracks. """
+  return [next((idx for idx, i in enumerate(t) if i[0] <= p <= i[1]), None)
+      for t, p in zip(tracks, point)]
 
 #callbacks = {}
 #
@@ -1619,7 +1656,8 @@ watch_depth = -1
 def watch(f):
   if isinstance(f, type):
     class _watch(f):
-      # can't preserver slots
+      if hasattr(f, '__slots__'):
+        __slots__ = f.__slots__
       def __setattr__(self, key, value):
         if (hasattr(self, key) and 
             getattr(self, key) != value):
