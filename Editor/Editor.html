@@ -699,7 +699,7 @@ def slot(f, args='', *defaults, verbose=False):
     name = f.__name__
   else:
     args = tuple(args.split(' '))
-    name = f
+    name = f or 'Slot_base'
   largs = ', '.join(args[:-len(defaults)] if defaults else args)
 
   # Gather list of collections
@@ -1619,9 +1619,7 @@ watch_depth = -1
 def watch(f):
   if isinstance(f, type):
     class _watch(f):
-      if hasattr(f, '__slots__'):
-        __slots__ = f.__slots__
-
+      # can't preserver slots
       def __setattr__(self, key, value):
         if (hasattr(self, key) and 
             getattr(self, key) != value):
@@ -1662,6 +1660,31 @@ def watch(f):
   _watch.__qualname__ = f.__qualname__
 
   return _watch
+  
+class Observable:
+  __slots__ = 'callbacks',
+  
+  def __init__(self, *events):
+    self.callbacks = {i:[] for i in events}
+
+  # Decorator and normal function
+  def bind(self, event, f=None):
+    if f:
+      self.callbacks[event].append(f)
+    else:
+      def _bind(f):
+        self.callbacks[event].append(f)
+        return f
+      return _bind
+
+  def unbind(self, event, f):
+    self.callbacks[event].remove(f)
+
+  def emit(self, event, *l, **kw):
+    #if callable(c:=getattr(self, f'on_{event}', None)):
+    #  c(*l, **kw)
+    for c in self.callbacks[event]:
+      c(self, *l, **kw)
 
 def stagger(l, d):
   d = d/len(l)
