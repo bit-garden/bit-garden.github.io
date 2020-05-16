@@ -577,6 +577,9 @@ def spiral_to_item(l, deg, loop):
   return l[sel]
   
 # --- misc ---
+'(,)(?=(?:[^"]|"[^"]*")*$)' # csv: capture unencolsed ',' chars
+
+
 clear = '\x1b[2K'
 goup = '\x1b[1A'
 
@@ -770,10 +773,11 @@ def update_tile(instance, text='', _icon='', title='', background='', **kw):
     instance.style['display'] = 'initial'
 
 # update to handle new axis methods
-coords_map = 'left', 'width', 'top', 'height'
+coords_map = ('left', 'width'), ('top', 'height')
 def gmap(instance, *l, **kw):
-  for k, v in zip(coords_map, (x for x in tracks_to_coords(*l, **kw) for x in x)):
-    instance.style[k] = v
+  for k, v in zip(coords_map, tracks_to_coords(*l, **kw)):
+    instance.style[k[0]] = v[0]
+    instance.style[k[1]] = v[1] - v[0]
     
 # --- 
 
