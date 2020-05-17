@@ -337,9 +337,6 @@ def watch(f):
   """ Wrap class/functions to print out call graph live as the functions are called. """
   if isinstance(f, type):
     class _watch(f):
-      if hasattr(f, '__slots__'):
-        __slots__ = f.__slots__
-        
       def __setattr__(self, key, value):
         if (hasattr(self, key) and 
             getattr(self, key) != value):
