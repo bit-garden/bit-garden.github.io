@@ -166,12 +166,14 @@ def slot(f, args='', *defaults, verbose=False):
   
   # Switch between decorator or normal call handling.
   if callable(f):
-    args = tuple(f.__annotations__.keys())
+    args = tuple({x for x in (i.__annotations__ for i in f.__mro__ if i is not object) for x in x})
     defaults = [getattr(f, i) for i in args if hasattr(f, i)]
     name = f.__name__
+    components = tuple(i.__name__ for i in f.__mro__ if i not in (object, f))
   else:
     args = tuple(args.split(' '))
-    name = f or 'Slot_base'
+    components = ()
+    name = f
   largs = ', '.join(args[:-len(defaults)] if defaults else args)
 
   # Gather list of collections
@@ -191,6 +193,7 @@ def slot(f, args='', *defaults, verbose=False):
   slot_template = f'''
 class {name}:
   __slots__ = {repr(args)}
+  __components__ = {components!r}
   def __init__(self,
       {all_args}):
     {sargs}
