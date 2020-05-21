@@ -1661,7 +1661,7 @@ def watch(f):
   
 class Property:
   __slots__ = 'default', 'name'
-  def __init__(self, default=None):
+  def __init__(self, default):
     self.default = default
     
   def __set_name__(self, owner, name):
@@ -1672,7 +1672,7 @@ class Property:
     return getattr(instance, f'_{self.name}')
 
   def __delete__(self, instance):
-    delattr(instance, self.name)
+    delattr(instance, f'_{self.name}')
 
   def __set__(self, instance, value):
     if hasattr(instance, f'_{self.name}'):
