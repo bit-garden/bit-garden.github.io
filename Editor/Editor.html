@@ -1270,7 +1270,7 @@ window.CodeMirror.Vim.defineEx("edit", None, _e)
 #asyncio.run(main())
 
 def popup(root, width='auto', height='auto'):
-  if isinstance(root, (tuple, list, str, int, float)):
+  if isinstance(root, (tuple, list, str, int, float, set, dict)):
     root = DIV(root)
   d = DIALOG(root)
   root.style['width'] = width
@@ -1320,7 +1320,7 @@ def box(*l, base=DIV, **kw):
 def icon(_icon, *l, **kw):
   return I(_icon, *l, Class='material-icons', **kw)
   
-def tile(text=None, _icon=None, title=None, background=None, 
+def tile(text='', _icon='', title='', background='', 
     font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
   sty = kw.get('style', {})
   sty['overflow'] = 'hidden'
@@ -1331,47 +1331,74 @@ def tile(text=None, _icon=None, title=None, background=None,
   kw['Class'] = ' '.join(cla)
   
   out = []
-  if background:
-    out.append(DIV(style={
-        'width': '100%',
-        'height': '100%',
-        'background': f'url({background})',
-        'background-size': 'cover',
-        'background-position': 'center',
-        #'z-index': '-1',
-        'position': 'absolute',
-        'left': 0,
-        'top': 0,
-        }))
-  if _icon:
-    out.append(icon(_icon, 
-      style={
-        'position': 'absolute',
-        'left': '50%',
-        'top': '50%',
-        'transform': 'translate(-50%, -50%)',
-        'font-size': icon_size}))
-  if text:
-    out.append(DIV(text, 
-      style={
-        'position': 'absolute',
-        'left': '50%' if align=='center' else '0px',
-        'top': '50%',
-        'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
-        'font-size': font_size,
-        'text-align': align}))
+  out.append(DIV(style={
+      'width': '100%',
+      'height': '100%',
+      'background': f'url({background})' or 'none',
+      'background-size': 'cover',
+      'background-position': 'center',
+      #'z-index': '-1',
+      'position': 'absolute',
+      'left': 0,
+      'top': 0,
+      }))
+      
+  out.append(icon(_icon or '', 
+    style={
+      'position': 'absolute',
+      'left': '50%',
+      'top': '50%',
+      'transform': 'translate(-50%, -50%)',
+      'font-size': icon_size}))
+      
+  out.append(DIV(text or '', 
+    style={
+      'position': 'absolute',
+      'left': '50%' if align=='center' else '0px',
+      'top': '50%',
+      'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
+      'font-size': font_size,
+      'text-align': align}))
+
   if text and _icon:
     out[-1].attrs['class'] = 'show_over animate'
     out[-2].attrs['class'] = 'hide_over material-icons animate'
-  if title:
-    out.append(DIV(f'{title}', 
-      style={
-        'position': 'absolute',
-        'left': 0,
-        'bottom': 0,
-        'background': 'rgba(0,0,0,.5)',
-        'padding': '8px'}))
+  else:
+    out[-1].attrs['class'] = 'animate'
+    out[-2].attrs['class'] = 'material-icons animate'
+    
+  out.append(DIV(f'{title}' or '', 
+    style={
+      'position': 'absolute',
+      'left': 0,
+      'bottom': 0,
+      'display': 'initial' if title else 'none',
+      'background': 'rgba(0,0,0,.5)',
+      'padding': '8px'}))
+      
   return box(out, base=base, **kw)
+
+def update_tile(instance, text='', _icon='', title='', background='', **kw):
+  ui_background, ui_icon, ui_text, ui_title = instance.children
+  
+  ui_background.style['background-image'] = f'url({background})' if background else 'none'
+  ui_icon.text = _icon or ''
+  ui_text.text = text or ''
+  
+  if text and _icon:
+    ui_text.attrs['class'] = 'show_over animate'
+    ui_icon.attrs['class'] = 'hide_over material-icons animate'
+  else:
+    ui_text.attrs['class'] = 'animate'
+    ui_icon.attrs['class'] = 'material-icons animate'
+  
+  ui_title.text = title or ''
+  ui_title.style['display'] = 'initial' if title else 'none'
+  
+  if not any([text, _icon, title, title, background]):
+    instance.style['display'] = 'none'
+  else:
+    instance.style['display'] = 'initial'
 
 def make_ripple(el, base_color=(18,18,18,1), no_key=False):
   mutator = tint if is_dark(*base_color) else shade
@@ -1679,7 +1706,7 @@ class Property:
       old = getattr(instance, f'_{self.name}')
       setattr(instance, f'_{self.name}', value)
       if old != value:
-        instance.emit(self.name, value)
+        instance.dispatch(self.name, value)
     else:
       setattr(instance, f'_{self.name}', value)
       
@@ -1706,23 +1733,27 @@ class Observable:
     self.callbacks = {i:[] for i in (*props, *events)}
 
   # Decorator and normal function
-  def bind(self, event, f=None):
-    if f:
-      self.callbacks[event].append(f)
+  def bind(self, *l, **kw):
+    if kw:
+      for k, v in kw.items():
+        self.callbacks[k].append(v)
     else:
       def _bind(f):
-        self.callbacks[event].append(f)
+        self.callbacks[l[0]].append(f)
         return f
       return _bind
 
-  def unbind(self, event, f):
-    self.callbacks[event].remove(f)
+  def unbind(self, **kw):
+    for k, v in kw.items():
+      self.callbacks[k].remove(v)
 
-  def emit(self, event, *l, **kw):
-    if hasattr(self, f'on_{event}'):
-      getattr(self, f'on_{event}')(*l, **kw)
-    for c in self.callbacks[event]:
-      c(self, *l, **kw)
+  def dispatch(self, event, *l, **kw):
+    for c in reversed(self.callbacks[event]):
+      if c(self, *l, **kw) is True:
+        break
+    else:
+      if hasattr(self, f'on_{event}'):
+        getattr(self, f'on_{event}')(*l, **kw)
       
   def __repr__(self):
     return f"""{self.__class__.__name__}({", ".join(f"{k}={getattr(self, k)!r}" 
