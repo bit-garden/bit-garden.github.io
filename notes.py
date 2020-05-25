@@ -833,97 +833,94 @@ def terminal_size():
 #  def __exit__(self, *l):
 #    self.element.remove()
 #    
-#def box(*l, base=DIV, **kw):
-#  """ Simple box sized element meant to be freely positioned on the page. """
-#  sty = kw.get('style', {})
-#  sty['box-sizing'] = 'border-box'
-#  sty['display'] = 'inline'
-#  sty['position'] = 'absolute'
-#  kw['style'] = sty
-#  return base(*l, **kw)
-#  
-#def icon(_icon, *l, **kw):
-#  return I(_icon, *l, Class='material-icons', **kw)
-#  
-#def tile(text='', _icon='', title='', background='', 
-#    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
-#  sty = kw.get('style', {})
-#  sty['overflow'] = 'hidden'
-#  kw['style'] = sty
-#  
-#  cla = kw.get('Class', '').split(' ')
-#  cla += ['animate']
-#  kw['Class'] = ' '.join(cla)
-#  
-#  out = []
-#  out.append(DIV(style={
-#      'width': '100%',
-#      'height': '100%',
-#      'background': f'url({background})' or 'none',
-#      'background-size': 'cover',
-#      'background-position': 'center',
-#      #'z-index': '-1',
-#      'position': 'absolute',
-#      'left': 0,
-#      'top': 0,
-#      }))
-#      
-#  out.append(icon(_icon or '', 
-#    style={
-#      'position': 'absolute',
-#      'left': '50%',
-#      'top': '50%',
-#      'transform': 'translate(-50%, -50%)',
-#      'font-size': icon_size}))
-#      
-#  out.append(DIV(text or '', 
-#    style={
-#      'position': 'absolute',
-#      'left': '50%' if align=='center' else '0px',
-#      'top': '50%',
-#      'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
-#      'font-size': font_size,
-#      'text-align': align}))
+#class Box(DIV):
+#  def __init__(self, *l, x=0, y=0, width=0, height=0, display='inline', 
+#      opacity=1, axis=('top', 'left'), **kw):
+#    super().__init__(*l, **kw)
 #
-#  if text and _icon:
-#    out[-1].attrs['class'] = 'show_over animate'
-#    out[-2].attrs['class'] = 'hide_over material-icons animate'
-#  else:
-#    out[-1].attrs['class'] = 'animate'
-#    out[-2].attrs['class'] = 'material-icons animate'
+#    self.axis = axis
+#    self.x = x
+#    self.y = y
+#    self.width = width
+#    self.height = height
+#    self.display = display
+#    self.opacity = opacity
 #    
-#  out.append(DIV(f'{title}' or '', 
-#    style={
-#      'position': 'absolute',
-#      'left': 0,
-#      'bottom': 0,
-#      'display': 'initial' if title else 'none',
-#      'background': 'rgba(0,0,0,.5)',
-#      'padding': '8px'}))
-#      
-#  return box(out, base=base, **kw)
+#    for k, v in (
+#        ('box-sizing', 'border-box'),
+#        ('position', 'absolute')):
+#      self.style[k] = v
 #
-#def update_tile(instance, text='', _icon='', title='', background='', **kw):
-#  ui_background, ui_icon, ui_text, ui_title = instance.children
-#  
-#  ui_background.style['background-image'] = f'url({background})' if background else 'none'
-#  ui_icon.text = _icon or ''
-#  ui_text.text = text or ''
-#  
-#  if text and _icon:
-#    ui_text.attrs['class'] = 'show_over animate'
-#    ui_icon.attrs['class'] = 'hide_over material-icons animate'
-#  else:
-#    ui_text.attrs['class'] = 'animate'
-#    ui_icon.attrs['class'] = 'material-icons animate'
-#  
-#  ui_title.text = title or ''
-#  ui_title.style['display'] = 'initial' if title else 'none'
-#  
-#  if not any([text, _icon, title, title, background]):
-#    instance.style['display'] = 'none'
-#  else:
-#    instance.style['display'] = 'initial'
+#  @property
+#  def opacity(self):
+#    return self.style['opacity']
+#  @opacity.setter
+#  def opacity(self, value):
+#    self.style['opacity'] = value
+#
+#  @property
+#  def display(self):
+#    return self.style['display']
+#  @display.setter
+#  def display(self, value):
+#    self.style['display'] = value
+#
+#  @property
+#  def x(self):
+#    return self.style[self.axis[1]]
+#  @x.setter
+#  def x(self, value):
+#    self.style[self.axis[1]] = value
+#
+#  @property
+#  def y(self):
+#    return self.style[self.axis[0]]
+#  @y.setter
+#  def y(self, value):
+#    self.style[self.axis[0]] = value
+#
+#  @property
+#  def width(self):
+#    return self.style['width']
+#  @width.setter
+#  def width(self, value):
+#    self.style['width'] = value
+#
+#  @property
+#  def height(self):
+#    return self.style['height']
+#  @height.setter
+#  def height(self, value):
+#    self.style['height'] = value
+#      
+#class Icon(I):
+#  def __init__(self, *l, font_size='32px', **kw):
+#    super().__init__(*l, **{'Class': 'material-icons', **kw})
+#    
+#    self.style['font-size'] = font_size
+#    
+#class Tile(Box):
+#  def __init__(self, text='', font_size='24px', **kw):
+#    for k, v in (
+#        ('overflow', 'hidden'),):
+#      self.style[k] = v
+#        
+#    super().__init__(DIV(text, 
+#      style={
+#        'position': 'absolute',
+#        'left': '50%',
+#        'top': '50%',
+#        'transform': 'translate(-50%, -50%)',
+#        'font-size': font_size,
+#        'text-align': align}), **kw)
+#
+#  @property
+#  def text(self):
+#    return self.children[0].text
+#  @text.setter
+#  def text(self, value):
+#    self.children[0].text = value
+#
 #
 ## update to handle new axis methods
 #coords_map = ('left', 'width'), ('top', 'height')
