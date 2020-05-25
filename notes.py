@@ -1,116 +1,4 @@
-# --- For browser --- include like normal imports
-# hacky exec version of itemgetter for speed
-# slower creation, but faster execute for more than 1 item
-def itemgetter(*items):
-  template = f'''def f(i): return {", ".join(f"i['{i}']" for i in items)}'''
-  loc = {}
-  exec(template, {}, loc)
-  return loc['f']
-
-# hacky exec version of attrgetter for speed
-# slower creation, but faster execute
-def attrgetter(*items):
-  template = f'''def f(i): return {", ".join(f"i.{i}" for i in items)}'''
-  loc = {}
-  exec(template, {}, loc)
-  return loc['f']
-  
-class groupby:
-  # [k for k, g in groupby('AAAABBBCCDAABBB')] --> A B C D A B
-  # [list(g) for k, g in groupby('AAAABBBCCD')] --> AAAA BBB CC D
-  def __init__(self, iterable, key=None):
-    if key is None:
-      key = lambda x: x
-    self.keyfunc = key
-    self.it = iter(iterable)
-    self.tgtkey = self.currkey = self.currvalue = object()
-  def __iter__(self):
-    return self
-  def __next__(self):
-    self.id = object()
-    while self.currkey == self.tgtkey:
-      self.currvalue = next(self.it)  # Exit on StopIteration
-      self.currkey = self.keyfunc(self.currvalue)
-    self.tgtkey = self.currkey
-    return (self.currkey, self._grouper(self.tgtkey, self.id))
-  def _grouper(self, tgtkey, id):
-    while self.id is id and self.currkey == tgtkey:
-      yield self.currvalue
-      try:
-        self.currvalue = next(self.it)
-      except StopIteration:
-        return
-      self.currkey = self.keyfunc(self.currvalue)
-
-class zip_longest:
-  def __init__(self, *args, fillvalue = None):
-    self.args = [iter(arg) for arg in args]
-    self.fillvalue = fillvalue
-    self.units = len(args)
-  
-  def __iter__(self):
-    return self
-  
-  def __next__(self):
-    temp = []
-    nb = 0
-    for i in range(self.units):
-      try:
-        temp.append(next(self.args[i]))
-        nb += 1
-      except StopIteration:
-        temp.append(self.fillvalue)
-    if nb==0:
-      raise StopIteration
-    return tuple(temp)
-
-def partial(func, *args, **keywords):
-  def newfunc(*fargs, **fkeywords):
-    newkeywords = {**keywords, **fkeywords}
-    return func(*args, *fargs, **newkeywords)
-  newfunc.func = func
-  newfunc.args = args
-  newfunc.keywords = keywords
-  return newfunc
-  
-class permutations:
-  def __init__(self, iterable, r = None):
-    self.pool = tuple(iterable)
-    self.n = len(self.pool)
-    self.r = self.n if r is None else r
-    self.indices = list(range(self.n))
-    self.cycles = list(range(self.n, self.n - self.r, -1))
-    self.zero = False
-    self.stop = False
-
-  def __iter__(self):
-    return self
-
-  def __next__(self):
-    indices = self.indices
-    if self.r > self.n:
-      raise StopIteration
-    if not self.zero:
-      self.zero = True
-      return tuple(self.pool[i] for i in indices[:self.r])
-    
-    i = self.r - 1
-    while i >= 0:
-      j = self.cycles[i] - 1
-      if j > 0:
-        self.cycles[i] = j
-        indices[i], indices[-j] = indices[-j], indices[i]
-        return tuple(self.pool[i] for i in indices[:self.r])
-      self.cycles[i] = len(indices) - i
-      n1 = len(indices) - 1
-      assert n1 >= 0
-      num = indices[i]
-      for k in range(i, n1):
-        indices[k] = indices[k+1]
-      indices[n1] = num
-      i -= 1
-    raise StopIteration
-    
+#    
 # --- PURE PYTHON ---
 # there should be no platform specific code here
 
@@ -169,10 +57,8 @@ def slot(f, args='', *defaults, verbose=False):
     args = tuple({x for x in (i.__annotations__ for i in f.__mro__ if i is not object) for x in x})
     defaults = [getattr(f, i) for i in args if hasattr(f, i)]
     name = f.__name__
-    components = tuple(i.__name__ for i in f.__mro__ if i not in (object, f))
   else:
     args = tuple(args.split(' '))
-    components = ()
     name = f
   largs = ', '.join(args[:-len(defaults)] if defaults else args)
 
@@ -193,7 +79,6 @@ def slot(f, args='', *defaults, verbose=False):
   slot_template = f'''
 class {name}:
   __slots__ = {repr(args)}
-  __components__ = {components!r}
   def __init__(self,
       {all_args}):
     {sargs}
@@ -279,7 +164,7 @@ def lcast(l, *kinds):
   
   if len(kinds) == 1:
     return (kinds[0](i) for i in l)
-  return (k(i) for k, i in zip(kinds, l))
+  return [k(i) for k, i in zip(kinds, l)]
   
 def fix_name(s):
   """ Return a safe string for Table to use. """
@@ -307,29 +192,78 @@ def Table(s, char='|', extras=[], cast=None):
   else:
     return [Row(*i) for i in ds]
     
+class Property:
+  __slots__ = 'default', 'name'
+  def __init__(self, default):
+    self.default = default
+    
+  def __set_name__(self, owner, name):
+    self.name = name
+
+  def __get__(self, instance, owner):
+    if not instance: return self
+    return getattr(instance, f'_{self.name}')
+
+  def __delete__(self, instance):
+    delattr(instance, f'_{self.name}')
+
+  def __set__(self, instance, value):
+    if hasattr(instance, f'_{self.name}'):
+      old = getattr(instance, f'_{self.name}')
+      setattr(instance, f'_{self.name}', value)
+      if old != value:
+        instance.dispatch(self.name, value)
+    else:
+      setattr(instance, f'_{self.name}', value)
+      
 class Observable:
-  """ Observable base class for observable pattern. """
+  """ Observable base class for observable pattern. 
+  
+  Looks for Property objects in the parent classes to set defualt values and await changes.
+  """
   __slots__ = 'callbacks',
   
-  def __init__(self, *events):
-    self.callbacks = {i:[] for i in events}
+  def __init__(self, *events, **kw):
+    props = {x for x in [dir(i) for i in self.__class__.__mro__] 
+        for x in x if isinstance(getattr(self.__class__, x, None), Property)}
+        
+    self.__class__.__props__ = props
+        
+    for i in props:
+      prop = getattr(self.__class__, i)
+      if prop.name in kw:
+        setattr(self, prop.name, kw.pop(prop.name))
+      else:
+        setattr(self, prop.name, type(prop.default)(prop.default))
+        
+    self.callbacks = {i:[] for i in (*props, *events)}
 
   # Decorator and normal function
-  def bind(self, event, f=None):
-    if f:
-      self.callbacks[event].append(f)
+  def bind(self, *l, **kw):
+    if kw:
+      for k, v in kw.items():
+        self.callbacks[k].append(v)
     else:
       def _bind(f):
-        self.callbacks[event].append(f)
+        self.callbacks[l[0]].append(f)
         return f
       return _bind
 
-  def unbind(self, event, f):
-    self.callbacks[event].remove(f)
+  def unbind(self, **kw):
+    for k, v in kw.items():
+      self.callbacks[k].remove(v)
 
-  def emit(self, event, *l, **kw):
-    for c in self.callbacks[event]:
-      c(self, *l, **kw)
+  def dispatch(self, event, *l, **kw):
+    for c in reversed(self.callbacks[event]):
+      if c(self, *l, **kw) is True:
+        break
+    else:
+      if hasattr(self, f'on_{event}'):
+        getattr(self, f'on_{event}')(*l, **kw)
+      
+  def __repr__(self):
+    return f"""{self.__class__.__name__}({", ".join(f"{k}={getattr(self, k)!r}" 
+        for k in self.__props__)})"""
       
 func_type = type(lambda:True)
 watch_depth = -1
@@ -340,7 +274,7 @@ def watch(f):
       def __setattr__(self, key, value):
         if (hasattr(self, key) and 
             getattr(self, key) != value):
-          print(f'{"| "*(watch_depth+1)}{f.__qualname__}.__setattr__({self!r}, {key!r}, {value!r})')
+          print(f'{"| "*(watch_depth+1)}{f.__name__}.__setattr__({self!r}, {key!r}, {value!r})')
         super().__setattr__(key, value)
 
     defs = [i for i in {*dir(_watch)} - {*dir(object)} 
@@ -411,14 +345,14 @@ def hilo(a, b, c):
   if c < b: b, c = c, b
   return a + c
 
-def complement(r, g, b, *_):
-  """ Get complement color. """
-  k = hilo(r, g, b)
-  return (*(k - u for u in (r, g, b)), *_)
+#def complement(r, g, b, *_):
+#  """ Get complement color. """
+#  k = hilo(r, g, b)
+#  return (*(k - u for u in (r, g, b)), *_)
   
 # --- timer methods
 import time
-from browser import aio as asyncio
+#import asyncio
 
 class timer:
   """ Timer context to time fragments of code. """
@@ -467,7 +401,7 @@ def delay(d, running=None):
         running[:] = [f(*l, **kw), 'done']
       else:
         running[:] = [None, 'cancelled']
-    asyncio.run(__delay())
+    asyncio.create_task(__delay())
     return f
   return _delay
   
@@ -513,6 +447,18 @@ async def loop(d, f, running=True):
   t = Ticker()
   while f(t.diff()) is not False and running:
     await asyncio.sleep(t.tick(d))
+
+def stagger(l, d):
+  d = d/len(l)
+  def _stagger(f):
+    for idx, i in enumerate(l, 1):
+      if isinstance(i, (tuple, list)):
+        Delay(idx*d, f, *i)
+      elif isinstance(i, (dict)):
+        Delay(idx*d, f, **i)
+      else:
+        Delay(idx*d, f, i)
+  return _stagger
   
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
@@ -548,33 +494,128 @@ def point_to_cell(tracks, point=(0, 0)):
       
 #todo
 # radial tools
-from math import atan2, pi
-def get_angle(x1, y1, x2, y2):
-  angle = atan2(y1 - y2, x2 - x1) * 180 / pi - 90
-  if angle < 0:
-    angle += 360
-  return angle
+import math
 
-def deg_to_item(l, deg):
-  unit_size = 360 // len(l)
-  offset = deg + unit_size/2
+class Radial_menu:
+  def __init__(self, x, y, items, min_distance=0):
+    self.x = x
+    self.y = y
+    self.items = items
+    self.min_distance = min_distance
 
-  sel = int(offset//unit_size)
-  if sel >= len(l):
-    sel = 0
+  def __getitem__(self, key):
+    if math.dist((self.x, self.y), key) >= self.min_distance:
+      return self.deg_to_item(self.get_angle(*key))
+    return None
 
-  return l[sel]
+  def get_angle(self, x2, y2):
+    angle = math.degrees(math.atan2(y2 - self.y, x2 - self.x)) + 90
+    if angle < 0:
+      angle += 360
+    return angle
 
-def spiral_to_item(l, deg, loop):
-  unit_size = 360 // 12
-  deg += loop*360
-  offset = deg + unit_size/2
+  def deg_to_item(self, deg):
+    unit_size = 360 // len(self.items)
+    offset = deg + unit_size/2
 
-  sel = int(offset//unit_size)
+    sel = int(offset//unit_size)
+    if sel >= len(self.items):
+      sel = 0
 
-  sel = max(min(sel, len(l)-1), 0)
+    return self.items[sel]
 
-  return l[sel]
+  def deg_to_idx(self, deg):
+    unit_size = 360 // len(self.items)
+    offset = deg + unit_size/2
+
+    sel = int(offset//unit_size)
+    if sel >= len(self.items):
+      sel = 0
+
+    return sel
+
+  def get_pos(self, radius):
+    unit_size = math.radians(360/len(self.items))
+    for idx, i in enumerate(self.items):
+      x = self.x + radius * math.cos(unit_size*idx - math.pi/2)
+      y = self.y + radius * math.sin(unit_size*idx - math.pi/2)
+      yield i, x, y
+
+class Spiral_menu:
+  def __init__(self, x, y, items, min_distance=0):
+    self.x = x
+    self.y = y
+    self.items = items
+    self.min_distance = min_distance
+    self.loop = 0
+
+    self.last_peek = 0
+
+  def __getitem__(self, key):
+    if math.dist((self.x, self.y), key) >= self.min_distance:
+      return self.deg_to_item(self.get_angle(*key))
+    return None
+
+  def get_angle(self, x2, y2):
+    angle = math.degrees(math.atan2(y2 - self.y, x2 - self.x)) + 90
+    if angle < 0:
+      angle += 360
+    return angle
+
+  def deg_to_item(self, deg):
+    unit_size = 360 // 12
+    deg += self.loop*360
+    offset = deg + unit_size/2
+
+    sel = int(offset//unit_size)
+    sel = max(min(sel, len(self.items)-1), 0)
+
+    return self.items[sel]
+
+  def deg_to_idx(self, deg):
+    unit_size = 360 // 12
+    deg += self.loop*360
+    offset = deg + unit_size/2
+
+    sel = int(offset//unit_size)
+    #return max(min(sel, len(self.items)-1), 0)
+    return max(sel, 0)
+
+  def get_near(self, x, y):
+    around = 6
+    spiral_shift = 25/around
+
+    ang = self.get_angle(x, y)
+
+    if ang - 180 > self.last_peek:
+      self.loop = max(self.loop-1, 0)
+      #print('loop down')
+    if ang + 180 < self.last_peek:
+      self.loop += 1
+      #print('loop up')
+
+    self.last_peek = ang
+
+    idx = self.deg_to_idx(ang)
+    
+    if idx < around:
+      items = self.items[:around*2+1]
+    else:
+      items = self.items[idx-around:idx+around+1]
+    items += [None]*(around*2+1 - len(items))
+
+    shifts = [[i, (spiral_shift*iidx)] for iidx, i in enumerate(items, max(-around, -idx))]
+
+    unit_size = math.radians(360/12)
+    radius = 100
+    for _idx, i in enumerate(shifts):
+      x = self.x + (radius - i[1]) * math.cos(unit_size*_idx - math.pi/2 + unit_size*(max(idx-around, 0)))
+      y = self.y + (radius - i[1]) * math.sin(unit_size*_idx - math.pi/2 + unit_size*(max(idx-around, 0)))
+      #i[1:] = (x, y)
+      shifts[_idx] = {'item': i[0], 'x': x, 'y': y}
+
+    return idx, shifts
+
   
 # --- misc ---
 '(,)(?=(?:[^"]|"[^"]*")*$)' # csv: capture unencolsed ',' chars
@@ -602,237 +643,349 @@ def terminal_size():
 #          for text in _nsre.split(s)]
 
 # --- For browser --- 
-# this is specific to handling html ui
-from browser import window
-from browser.html import *
-
-def bind(events, *elements):
-  """ @bind('event event2', el, el) """
-  def _bind(f):
-    for event in events.split(' '):
-      for element in elements:
-        element.bind(event, f)
-    return f
-  return _bind
-  
-def bind_once(events, *elements):
-  """ @bind_once('event event2', el, el) 
-  
-  This removes the binding once any event is fired on any of the elements.
-  This can be used to stop doubleclicking causing errors.
-  """
-  def _bind(f):
-    def _unbind(*l, **kw):
-      for event in events.split(' '):
-        for element in elements:
-          element.unbind(event, _unbind)
-      return f(*l, **kw)
-        
-    for event in events.split(' '):
-      for element in elements:
-        element.bind(event, _unbind)
-    return f
-    
-  return _bind
-
-def popup(root, width='auto', height='auto'):
-  """ Popup dialog using <dialog>. """
-  if isinstance(root, (tuple, list, str, int, float, set, dict)):
-    if isinstance(root, str):
-      root = DIV(root)
-    else:
-      root = DIV(repr(root))
-    
-  d = DIALOG(root)
-  root.style['width'] = width
-  root.style['height'] = height
-      
-  @bind('close', d)
-  def _(ev):
-    d.remove()
-    cm_editbox.focus()
-    
-  doc <= d
-  d.showModal()
-  return d
-  
-class Popup:
-  """ Context for popup function. """
-  def __init__(self, *l, **kw):
-    self.d = popup(*l, **kw)
-    
-  def __enter__(self):
-    return self
-    
-  def __exit__(self, *l):
-    self.d.close()
-    
-class El:
-  """ Context to remove element on error. """
-  def __init__(self, element, parent=None):
-    self.element = element
-    if parent:
-      parent <= self.element
-  
-  def __enter__(self):
-    return self.element
-    
-  def __exit__(self, *l):
-    self.element.remove()
-    
-def box(*l, base=DIV, **kw):
-  """ Simple box sized element meant to be freely positioned on the page. """
-  sty = kw.get('style', {})
-  sty['box-sizing'] = 'border-box'
-  sty['display'] = 'inline'
-  sty['position'] = 'absolute'
-  kw['style'] = sty
-  return base(*l, **kw)
-  
-def icon(_icon, *l, **kw):
-  return I(_icon, *l, Class='material-icons', **kw)
-  
-def tile(text='', _icon='', title='', background='', 
-    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
-  sty = kw.get('style', {})
-  sty['overflow'] = 'hidden'
-  kw['style'] = sty
-  
-  cla = kw.get('Class', '').split(' ')
-  cla += ['animate']
-  kw['Class'] = ' '.join(cla)
-  
-  out = []
-  out.append(DIV(style={
-      'width': '100%',
-      'height': '100%',
-      'background': f'url({background})' or 'none',
-      'background-size': 'cover',
-      'background-position': 'center',
-      #'z-index': '-1',
-      'position': 'absolute',
-      'left': 0,
-      'top': 0,
-      }))
-      
-  out.append(icon(_icon or '', 
-    style={
-      'position': 'absolute',
-      'left': '50%',
-      'top': '50%',
-      'transform': 'translate(-50%, -50%)',
-      'font-size': icon_size}))
-      
-  out.append(DIV(text or '', 
-    style={
-      'position': 'absolute',
-      'left': '50%' if align=='center' else '0px',
-      'top': '50%',
-      'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
-      'font-size': font_size,
-      'text-align': align}))
-
-  if text and _icon:
-    out[-1].attrs['class'] = 'show_over animate'
-    out[-2].attrs['class'] = 'hide_over material-icons animate'
-  else:
-    out[-1].attrs['class'] = 'animate'
-    out[-2].attrs['class'] = 'material-icons animate'
-    
-  out.append(DIV(f'{title}' or '', 
-    style={
-      'position': 'absolute',
-      'left': 0,
-      'bottom': 0,
-      'display': 'initial' if title else 'none',
-      'background': 'rgba(0,0,0,.5)',
-      'padding': '8px'}))
-      
-  return box(out, base=base, **kw)
-
-def update_tile(instance, text='', _icon='', title='', background='', **kw):
-  ui_background, ui_icon, ui_text, ui_title = instance.children
-  
-  ui_background.style['background-image'] = f'url({background})' if background else 'none'
-  ui_icon.text = _icon or ''
-  ui_text.text = text or ''
-  
-  if text and _icon:
-    ui_text.attrs['class'] = 'show_over animate'
-    ui_icon.attrs['class'] = 'hide_over material-icons animate'
-  else:
-    ui_text.attrs['class'] = 'animate'
-    ui_icon.attrs['class'] = 'material-icons animate'
-  
-  ui_title.text = title or ''
-  ui_title.style['display'] = 'initial' if title else 'none'
-  
-  if not any([text, _icon, title, title, background]):
-    instance.style['display'] = 'none'
-  else:
-    instance.style['display'] = 'initial'
-
-# update to handle new axis methods
-coords_map = ('left', 'width'), ('top', 'height')
-def gmap(instance, *l, **kw):
-  for k, v in zip(coords_map, tracks_to_coords(*l, **kw)):
-    instance.style[k[0]] = v[0]
-    instance.style[k[1]] = v[1] - v[0]
-    
-# --- 
-
-def make_ripple(element, base_color=(18,18,18,1), no_key=False):
-  """ Adds ripple click effect to an element. """
-  mutator = tint if is_dark(*base_color) else shade
-  
-  hover_color = mutator(opacities[8], *base_color[:3], 1)
-  pulse_color = mutator(.4, *base_color[:3], 1)
-  
-  glows = [(*(base_color[:3]), i) for i in (.14, .12, .2)]
-  
-  @bind('mouseout blur', element)
-  def prep_ripple(*_):
-    base_sty = {'background-color': f'rgba{base_color}', 
-      'background-position': 'center', 
-      'box-shadow': 'none',
-      'transition': 'all 0.3s',
-      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)'}
-    for k, v in base_sty.items():
-      element.style[k] = v
-  prep_ripple()
-
-  @bind('mouseover mouseup focus', element)
-  def pre_ripple(*_):
-    hover_sty = {'transition': 'all 0.3s',
-      'box-shadow': f'0 4px 5px 0 rgba{glows[0]}, 0 1px 10px 0 rgba{glows[1]}, 0 2px 4px -1px rgba{glows[2]}',
-      'background': f'rgba{hover_color} radial-gradient(circle, transparent 1%, rgba{hover_color} 1%) center/15000%'}
-
-    for k, v in hover_sty.items():
-      element.style[k] = v
-
-  @bind('mousedown', element)
-  def do_ripple(*_):
-    active_sty = {'background-color': f'rgba{pulse_color}',
-      #'box-shadow': f'0 4px 5px 0 rgba(220, 20, 60, 0.14), 0 1px 10px 0 rgba(220, 20, 60, 0.12), 0 2px 4px -1px rgba(220, 20, 60, 0.20)',
-      'background-size': '100%', 'transition': 'all 0s'}
-
-    for k, v in active_sty.items():
-      element.style[k] = v
-    
-    Delay(.05, pre_ripple)
-
-  # manually call a ripple pulse effect.
-  def _do_ripple(*_):
-    pre_ripple()
-    Delay(.4, do_ripple)
-    Delay(.45, pre_ripple)
-    Delay(.6, prep_ripple)
-  
-  def _key_ripple(ev):
-    if ev.key=='Enter' or ev.key==' ':
-      do_ripple()
-  
-  if not no_key:
-    element.bind('keydown', _key_ripple)
-  
-  return element, _do_ripple
+# include like normal imports
+# hacky exec version of itemgetter for speed
+# slower creation, but faster execute for more than 1 item
+#def itemgetter(*items):
+#  template = f'''def f(i): return {", ".join(f"i['{i}']" for i in items)}'''
+#  loc = {}
+#  exec(template, {}, loc)
+#  return loc['f']
+#
+## hacky exec version of attrgetter for speed
+## slower creation, but faster execute
+#def attrgetter(*items):
+#  template = f'''def f(i): return {", ".join(f"i.{i}" for i in items)}'''
+#  loc = {}
+#  exec(template, {}, loc)
+#  return loc['f']
+#  
+#class groupby:
+#  # [k for k, g in groupby('AAAABBBCCDAABBB')] --> A B C D A B
+#  # [list(g) for k, g in groupby('AAAABBBCCD')] --> AAAA BBB CC D
+#  def __init__(self, iterable, key=None):
+#    if key is None:
+#      key = lambda x: x
+#    self.keyfunc = key
+#    self.it = iter(iterable)
+#    self.tgtkey = self.currkey = self.currvalue = object()
+#  def __iter__(self):
+#    return self
+#  def __next__(self):
+#    self.id = object()
+#    while self.currkey == self.tgtkey:
+#      self.currvalue = next(self.it)  # Exit on StopIteration
+#      self.currkey = self.keyfunc(self.currvalue)
+#    self.tgtkey = self.currkey
+#    return (self.currkey, self._grouper(self.tgtkey, self.id))
+#  def _grouper(self, tgtkey, id):
+#    while self.id is id and self.currkey == tgtkey:
+#      yield self.currvalue
+#      try:
+#        self.currvalue = next(self.it)
+#      except StopIteration:
+#        return
+#      self.currkey = self.keyfunc(self.currvalue)
+#
+#class zip_longest:
+#  def __init__(self, *args, fillvalue = None):
+#    self.args = [iter(arg) for arg in args]
+#    self.fillvalue = fillvalue
+#    self.units = len(args)
+#  
+#  def __iter__(self):
+#    return self
+#  
+#  def __next__(self):
+#    temp = []
+#    nb = 0
+#    for i in range(self.units):
+#      try:
+#        temp.append(next(self.args[i]))
+#        nb += 1
+#      except StopIteration:
+#        temp.append(self.fillvalue)
+#    if nb==0:
+#      raise StopIteration
+#    return tuple(temp)
+#
+#def partial(func, *args, **keywords):
+#  def newfunc(*fargs, **fkeywords):
+#    newkeywords = {**keywords, **fkeywords}
+#    return func(*args, *fargs, **newkeywords)
+#  newfunc.func = func
+#  newfunc.args = args
+#  newfunc.keywords = keywords
+#  return newfunc
+#  
+#class permutations:
+#  def __init__(self, iterable, r = None):
+#    self.pool = tuple(iterable)
+#    self.n = len(self.pool)
+#    self.r = self.n if r is None else r
+#    self.indices = list(range(self.n))
+#    self.cycles = list(range(self.n, self.n - self.r, -1))
+#    self.zero = False
+#    self.stop = False
+#
+#  def __iter__(self):
+#    return self
+#
+#  def __next__(self):
+#    indices = self.indices
+#    if self.r > self.n:
+#      raise StopIteration
+#    if not self.zero:
+#      self.zero = True
+#      return tuple(self.pool[i] for i in indices[:self.r])
+#    
+#    i = self.r - 1
+#    while i >= 0:
+#      j = self.cycles[i] - 1
+#      if j > 0:
+#        self.cycles[i] = j
+#        indices[i], indices[-j] = indices[-j], indices[i]
+#        return tuple(self.pool[i] for i in indices[:self.r])
+#      self.cycles[i] = len(indices) - i
+#      n1 = len(indices) - 1
+#      assert n1 >= 0
+#      num = indices[i]
+#      for k in range(i, n1):
+#        indices[k] = indices[k+1]
+#      indices[n1] = num
+#      i -= 1
+#    raise StopIteration
+## this is specific to handling html ui
+#from browser import window
+#from browser.html import *
+#
+#def bind(events, *elements):
+#  """ @bind('event event2', el, el) """
+#  def _bind(f):
+#    for event in events.split(' '):
+#      for element in elements:
+#        element.bind(event, f)
+#    return f
+#  return _bind
+#  
+#def bind_once(events, *elements):
+#  """ @bind_once('event event2', el, el) 
+#  
+#  This removes the binding once any event is fired on any of the elements.
+#  This can be used to stop doubleclicking causing errors.
+#  """
+#  def _bind(f):
+#    def _unbind(*l, **kw):
+#      for event in events.split(' '):
+#        for element in elements:
+#          element.unbind(event, _unbind)
+#      return f(*l, **kw)
+#        
+#    for event in events.split(' '):
+#      for element in elements:
+#        element.bind(event, _unbind)
+#    return f
+#    
+#  return _bind
+#
+#def popup(root, width='auto', height='auto'):
+#  """ Popup dialog using <dialog>. """
+#  if isinstance(root, (tuple, list, str, int, float, set, dict)):
+#    if isinstance(root, str):
+#      root = DIV(root)
+#    else:
+#      root = DIV(repr(root))
+#    
+#  d = DIALOG(root)
+#  root.style['width'] = width
+#  root.style['height'] = height
+#      
+#  @bind('close', d)
+#  def _(ev):
+#    d.remove()
+#    cm_editbox.focus()
+#    
+#  doc <= d
+#  d.showModal()
+#  return d
+#  
+#class Popup:
+#  """ Context for popup function. """
+#  def __init__(self, *l, **kw):
+#    self.d = popup(*l, **kw)
+#    
+#  def __enter__(self):
+#    return self
+#    
+#  def __exit__(self, *l):
+#    self.d.close()
+#    
+#class El:
+#  """ Context to remove element on error. """
+#  def __init__(self, element, parent=None):
+#    self.element = element
+#    if parent:
+#      parent <= self.element
+#  
+#  def __enter__(self):
+#    return self.element
+#    
+#  def __exit__(self, *l):
+#    self.element.remove()
+#    
+#def box(*l, base=DIV, **kw):
+#  """ Simple box sized element meant to be freely positioned on the page. """
+#  sty = kw.get('style', {})
+#  sty['box-sizing'] = 'border-box'
+#  sty['display'] = 'inline'
+#  sty['position'] = 'absolute'
+#  kw['style'] = sty
+#  return base(*l, **kw)
+#  
+#def icon(_icon, *l, **kw):
+#  return I(_icon, *l, Class='material-icons', **kw)
+#  
+#def tile(text='', _icon='', title='', background='', 
+#    font_size='24px', icon_size='64px', align='center', base=DIV, **kw):
+#  sty = kw.get('style', {})
+#  sty['overflow'] = 'hidden'
+#  kw['style'] = sty
+#  
+#  cla = kw.get('Class', '').split(' ')
+#  cla += ['animate']
+#  kw['Class'] = ' '.join(cla)
+#  
+#  out = []
+#  out.append(DIV(style={
+#      'width': '100%',
+#      'height': '100%',
+#      'background': f'url({background})' or 'none',
+#      'background-size': 'cover',
+#      'background-position': 'center',
+#      #'z-index': '-1',
+#      'position': 'absolute',
+#      'left': 0,
+#      'top': 0,
+#      }))
+#      
+#  out.append(icon(_icon or '', 
+#    style={
+#      'position': 'absolute',
+#      'left': '50%',
+#      'top': '50%',
+#      'transform': 'translate(-50%, -50%)',
+#      'font-size': icon_size}))
+#      
+#  out.append(DIV(text or '', 
+#    style={
+#      'position': 'absolute',
+#      'left': '50%' if align=='center' else '0px',
+#      'top': '50%',
+#      'transform': 'translate(-50%, -50%)' if align=='center' else 'translate(0%, -50%)',
+#      'font-size': font_size,
+#      'text-align': align}))
+#
+#  if text and _icon:
+#    out[-1].attrs['class'] = 'show_over animate'
+#    out[-2].attrs['class'] = 'hide_over material-icons animate'
+#  else:
+#    out[-1].attrs['class'] = 'animate'
+#    out[-2].attrs['class'] = 'material-icons animate'
+#    
+#  out.append(DIV(f'{title}' or '', 
+#    style={
+#      'position': 'absolute',
+#      'left': 0,
+#      'bottom': 0,
+#      'display': 'initial' if title else 'none',
+#      'background': 'rgba(0,0,0,.5)',
+#      'padding': '8px'}))
+#      
+#  return box(out, base=base, **kw)
+#
+#def update_tile(instance, text='', _icon='', title='', background='', **kw):
+#  ui_background, ui_icon, ui_text, ui_title = instance.children
+#  
+#  ui_background.style['background-image'] = f'url({background})' if background else 'none'
+#  ui_icon.text = _icon or ''
+#  ui_text.text = text or ''
+#  
+#  if text and _icon:
+#    ui_text.attrs['class'] = 'show_over animate'
+#    ui_icon.attrs['class'] = 'hide_over material-icons animate'
+#  else:
+#    ui_text.attrs['class'] = 'animate'
+#    ui_icon.attrs['class'] = 'material-icons animate'
+#  
+#  ui_title.text = title or ''
+#  ui_title.style['display'] = 'initial' if title else 'none'
+#  
+#  if not any([text, _icon, title, title, background]):
+#    instance.style['display'] = 'none'
+#  else:
+#    instance.style['display'] = 'initial'
+#
+## update to handle new axis methods
+#coords_map = ('left', 'width'), ('top', 'height')
+#def gmap(instance, *l, **kw):
+#  for k, v in zip(coords_map, tracks_to_coords(*l, **kw)):
+#    instance.style[k[0]] = v[0]
+#    instance.style[k[1]] = v[1] - v[0]
+#    
+## --- 
+#
+#def make_ripple(element, base_color=(18,18,18,1), no_key=False):
+#  """ Adds ripple click effect to an element. """
+#  mutator = tint if is_dark(*base_color) else shade
+#  
+#  hover_color = mutator(opacities[8], *base_color[:3], 1)
+#  pulse_color = mutator(.4, *base_color[:3], 1)
+#  
+#  glows = [(*(base_color[:3]), i) for i in (.14, .12, .2)]
+#  
+#  @bind('mouseout blur', element)
+#  def prep_ripple(*_):
+#    base_sty = {'background-color': f'rgba{base_color}', 
+#      'background-position': 'center', 
+#      'box-shadow': 'none',
+#      'transition': 'all 0.3s',
+#      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)'}
+#    for k, v in base_sty.items():
+#      element.style[k] = v
+#  prep_ripple()
+#
+#  @bind('mouseover mouseup focus', element)
+#  def pre_ripple(*_):
+#    hover_sty = {'transition': 'all 0.3s',
+#      'box-shadow': f'0 4px 5px 0 rgba{glows[0]}, 0 1px 10px 0 rgba{glows[1]}, 0 2px 4px -1px rgba{glows[2]}',
+#      'background': f'rgba{hover_color} radial-gradient(circle, transparent 1%, rgba{hover_color} 1%) center/15000%'}
+#
+#    for k, v in hover_sty.items():
+#      element.style[k] = v
+#
+#  @bind('mousedown', element)
+#  def do_ripple(*_):
+#    active_sty = {'background-color': f'rgba{pulse_color}',
+#      #'box-shadow': f'0 4px 5px 0 rgba(220, 20, 60, 0.14), 0 1px 10px 0 rgba(220, 20, 60, 0.12), 0 2px 4px -1px rgba(220, 20, 60, 0.20)',
+#      'background-size': '100%', 'transition': 'all 0s'}
+#
+#    for k, v in active_sty.items():
+#      element.style[k] = v
+#    
+#    Delay(.05, pre_ripple)
+#
+#  # manually call a ripple pulse effect.
+#  def _do_ripple(*_):
+#    pre_ripple()
+#    Delay(.4, do_ripple)
+#    Delay(.45, pre_ripple)
+#    Delay(.6, prep_ripple)
+#  
+#  def _key_ripple(ev):
+#    if ev.key=='Enter' or ev.key==' ':
+#      do_ripple()
+#  
+#  if not no_key:
+#    element.bind('keydown', _key_ripple)
+#  
+#  return element, _do_ripple
