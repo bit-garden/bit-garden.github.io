@@ -1601,37 +1601,31 @@ def parse(pat, s):
       s = _s[2]
   return out[1:]
 
-def lcast(l, *kinds):
-  if len(kinds) == 1:
-    return (kinds[0](i) for i in l)
-  return [k(i) for k, i in zip(kinds, l)]
-
-  
-  
-def auto_cast(s):
-  try:
-    return eval(s, {}, {})
-  except:
-    return s
-
-def fix_name(s):
-  safe = 'abcdefghijklmnopqurstuvwxyz0123456789'
-
-  s = s.lower()
-  
-  s = s.replace(' ', '_')
-  if s[0] in '0123456789':
-    s = '_' + s
-    
-  return ''.join(i if i in safe else '_' for i in s)
-
 def Table(s, char='|', extras=[], cast=None):
   ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
       if (_i:=i.strip()) and not _i.startswith('#'))
-  heads = next(ds)
-  Row = slot('Row', ' '.join(fix_name(i) for i in heads+extras), *['' for i in extras])
+      
+  heads = next(ds) + extras
+  
+  safe = 'abcdefghijklmnopqurstuvwxyz0123456789'
+  for i in range(len(heads)):
+    s = heads[i].lower()
+    if s[0] in '0123456789':
+      s = '_' + s
+      
+    heads[i] = ''.join(i if i in safe else '_' for i in s)
+  
+  class Row:
+    __slots__ = heads
+    def __init__(self, *l):
+      for k, v in zip(self.__slots__, l):
+        setattr(self, k, v)
+
+    def __repr__(self):
+      return f"""{self.__class__.__name__}({", ".join(f"{k}={getattr(self, k, None)!r}" 
+          for k in self.__slots__)})"""
   if cast:
-    return [Row(*lcast(i, *cast)) for i in ds]
+    return [Row(*(t(j) for t, j in zip(cast, i))) for i in ds]
   else:
     return [Row(*i) for i in ds]
 
