@@ -11,7 +11,7 @@
 })(function(CodeMirror) {
   "use strict";
 
-  var WORD = /[\w$]+/, RANGE = 50000;
+  var WORD = /[\w$\.]+/, RANGE = 50000;
 
   CodeMirror.registerHelper("hint", "anyword", function(editor, options) {
     var word = options && options.word || WORD;
