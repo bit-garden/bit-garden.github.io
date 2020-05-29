@@ -255,7 +255,7 @@ CodeMirror.defineSimpleMode("simplemode", {
 // jk to escape, kj to auto complete, vw to select and copy current word
 CodeMirror.Vim.map('jk', '<Esc>', 'insert')
 CodeMirror.Vim.map('<C-e>', ':js null', 'normal')
-CodeMirror.Vim.map('kj', ':js cm_editbox.showHint()', 'insert')
+//CodeMirror.Vim.map('kj', ':js cm_editbox.showHint()', 'insert')
 CodeMirror.Vim.map('vw', '<Esc>viwygv', 'insert')
 
 // ctrl + e to run file or selection
@@ -345,12 +345,21 @@ cm_editbox.addKeyMap({'Ctrl-C': false})
 CodeMirror.Vim.defineEx("insertSoftTab", null, tab_to_space)
 //cm_editbox.addKeyMap({'Tab': tab_to_space})
 
-//function on_change(cm, _change){
-//  cm_editbox.save()
+function on_change(cm, _change){
+  cm_editbox.save()
+  c = cm_editbox.getCursor()
+  c = {line: c.line, ch: c.ch}
+  if(c.ch)
+    c.ch -= 1
+  word = cm_editbox.findWordAt(c); word = cm_editbox.getRange(word.anchor, word.head).trim();
+  if(word.match(/\w\w$/))
+    cm_editbox.showHint()
+  else
+    cm_editbox.closeHint()
 //  localStorage.setItem('data', editbox.value.replace(/ +$/mgi, ""));
-//}
-//
-//cm_editbox.on('change',on_change)
+}
+
+cm_editbox.on('change',on_change)
 
 function ac_hint(cm){
   cm.showHint({'hint': CodeMirror.hint.anyword})
@@ -619,46 +628,27 @@ class COLOR:
   green = (0, 255, 0)
 
 
-     
-def parse_by(s, delim=',', quotes=('"', "'")):
-  # splits text by lines accounting for quotes
-  last = ''
+def parse_by(s, delimiter=',', quote='"'):
   last_idx = 0
-  ignore = False
-  row = []
-
+  skip = False
+  
   for idx, i in enumerate(s):
-    if ignore: 
-      ignore = False
-      continue
-    if i in quotes and not last:
-      last = i
-    elif i in quotes and i == last:
-      last = ''
-    #elif i == '\\':
-    #  ignore = True
-    elif not last and i in (delim, '\n'):
-      row.append(''.join(s[last_idx: idx].strip()))
-      if i == '\n':
-        yield row
-        row = []
+    if i in quote:
+      skip = False if i==skip else skip or i
+    
+    if not skip and i == delimiter:
+      yield s[last_idx: idx].strip()
       last_idx = idx + 1
-  row.append(''.join(s[last_idx:].strip()))
-  yield row
+  yield s[last_idx:].strip()
 
 
-# TODO
-class timer:
-  def __init__(self, mark='', func=print):
-    self.func = func
-    self.mark = mark
-
-  def __enter__(self):
-    self.start = time.time()
-    return self
-
-  def __exit__(self, *l):
-    self.func(f'{self.mark} {time.time() - self.start}')
+def timer(f):
+  def _timer(*l, **kw):
+    start = time.time()
+    _return = f(*l, **kw)
+    print(f'{f.__qualname__} {time.time() - start}')
+    return _return
+  return _timer
 
 # TODO
 class fopen():
@@ -1588,18 +1578,21 @@ def parse(pat, s):
   if pat.startswith('[]'):
     pat = ' ' + pat
     s = ' ' + s
-  ends = False
-  if pat.endswith('[]'): ends = True
+  ends = pat.endswith('[]')
   pat = pat.split('[]')
-  out = []
   for idx, p in enumerate(pat):
-    if ends and idx == len(pat)-1:
-      out.append(s)
+    if idx == 0:
+      _s = s.partition(p)
+      if _s[0]:
+        raise ValueError('Pattern doesnt fit input')
+      else:
+        s = _s[2]
+    elif ends and idx == len(pat)-1:
+      yield s
     else:
       _s = s.partition(p)
-      out.append(_s[0])
+      yield _s[0]
       s = _s[2]
-  return out[1:]
 
 def Table(s, char='|', extras=[], cast=None):
   ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
@@ -1625,9 +1618,10 @@ def Table(s, char='|', extras=[], cast=None):
       return f"""{self.__class__.__name__}({", ".join(f"{k}={getattr(self, k, None)!r}" 
           for k in self.__slots__)})"""
   if cast:
-    return [Row(*(t(j) for t, j in zip(cast, i))) for i in ds]
+    # cpython verison uses all generators here
+    return (Row(*[t(j) if j else t() for t, j in zip(cast, i)]) for i in ds)
   else:
-    return [Row(*i) for i in ds]
+    return (Row(*i) for i in ds)
 
         
 # hook into events.
@@ -1709,6 +1703,9 @@ class Observable:
   __slots__ = 'callbacks',
   
   def __init__(self, *events, **kw):
+    if events and isinstance(o:=events[0], self.__class__):
+      kw = {**{k: getattr(o, k) for k in o.__props__}, **kw}
+      
     props = {x for x in [dir(i) for i in self.__class__.__mro__] 
         for x in x if isinstance(getattr(self.__class__, x, None), Property)}
         
