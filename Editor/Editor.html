@@ -345,6 +345,8 @@ cm_editbox.addKeyMap({'Ctrl-C': false})
 CodeMirror.Vim.defineEx("insertSoftTab", null, tab_to_space)
 //cm_editbox.addKeyMap({'Tab': tab_to_space})
 
+var just_completed = false
+
 function on_change(cm, _change){
   cm_editbox.save()
   c = cm_editbox.getCursor()
@@ -352,10 +354,12 @@ function on_change(cm, _change){
   if(c.ch)
     c.ch -= 1
   word = cm_editbox.findWordAt(c); word = cm_editbox.getRange(word.anchor, word.head).trim();
-  if(word.match(/\w\w$/))
+  if(cm_editbox.state.vim.insertMode && word.match(/\w\w$/) && !just_completed)
     cm_editbox.showHint()
-  else
+  else{
     cm_editbox.closeHint()
+    just_completed = false
+    }
 //  localStorage.setItem('data', editbox.value.replace(/ +$/mgi, ""));
 }
 
