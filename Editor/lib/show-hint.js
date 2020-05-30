@@ -171,15 +171,15 @@ var mac = /Mac/.test(navigator.platform);
       //L:  handle.pick,
       //H: handle.close,
       //Space: handle.pick,
-      Enter: handle.pick,
+      //Enter: handle.pick,
       Tab: handle.pick,
       Esc: handle.close
     };
 
-    if (mac) {
+    //if (mac) {
       baseMap["Ctrl-P"] = function() {handle.moveFocus(-1);};
       baseMap["Ctrl-N"] = function() {handle.moveFocus(1);};
-    }
+    //}
 
     var custom = completion.options.customKeys;
     var ourMap = custom ? {} : baseMap;
@@ -345,6 +345,7 @@ var mac = /Mac/.test(navigator.platform);
 
     pick: function() {
       this.completion.pick(this.data, this.selectedHint);
+      just_completed = true
     },
 
     changeActive: function(i, avoidWrap) {

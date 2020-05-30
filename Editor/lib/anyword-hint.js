@@ -11,15 +11,22 @@
 })(function(CodeMirror) {
   "use strict";
 
-  var WORD = /[\w$\.]+/, RANGE = 50000;
+  //var WORD = /[\w$\.]+/, RANGE = 50000;
+  var WORD = /((?<=(class|def)\s)\w+)|([A-Za-z_][A-Za-z_0-9]*(?=\s*([=\(\)\[\{,]| in|:=|\.\w)))/, RANGE = 50000;
 
   CodeMirror.registerHelper("hint", "anyword", function(editor, options) {
     var word = options && options.word || WORD;
     var range = options && options.range || RANGE;
-    var cur = editor.getCursor(), curLine = editor.getLine(cur.line);
-    var end = cur.ch, start = end;
-    while (start && word.test(curLine.charAt(start - 1))) --start;
-    var curWord = start != end && curLine.slice(start, end);
+    var cur = editor.getCursor();
+    
+    c = cm_editbox.getCursor()
+    c = {line: c.line, ch: c.ch}
+    if(c.ch)
+      c.ch -= 1
+    var curWord = editor.findWordAt(c); 
+    var start = curWord.anchor.ch; 
+    var end = curWord.head.ch;
+    var curWord = editor.getRange(curWord.anchor, curWord.head).trim();
 
     var list = options && options.list || [], seen = {};
     var re = new RegExp(word.source, "gi");
