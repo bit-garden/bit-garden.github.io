@@ -182,7 +182,7 @@ button, textarea, input{
   background: none;
   color: rgba(255,255,255,.87);
   border: none;
-  border-bottom: 2px solid rgb(0, 71, 171);
+  border-bottom: 2px solid rgb(220, 20, 60);
   outline: none;
   box-sizing: border-box;
 }
@@ -643,12 +643,13 @@ def parse_args(s, delimiter=' ', *, opens='([{', closes=')]}'):
         del skip[-1]
       else:
         skip.append(i)
-    elif skip and i in closes and skip[-1] == i:
-      del skip[-1]
-    elif i in closes:
-      raise Exception(f'Expected {skip[-1]} but got {i} instead.')
-    elif i in opens:
-      skip.append(closes[opens.index(i)])
+    elif skip and skip[-1] not in '"\'':
+      if i in closes and skip[-1] == i:
+        del skip[-1]
+      elif i in closes:
+        raise Exception(f'Expected {skip[-1]} but got {i} instead.')
+      elif i in opens:
+        skip.append(closes[opens.index(i)])
       
     if not skip and i == delimiter:
       yield s[last_idx: idx].strip()
@@ -671,6 +672,17 @@ def parse_csv(s, *, delimiter=',', quote='"'):
       last_idx = idx + 1
   yield s[last_idx:].strip()
 
+class Timer:
+  def __init__(self, mark='', func=print):
+    self.func = func
+    self.mark = mark
+
+  def __enter__(self):
+    self.start = time.time()
+    return self
+
+  def __exit__(self, *l):
+    self.func(f'{self.mark}{time.time() - self.start}')
 
 def timer(f):
   def _timer(*l, **kw):
@@ -719,30 +731,27 @@ class fopen():
 def slot(f, verbose=False):
   """ A simple c-struct like generator. 
   
-  This can be used to decorate annotated classes as well.
   This does not inherit functions and constructs a new class from scratch
     using exec.
   """
   
   # Switch between decorator or normal call handling.
   if callable(f):
-    args = tuple({x for x in (vars(i) for i in f.__mro__ if i is not object) for x in x if not x.startswith('__')})
-    defaults = [getattr(f, i) for i in args if hasattr(f, i)]
-    f = f.__name__ + ' ' + ' '.join(f'{a}={d!r}' for a, d in zip(args, defaults))
+    args = {x for x in (getattr(i, '__slots__', ()) for i in f.__mro__ if i is not object) for x in x if not x.startswith('__')}
+    supers = tuple(i.__qualname__ for i in f.__mro__ if i is not object and i is not f)
+    name = f.__name__ 
+    f = f'{name} {supers}'
+  else:
+    args = f.split(' ')
+    name = args.pop(0)
 
-  s = f.strip()
-  d = list(parse_args(s))
-  name = d.pop(0)
-
-  args = [i.split('=')[0].split(':')[0] for i in d if not (i.startswith('*') or i.startswith('/'))]
   reprs = ', '.join(k + '=' + f'{{{v}!r}}' for k, v in zip(args, (f'self.{i}' for i in args)))
 
   slot_template = f'''
-#{s}
+#{f}
 class {name}:
   __slots__ = {', '.join(repr(i) for i in args)}
-  def __init__(self,
-      {', '.join(d)}):
+  def __init__(self, {', '.join(args)}):
     {', '.join(f'self.{i}' for i in args)} = {', '.join(args)}
 
   def __repr__(self):
@@ -751,7 +760,6 @@ class {name}:
 
   if verbose:
     print(slot_template)
-  print(slot_template)
 
   local = {}
   exec(slot_template, local)
@@ -1039,50 +1047,53 @@ def run_file(cm, params):
 window.CodeMirror.Vim.defineEx("run_file", None, run_file)
 
 def run_shard(*l, **kw):
-  viewport = doc.select_one('body').width//1.2, \
-    doc.select_one('body').height//1.2
-  print_red = []
-  def print(*objects, sep=' ', end='\n'):
-    print_red.append(sep.join(str(o) for o in objects) + end)
+  visual_shard(*l, **kw)
+  delay(0)(do_py)
 
-  cm_editbox.save()
-  cur_line = cm_editbox.getCursor().line
-  look_ahead = editbox.value.splitlines()[cur_line:]
-  look_behind = editbox.value.splitlines()[: cur_line]
-  start, end = 0, 0
-
-  count = 0
-  for idx, i in enumerate(look_ahead):
-    if not i.strip():
-      count += 1
-    else:
-      count = 0
-    if count > 1:
-      end = idx+cur_line - 1
-      break
-      
-  count = 0
-  #for idx, i in enumerate([*reversed(look_behind)]):
-  for idx, i in enumerate(list(reversed(look_behind))):
-    if not i.strip():
-      count += 1
-    else:
-      count = 0
-    if count > 1:
-      start = cur_line - idx + 1
-      break
-    
-  #print(editbox.value.splitlines()[start:end])
-  try:
-    exec('\n'.join(editbox.value.splitlines()[start:end]))
-    if print_red:
-      popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
-  except Exception as e:
-    import traceback
-    print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
-    popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
-    global watch_depth
-    watch_depth = -1
+  #viewport = doc.select_one('body').width//1.2, \
+  #  doc.select_one('body').height//1.2
+  #print_red = []
+  #def print(*objects, sep=' ', end='\n'):
+  #  print_red.append(sep.join(str(o) for o in objects) + end)
+  #
+  #cm_editbox.save()
+  #cur_line = cm_editbox.getCursor().line
+  #look_ahead = editbox.value.splitlines()[cur_line:]
+  #look_behind = editbox.value.splitlines()[: cur_line]
+  #start, end = 0, 0
+  #
+  #count = 0
+  #for idx, i in enumerate(look_ahead):
+  #  if not i.strip():
+  #    count += 1
+  #  else:
+  #    count = 0
+  #  if count > 1:
+  #    end = idx+cur_line - 1
+  #    break
+  #    
+  #count = 0
+  ##for idx, i in enumerate([*reversed(look_behind)]):
+  #for idx, i in enumerate(list(reversed(look_behind))):
+  #  if not i.strip():
+  #    count += 1
+  #  else:
+  #    count = 0
+  #  if count > 1:
+  #    start = cur_line - idx + 1
+  #    break
+  #  
+  ##print(editbox.value.splitlines()[start:end])
+  #try:
+  #  exec('\n'.join(editbox.value.splitlines()[start:end]))
+  #  if print_red:
+  #    popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
+  #except Exception as e:
+  #  import traceback
+  #  print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
+  #  popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
+  #  global watch_depth
+  #  watch_depth = -1
 window.CodeMirror.Vim.defineEx("run_shard", None, run_shard)
 
 def visual_shard(*l, **kw):
@@ -1190,26 +1201,24 @@ window.CodeMirror.Vim.defineEx("align", None, run_align)
 
 def run_slots(cm, params):
   window.vdo('gv')
-  s = cm_editbox.getSelection().strip()
-  d = list(parse_args(s))
-  name = d.pop(0)
+  f = cm_editbox.getSelection().strip()
+  args = f.split(' ')
+  name = args.pop(0)
 
-  args = [i.split('=')[0].split(':')[0] for i in d if not (i.startswith('*') or i.startswith('/'))]
   reprs = ', '.join(k + '=' + f'{{{v}!r}}' for k, v in zip(args, (f'self.{i}' for i in args)))
 
-  template = f'''
-#{s}
+  slot_template = f'''
+#{f}
 class {name}:
   __slots__ = {', '.join(repr(i) for i in args)}
-  def __init__(self,
-      {', '.join(d)}):
+  def __init__(self, {', '.join(args)}):
     {', '.join(f'self.{i}' for i in args)} = {', '.join(args)}
 
   def __repr__(self):
     return f"{name}({reprs})"
 '''.strip()
   window.vdo('gv')
-  cm_editbox.replaceSelection(template)
+  cm_editbox.replaceSelection(slot_template)
 window.CodeMirror.Vim.defineEx("slot", None, run_slots)
 
 def double_tap(cm, params):
@@ -1665,7 +1674,8 @@ def Table(s, char='|', extras=[], cast=None):
       return f"""{self.__class__.__name__}({", ".join(f"{k}={getattr(self, k, None)!r}" 
           for k in self.__slots__)})"""
   if cast:
-    return (Row(*(t(j) if j else t() for t, j in zip(cast, i))) for i in ds)
+    # cpython uses only generators here
+    return (Row(*[t(j) if j else t() for t, j in zip(cast, i)]) for i in ds)
   else:
     return (Row(*i) for i in ds)
 
@@ -1674,43 +1684,16 @@ def Table(s, char='|', extras=[], cast=None):
 func_type = type(lambda:True)
 watch_depth = -1
 def watch(f):
-  if isinstance(f, type):
-    class _watch(f):
-      def __setattr__(self, key, value):
-        if (hasattr(self, key) and 
-            getattr(self, key) != value):
-          print(f'{"| "*(watch_depth+1)}{f.__qualname__}.__setattr__({self!r}, {key!r}, {value!r})')
-        super().__setattr__(key, value)
-
-    defs = [i for i in {*dir(_watch)} - {*dir(object)} 
-        if not i.startswith('__') and callable(getattr(_watch, i))]
-
-    for i in defs:
-      setattr(_watch, i, watch(getattr(_watch, i)))
-
-  elif not isinstance(f, func_type):
-    def _watch(self, *l, **kw):
-      global watch_depth
-      watch_depth += 1
-      print(f'{"| "*watch_depth}{f.__qualname__}('\
-          + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])+ ')')
-      ret = f(*l, **kw)
-      if ret is not None:
-        print(f'{"| "*(watch_depth)}|-> {ret!r}')
-      watch_depth -= 1
-      return ret
-
-  else:
-    def _watch(*l, **kw):
-      global watch_depth
-      watch_depth += 1
-      print(f'{"| "*watch_depth}{f.__qualname__}('\
-          + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])+ ')')
-      ret = f(*l, **kw)
-      if ret is not None:
-        print(f'{"| "*(watch_depth)}|-> {ret!r}')
-      watch_depth -= 1
-      return ret
+  def _watch(*l, **kw):
+    global watch_depth
+    watch_depth += 1
+    print(f'{"| "*watch_depth}{f.__qualname__}('\
+        + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])+ ')')
+    ret = f(*l, **kw)
+    if ret is not None:
+      print(f'{"| "*(watch_depth)}|-> {ret!r}')
+    watch_depth -= 1
+    return ret
 
   _watch.__name__ = f.__name__
   _watch.__qualname__ = f.__qualname__
