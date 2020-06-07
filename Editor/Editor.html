@@ -727,6 +727,10 @@ class fopen():
   async def __aexit__(self, *l):
     pass
 
+class attrDict(dict):
+  def __init__(self, *l, **kw):
+    super().__init__(*l, **kw)
+    self.__dict__ = self
 
 def slot(f, verbose=False):
   """ A simple c-struct like generator. 
@@ -1029,8 +1033,6 @@ def do_py() -> None:
     out = '\n'.join([data, ''.join(print_red)])
     window.vdo("gv")
     cm_editbox.replaceSelection(out.strip('\n'))
-    global watch_depth
-    watch_depth = -1
 
 def run_py(cm, params):
   do_py()
@@ -1042,8 +1044,6 @@ def run_file(cm, params):
   except Exception as e:
     import traceback
     print(traceback.format_exc())
-    global watch_depth
-    watch_depth = -1
 window.CodeMirror.Vim.defineEx("run_file", None, run_file)
 
 def run_shard(*l, **kw):
@@ -1679,27 +1679,7 @@ def Table(s, char='|', extras=[], cast=None):
   else:
     return (Row(*i) for i in ds)
 
-        
-# hook into events.
-func_type = type(lambda:True)
-watch_depth = -1
-def watch(f):
-  def _watch(*l, **kw):
-    global watch_depth
-    watch_depth += 1
-    print(f'{"| "*watch_depth}{f.__qualname__}('\
-        + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])+ ')')
-    ret = f(*l, **kw)
-    if ret is not None:
-      print(f'{"| "*(watch_depth)}|-> {ret!r}')
-    watch_depth -= 1
-    return ret
-
-  _watch.__name__ = f.__name__
-  _watch.__qualname__ = f.__qualname__
-
-  return _watch
-  
+          
 class Property:
   __slots__ = 'default', 'name'
   def __init__(self, default):
