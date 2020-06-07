@@ -731,6 +731,10 @@ class attrDict(dict):
   def __init__(self, *l, **kw):
     super().__init__(*l, **kw)
     self.__dict__ = self
+    
+  def __setattr__(self, key, value):
+    assert key in self.__dict__, f'Attribute \'{key}\' is missing'
+    self.__dict__[key] = value
 
 def slot(f, verbose=False):
   """ A simple c-struct like generator. 
