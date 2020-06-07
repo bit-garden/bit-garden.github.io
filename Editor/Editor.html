@@ -753,17 +753,18 @@ def slot(f, verbose=False):
     args = f.split(' ')
     name = args.pop(0)
 
-  reprs = ', '.join(k + '=' + f'{{{v}!r}}' for k, v in zip(args, (f'self.{i}' for i in args)))
+  #reprs = '{{' + ', '.join(repr(k) + '}: {' + 'repr(' + v + ')' for k, v in zip(args, (f'self.{i}' for i in args))) + '}'
+  reprs = """def __repr__(self):
+    return '{' + f"{', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__)}" + '}'"""
 
   slot_template = f'''
 #{f}
 class {name}:
-  __slots__ = {', '.join(repr(i) for i in args)}
+  __slots__ = {tuple(args)!r}
   def __init__(self, {', '.join(args)}):
     {', '.join(f'self.{i}' for i in args)} = {', '.join(args)}
-
-  def __repr__(self):
-    return f"{name}({reprs})"
+    
+  {reprs} 
 '''.strip()
 
   if verbose:
