@@ -727,14 +727,16 @@ class fopen():
   async def __aexit__(self, *l):
     pass
 
-class attrDict(dict):
-  def __init__(self, *l, **kw):
-    super().__init__(*l, **kw)
-    self.__dict__ = self
+class attrDict:
+  def __init__(self, **kw):
+    self.__dict__.update(kw)
     
   def __setattr__(self, key, value):
     assert key in self.__dict__, f'Attribute \'{key}\' is missing'
     self.__dict__[key] = value
+    
+  def __repr__(self):
+    return '{' + f"{', '.join(f'{k!r}: {getattr(self, k)!r}' for k in vars(self))}" + '}'
 
 def slot(f, verbose=False):
   """ A simple c-struct like generator. 
