@@ -1,7 +1,51 @@
-# nims
 import random
 from browser import window
+from browser.html import *
 
+class Tile(DIV):
+  def __init__(self, text, x=0, y=0, width=0, height=0, display='inline', 
+      opacity=1, axis=('left', 'top'), font_size='24px', **kw):
+    for k, v in (
+        (axis[0], x),  (axis[1], y),
+        ('width', width), ('height', height),
+        ('display', display), ('opacity', opacity),
+        ('box-sizing', 'border-box'), ('position', 'absolute')):
+      self.style[k] = v
+      
+    super().__init__(DIV(text, 
+      style={
+        'position': 'absolute',
+        'left': '50%', 'top': '50%',
+        'transform': 'translate(-50%, -50%)',
+        'font-size': font_size}))
+        
+  @property
+  def text(self):
+    return self.children[0].text
+  @text.setter
+  def text(self, value):
+    self.children[0].text = value
+    
+def popup(root, width='auto', height='auto'):
+  if isinstance(root, (tuple, list, str, int, float, set, dict)):
+    root = DIV(root)
+  d = DIALOG(root)
+  root.style['width'] = width
+  root.style['height'] = height
+      
+  def on_click(ev):
+    d.remove()
+  d.bind('close', on_click)
+    
+  doc <= d
+  
+  d.showModal()
+  
+  return d
+
+#---------------------------------
+
+# nims
 tile_size = 500/5
 
 # 5 random 2 to 5 long heaps
@@ -11,7 +55,6 @@ stacks = {x:
   for x in (((j, i) for j in range(random.randint(2, 5))) for i in range(5)) for x in x}
   
 # bind click events
-@bind('click', *stacks.values())
 def on_click(ev):
   # find index of clicked element
   idx = next(k for k, v in stacks.items() if ev.target.inside(v))
@@ -27,12 +70,12 @@ def on_click(ev):
     # if you remove the last stick, you lose
     if not stacks:
       window.alert('You lose')
+for i in stacks.values():
+  i.bind('click', on_click)
   
 popup(list(stacks.values()), 500, 500)
 
-
 # tic tac toe
-from browser import window
 
 # Check pattern for possible wins.
 check_pattern = ((0, 4, 8), (2, 4, 6), (0, 1, 2), (3, 4, 5), (6, 7, 8), (0, 3, 6), (1, 4, 7), (2, 5, 8))
@@ -48,7 +91,6 @@ grid = tuple(
 turns = ['x', 'o']  # these flip as the turns go by
 done = []
   
-@bind('click', *grid)
 def on_click(ev):
   if done:  # if done, stop
     return
@@ -68,5 +110,7 @@ def on_click(ev):
     if grid[i[0]].text and grid[i[0]].text == grid[i[1]].text == grid[i[2]].text:
       window.alert(f'{turns[1]} has won!')
       done.append(True)  # the game is over, no more playing
+for i in grid:
+  i.bind('click', on_click)
   
 popup(grid, 500, 500)
