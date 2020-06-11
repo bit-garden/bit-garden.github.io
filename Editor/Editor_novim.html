@@ -1403,7 +1403,7 @@ def hilo(a, b, c):
 def complement(r, g, b, *_):
   # return complement color
   k = hilo(r, g, b)
-  return (*(k - u for u in (r, g, b)), *_)
+  return tuple(*(k - u for u in (r, g, b)), *_)
 
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
