@@ -124,6 +124,7 @@ import random
 
 # placeholder class while developing
 # init like a dict, use like a class
+# replace attrDict reference with real classes in production
 class attrDict:
   def __init__(self, **kw):
     self.__dict__.update(kw)
@@ -142,8 +143,8 @@ def draw(player, count=1):
   player.cards.extend(player.deck[:count])
   del player.deck[:count]
 
-# 2 players
-players = [Player(name='p1', cards=[], deck=[]), Player(name='p2', cards=[], deck=[])]
+player_count = 2
+players = [Player(name=f'p{i+1}', cards=[], deck=[]) for i in range(player_count)]
 
 deck = [Card(face=f, suit=s, value=fi*100+si)
   for fi, f in enumerate(('ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'))
@@ -151,8 +152,14 @@ deck = [Card(face=f, suit=s, value=fi*100+si)
   
 random.shuffle(deck)
 
-players[0].deck = deck[:26]
-players[1].deck = deck[26:]
+card_count = len(deck)//player_count
+for i in players:
+  i.deck = deck[:card_count]
+  del deck[:card_count]
+  
+# put remainder of deck into player 1
+if deck:
+  players[0].deck.extend(deck)
 
 MAX_ROUNDS = 1000
 round = 0
@@ -161,20 +168,21 @@ while round < MAX_ROUNDS:
   round += 1
   
   if not round%25:
-    random.shuffle(players[0].deck)
-    random.shuffle(players[1].deck)
+    for i in players:
+      random.shuffle(i.deck)
   
   # draw card to each player
   for p in players:
     draw(p)
 
+  # only draw 3 once, and if all players tie
   if len(set(i.cards[-1].face for i in players)) == 1:
     for p in players:
       draw(p, 3)
 
   winner = sorted(players, key=lambda i: i.cards[-1].value, reverse=True)[0]
-  winner.deck.extend(players[0].cards)
-  winner.deck.extend(players[1].cards)
+  for i in players:
+    winner.deck.extend(i.cards)
   
   for i in players:
     i.cards.clear()
@@ -183,8 +191,13 @@ while round < MAX_ROUNDS:
   
   if loser:
     print(f'{loser[0].name} has lost')
-    break
+    for i in loser:
+      players.remove(i)
+    if len(players) == 1:
+      print(f'{players[0].name} has won.')
+      break
 
   print(winner.name, [(len(i.deck), i.name) for i in players])
 else:
-  print(f'No winnder after {MAX_ROUNDS} rounds')
+  print(f'No winner after {MAX_ROUNDS} rounds')
+
