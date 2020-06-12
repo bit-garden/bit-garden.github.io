@@ -114,3 +114,77 @@ for i in grid:
   i.bind('click', on_click)
   
 popup(grid, 500, 500)
+
+
+# ---
+# war
+
+#cards
+import random
+
+# placeholder class while developing
+# init like a dict, use like a class
+class attrDict:
+  def __init__(self, **kw):
+    self.__dict__.update(kw)
+    
+  def __setattr__(self, key, value):
+    assert key in self.__dict__, f'Attribute \'{key}\' is missing'
+    self.__dict__[key] = value
+    
+  def __repr__(self):
+    return f'{vars(self)}'
+
+Card = attrDict
+Player = attrDict
+
+def draw(player, count=1):
+  player.cards.extend(player.deck[:count])
+  del player.deck[:count]
+
+# 2 players
+players = [Player(name='p1', cards=[], deck=[]), Player(name='p2', cards=[], deck=[])]
+
+deck = [Card(face=f, suit=s, value=fi*100+si)
+  for fi, f in enumerate(('ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'))
+  for si, s in enumerate(('clubs', 'diamonds', 'hearts', 'spades'))]
+  
+random.shuffle(deck)
+
+players[0].deck = deck[:26]
+players[1].deck = deck[26:]
+
+MAX_ROUNDS = 1000
+round = 0
+
+while round < MAX_ROUNDS:
+  round += 1
+  
+  if not round%25:
+    random.shuffle(players[0].deck)
+    random.shuffle(players[1].deck)
+  
+  # draw card to each player
+  for p in players:
+    draw(p)
+
+  if len(set(i.cards[-1].face for i in players)) == 1:
+    for p in players:
+      draw(p, 3)
+
+  winner = sorted(players, key=lambda i: i.cards[-1].value, reverse=True)[0]
+  winner.deck.extend(players[0].cards)
+  winner.deck.extend(players[1].cards)
+  
+  for i in players:
+    i.cards.clear()
+
+  loser = [i for i in players if not i.deck]
+  
+  if loser:
+    print(f'{loser[0].name} has lost')
+    break
+
+  print(winner.name, [(len(i.deck), i.name) for i in players])
+else:
+  print(f'No winnder after {MAX_ROUNDS} rounds')
