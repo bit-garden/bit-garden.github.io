@@ -255,7 +255,8 @@ CodeMirror.defineSimpleMode("simplemode", {
 // jk to escape, kj to auto complete, vw to select and copy current word
 CodeMirror.Vim.map('jk', '<Esc>', 'insert')
 CodeMirror.Vim.map('<C-e>', ':js null', 'normal')
-//CodeMirror.Vim.map('kj', ':js cm_editbox.showHint()', 'insert')
+CodeMirror.Vim.map('<C-p>', ':js cm_editbox.showHint()', 'insert')
+CodeMirror.Vim.map('<C-n>', ':js cm_editbox.showHint()', 'insert')
 CodeMirror.Vim.map('vw', '<Esc>viwygv', 'insert')
 
 // ctrl + e to run file or selection
@@ -658,9 +659,9 @@ class fopen():
     return self
 
   async def write(self, content):
-    writer = await self.fileHandle.createWriter()
-    await writer.truncate(0)
-    await writer.write(0, content)
+    writer = await self.fileHandle.createWritable()
+    await writer.truncate(0)  
+    await writer.write(content)
 
     await writer.close()
 
@@ -676,7 +677,7 @@ class attrDict:
     self.__dict__[key] = value
     
   def __repr__(self):
-    return '{' + f"{', '.join(f'{k!r}: {getattr(self, k)!r}' for k in vars(self))}" + '}'
+    return f'{vars(self)}'
 
 def slot(f, verbose=False):
   """ A simple c-struct like generator. 
@@ -697,7 +698,7 @@ def slot(f, verbose=False):
 
   #reprs = '{{' + ', '.join(repr(k) + '}: {' + 'repr(' + v + ')' for k, v in zip(args, (f'self.{i}' for i in args))) + '}'
   reprs = """def __repr__(self):
-    return '{' + f"{', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__)}" + '}'"""
+    return '{' + ', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__) + '}'"""
 
   slot_template = f'''
 #{f}
@@ -957,7 +958,10 @@ def do_py() -> None:
       print_red.append(sep.join(str(o) for o in objects) + end)
     window.vdo("gv")
     data = cm_editbox.getSelection()
-    exec(data)
+    if len(data.strip().splitlines()) == 1:
+      exec(f'print({data.strip()})')
+    else:
+      exec(data)
     if print_red:
       out = '\n'.join([data, ''.join(print_red)])
       window.vdo("gv")
@@ -1140,12 +1144,12 @@ def run_slots(cm, params):
 
   #reprs = ', '.join(k + '=' + f'{{{v}!r}}' for k, v in zip(args, (f'self.{i}' for i in args)))
   reprs = """def __repr__(self):
-    return '{' + f"{', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__)}" + '}'"""
+    return '{' + ', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__) + '}'"""
 
   slot_template = f'''
 #{f}
 class {name}:
-  __slots__ = {', '.join(repr(i) for i in args)}
+  __slots__ = {tuple(args)!r}
   def __init__(self, {', '.join(args)}):
     {', '.join(f'self.{i}' for i in args)} = {', '.join(args)}
 
@@ -1539,8 +1543,8 @@ def Table(s, char='|', extras=[], cast=None):
         setattr(self, k, v)
 
     def __repr__(self):
-      return f"""{self.__class__.__name__}({", ".join(f"{k}={getattr(self, k, None)!r}" 
-          for k in self.__slots__)})"""
+      return '{' + ', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__) + '}'
+      
   if cast:
     # cpython uses only generators here
     return (Row(*[t(j) if j else t() for t, j in zip(cast, i)]) for i in ds)
