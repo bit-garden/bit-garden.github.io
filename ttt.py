@@ -122,31 +122,24 @@ popup(grid, 500, 500)
 #cards
 import random
 
-# placeholder class while developing
-# init like a dict, use like a class
-# replace attrDict reference with real classes in production
-class attrDict:
-  def __init__(self, **kw):
-    self.__dict__.update(kw)
-    
-  def __setattr__(self, key, value):
-    assert key in self.__dict__, f'Attribute \'{key}\' is missing'
-    self.__dict__[key] = value
-    
-  def __repr__(self):
-    return f'{vars(self)}'
-
-Card = attrDict
-Player = attrDict
+# these classes use a trick to apply paramters to attributes automatically
+# rewrite with setters in production
+class Card:
+  def __init__(self, face, suit, value):
+    for k, v in locals().copy().items(): if k != 'self': setattr(self, k, v)
+        
+class Player:
+  def __init__(self, name, cards, deck):
+    for k, v in locals().copy().items(): if k != 'self': setattr(self, k, v)
 
 def draw(player, count=1):
   player.cards.extend(player.deck[:count])
   del player.deck[:count]
 
-player_count = 2
-players = [Player(name=f'p{i+1}', cards=[], deck=[]) for i in range(player_count)]
+player_count = 3
+players = [Player(f'p{i+1}', [], []) for i in range(player_count)]
 
-deck = [Card(face=f, suit=s, value=fi*100+si)
+deck = [Card(f, s, fi*100+si)
   for fi, f in enumerate(('ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'))
   for si, s in enumerate(('clubs', 'diamonds', 'hearts', 'spades'))]
   
