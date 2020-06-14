@@ -668,54 +668,6 @@ class fopen():
   async def __aexit__(self, *l):
     pass
 
-class attrDict:
-  def __init__(self, **kw):
-    self.__dict__.update(kw)
-    
-  def __setattr__(self, key, value):
-    assert key in self.__dict__, f'Attribute \'{key}\' is missing'
-    self.__dict__[key] = value
-    
-  def __repr__(self):
-    return f'{vars(self)}'
-
-def slot(f, verbose=False):
-  """ A simple c-struct like generator. 
-  
-  This does not inherit functions and constructs a new class from scratch
-    using exec.
-  """
-  
-  # Switch between decorator or normal call handling.
-  if callable(f):
-    args = {x for x in (getattr(i, '__slots__', ()) for i in f.__mro__ if i is not object) for x in x if not x.startswith('__')}
-    supers = tuple(i.__qualname__ for i in f.__mro__ if i is not object and i is not f)
-    name = f.__name__ 
-    f = f'{name} {supers}'
-  else:
-    args = f.split(' ')
-    name = args.pop(0)
-
-  #reprs = '{{' + ', '.join(repr(k) + '}: {' + 'repr(' + v + ')' for k, v in zip(args, (f'self.{i}' for i in args))) + '}'
-  reprs = """def __repr__(self):
-    return '{' + ', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__) + '}'"""
-
-  slot_template = f'''
-#{f}
-class {name}:
-  __slots__ = {tuple(args)!r}
-  def __init__(self, {', '.join(args)}):
-    {', '.join(f'self.{i}' for i in args)} = {', '.join(args)}
-    
-  {reprs} 
-'''.strip()
-
-  if verbose:
-    print(slot_template)
-
-  local = {}
-  exec(slot_template, local)
-  return local[name]
   
 # pure python versions for faster load
 #def itemgetter(*items):
@@ -1134,30 +1086,6 @@ def run_align(cm, params):
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
-
-
-def run_slots(cm, params):
-  window.vdo('gv')
-  f = cm_editbox.getSelection().strip()
-  args = f.split(' ')
-  name = args.pop(0)
-
-  #reprs = ', '.join(k + '=' + f'{{{v}!r}}' for k, v in zip(args, (f'self.{i}' for i in args)))
-  reprs = """def __repr__(self):
-    return '{' + ', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__) + '}'"""
-
-  slot_template = f'''
-#{f}
-class {name}:
-  __slots__ = {tuple(args)!r}
-  def __init__(self, {', '.join(args)}):
-    {', '.join(f'self.{i}' for i in args)} = {', '.join(args)}
-
-  {reprs}
-'''.strip()
-  window.vdo('gv')
-  cm_editbox.replaceSelection(slot_template)
-window.CodeMirror.Vim.defineEx("slot", None, run_slots)
 
 def double_tap(cm, params):
   try:
