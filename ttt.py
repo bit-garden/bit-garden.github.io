@@ -177,7 +177,7 @@ while round < MAX_ROUNDS:
     for p in players:
       draw(p, 3)
 
-  winner = sorted(players, key=lambda i: i.cards[-1].value, reverse=True)[0]
+  winner = max(players, key=lambda i: i.cards[-1].value)
   for i in players:
     winner.deck.extend(i.cards)
   
