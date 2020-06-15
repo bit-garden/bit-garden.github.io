@@ -187,8 +187,8 @@ while round < MAX_ROUNDS:
   loser = [i for i in players if not i.deck]
   
   if loser:
-    print(f'{loser[0].name} has lost')
     for i in loser:
+      print(f'{i.name} has lost')
       players.remove(i)
     if len(players) == 1:
       print(f'{players[0].name} has won.')
