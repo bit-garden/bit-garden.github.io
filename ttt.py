@@ -126,11 +126,15 @@ import random
 # rewrite with setters in production
 class Card:
   def __init__(self, face, suit, value):
-    for k, v in locals().copy().items(): if k != 'self': setattr(self, k, v)
-        
+    for k, v in locals().copy().items():
+      if k != 'self':
+        setattr(self, k, v)
+    
 class Player:
   def __init__(self, name, cards, deck):
-    for k, v in locals().copy().items(): if k != 'self': setattr(self, k, v)
+    for k, v in locals().copy().items():
+      if k != 'self':
+        setattr(self, k, v)
 
 def draw(player, count=1):
   player.cards.extend(player.deck[:count])
