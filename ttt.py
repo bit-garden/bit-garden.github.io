@@ -122,19 +122,15 @@ popup(grid, 500, 500)
 #cards
 import random
 
-# these classes use a trick to apply paramters to attributes automatically
-# rewrite with setters in production
 class Card:
+  __slots__ = 'face', 'suit', 'value'
   def __init__(self, face, suit, value):
-    for k, v in locals().copy().items():
-      if k != 'self':
-        setattr(self, k, v)
+    self.face, self.suit, self.value = face, suit, value
     
 class Player:
+  __slots__ = 'name', 'cards', 'deck'
   def __init__(self, name, cards, deck):
-    for k, v in locals().copy().items():
-      if k != 'self':
-        setattr(self, k, v)
+    self.name, self.cards, self.deck = name, cards, deck
 
 def draw(player, count=1):
   player.cards.extend(player.deck[:count])
