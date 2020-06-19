@@ -187,6 +187,11 @@ button, textarea, input{
   box-sizing: border-box;
 }
 
+.glow_white, .tile_white:hover, .tile_white:focus{
+  box-shadow: 0 4px 5px 0 rgba(255, 255, 255, 0.14), 0 1px 10px 0 rgba(255, 255, 255, 0.12), 0 2px 4px -1px rgba(255, 255, 255, 0.20);
+  background: rgb(255, 255, 255) !important;
+}
+
 .glow_crimson, .tile_crimson:hover, .tile_crimson:focus{
   box-shadow: 0 4px 5px 0 rgba(220, 20, 60, 0.14), 0 1px 10px 0 rgba(220, 20, 60, 0.12), 0 2px 4px -1px rgba(220, 20, 60, 0.20);
   background: rgb(220, 20, 60) !important;
@@ -809,9 +814,9 @@ def is_num(_in):
     return False
 
 def align(*d):
-  d = [[*i] for i in zip_longest(*(x for x in d for x in x), fillvalue='')]
+  d = [[f'{j}' for j in i] for i in zip_longest(*(x for x in d for x in x), fillvalue='')]
   for col in d:
-    l = max(len(f'{i}') for i in col)
+    l = len(max(col, key=len))
     col[:] = [f'{i}'.rjust(l) if is_num(i) else f'{i}'.ljust(l) for i in col]
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*d))
 
@@ -1450,9 +1455,9 @@ def lindex(l, val, start=0):
       return i
   return -1
 
-def Table(s, char='|', extras=[], cast=None):
+def Table(s, char='|', extras=[], types=None):
   ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
-      if (_i:=i.strip()) and not _i.startswith('#'))
+      if i.strip() and not i.strip().startswith('#'))
       
   heads = next(ds) + extras
   
@@ -1471,13 +1476,16 @@ def Table(s, char='|', extras=[], cast=None):
         setattr(self, k, v)
 
     def __repr__(self):
-      return '{' + ', '.join(f'{k!r}: {getattr(self, k)!r}' for k in self.__slots__) + '}'
-      
-  if cast:
-    # cpython uses only generators here
-    return (Row(*[t(j) if j else t() for t, j in zip(cast, i)]) for i in ds)
+      return '{' + ', '.join(f'{k!r}: {getattr(self, k, None)!r}' for k in self.__slots__) + '}'
+  
+  if types:
+    ds = [Row(*i) for i in ds]
+    for i in ds:
+      for k, v in types.items():
+        setattr(i, k, v(getattr(i, k, None) or v()))
+    return ds
   else:
-    return (Row(*i) for i in ds)
+    return [Row(*i) for i in ds]
 
 def stagger(l, d):
   d = d/len(l)
