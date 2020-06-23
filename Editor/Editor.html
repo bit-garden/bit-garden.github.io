@@ -628,6 +628,17 @@ from browser.html import *
 import time
 
 
+class Q:
+  def __call__(self, arg):
+    print(arg)
+    return arg
+  
+  __truediv__ = __call__
+  __div__ = __call__
+  __or__ = __call__
+  
+q = Q()
+
 class COLOR:
   crimson = (220, 20, 60)
   emerald = (0, 89, 11)
@@ -913,12 +924,19 @@ def do_py() -> None:
     print_red = []
     def print(*objects, sep=' ', end='\n'):
       print_red.append(sep.join(str(o) for o in objects) + end)
+    class Q:
+      def __call__(self, arg):
+        print(arg)
+        return arg
+      
+      __truediv__ = __call__
+      __div__ = __call__
+      __or__ = __call__
+      
+    q = Q()
     window.vdo("gv")
     data = cm_editbox.getSelection()
-    if len(data.strip().splitlines()) == 1:
-      exec(f'print({data.strip()})')
-    else:
-      exec(data)
+    exec(data)
     if print_red:
       out = '\n'.join([data, ''.join(print_red)])
       window.vdo("gv")
@@ -1476,7 +1494,9 @@ def Table(s, char='|', extras=[], types=None):
         setattr(self, k, v)
 
     def __repr__(self):
-      return '{' + ', '.join(f'{k!r}: {getattr(self, k, None)!r}' for k in self.__slots__) + '}'
+      return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
+          for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
+
   
   if types:
     ds = [Row(*i) for i in ds]
