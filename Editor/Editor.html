@@ -248,6 +248,7 @@ CodeMirror.defineSimpleMode("simplemode", {
     
     {regex: /#.*$/, token: "comments"}, // darklights comments
     {regex: / \|( |$)/, token: 'nums'},
+    {regex: /q(\/|\|)/, token: 'comments'},
   ]
 });
 </script>
@@ -633,9 +634,7 @@ class Q:
     print(arg)
     return arg
   
-  __truediv__ = __call__
-  __div__ = __call__
-  __or__ = __call__
+  __truediv__ = __div__ = __or__ = __call__
   
 q = Q()
 
@@ -929,9 +928,7 @@ def do_py() -> None:
         print(arg)
         return arg
       
-      __truediv__ = __call__
-      __div__ = __call__
-      __or__ = __call__
+      __truediv__ = __div__ = __or__ = __call__
       
     q = Q()
     window.vdo("gv")
