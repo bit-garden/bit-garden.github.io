@@ -248,6 +248,7 @@ CodeMirror.defineSimpleMode("simplemode", {
     
     {regex: /#.*$/, token: "comments"}, // darklights comments
     {regex: / \|( |$)/, token: 'nums'},
+    {regex: /q(\/|\|)/, token: 'comments'},
   ]
 });
 </script>
@@ -633,9 +634,7 @@ class Q:
     print(arg)
     return arg
   
-  __truediv__ = __call__
-  __div__ = __call__
-  __or__ = __call__
+  __truediv__ = __div__ = __or__ = __call__
   
 q = Q()
 
@@ -738,6 +737,10 @@ class groupby:
       except StopIteration:
         return
       self.currkey = self.keyfunc(self.currvalue)
+      
+def gba(l, *k):
+  k = attrgetter(*k)
+  return ((k, list(v) for k, v in groupby(sorted(l, key=k), key=k)))
 
 class zip_longest:
   def __init__(self, *args, fillvalue = None):
@@ -929,9 +932,7 @@ def do_py() -> None:
         print(arg)
         return arg
       
-      __truediv__ = __call__
-      __div__ = __call__
-      __or__ = __call__
+      __truediv__ = __div__ = __or__ = __call__
       
     q = Q()
     window.vdo("gv")
@@ -1442,36 +1443,54 @@ def complement(r, g, b, *_):
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
 
-# list tools
-def push(l, x):
-  """Pushes item of l in direction 1 space. None is considered empty."""
+def slot(f, *components, verbose=False):
+  'Slot class generator. Similar to named tuple, but mutable.'
+  if callable(f):
+    args = tuple({x for x in (vars(i) for i in f.__mro__ if i is not object) for x in x if not x.startswith('__')})
+    defaults = tuple(getattr(f, i) for i in args)
+    supers = tuple(i.__qualname__ for i in f.__mro__ if i is not object and i is not f)
+    components = '__components__ = ' + repr(supers)
+    name = f.__name__ 
+    
+    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+  else:
+    components = list(components)
+    slots = components.pop(0)
+    defaults = components
+    args = tuple(slots.split(' '))
+    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+    name = f
+    supers = ()
 
-  changes = []
+  # Gather list of collections
+  collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
+      if type(v) in (list, tuple, dict, set)}
 
-  if ~(first_empty:=lindex(l, None, x)):
-    del l[first_empty]
-    changes = l[x: first_empty]
-    l[x: first_empty] = [None] + l[x: first_empty]
+  # Set default signature.
+  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
+  all_args = ', '.join(i for i in [largs, kwargs] if i)
 
-  if not changes and ~(first_empty:=rindex(l, None, x)):
-    del l[first_empty]
-    changes = l[first_empty: x]
-    l[first_empty: x] = l[first_empty: x] + [None]
+  # Self setters.
+  sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
 
-  return changes
+  slot_template = f'''
+class {name}:
+  __slots__ = {repr(args)}
+  {components if supers else ''}
+  def __init__(self,
+      {all_args}):
+    {sargs}
+    
+  def __repr__(self):
+    return f'{{self.__class__.__name__}}({{", ".join(f"{{k}}={{getattr(self, k)!r}}" for k in self.__slots__)}})'
+'''.strip()
+  # Verbosity to print out generated code.
+  if verbose:
+    return slot_template
 
-def rindex(l, val, start=None):
-  # index from right
-  for i in range(start or len(l)-1, -1, -1):
-    if l[i] is val:
-      return i
-  return -1
-def lindex(l, val, start=0):
-  # index from left
-  for i in range(start, len(l)):
-    if l[i] is val:
-      return i
-  return -1
+  local = {}
+  exec(slot_template, local)
+  return local[name]
 
 def Table(s, char='|', extras=[], types=None):
   ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
@@ -1486,17 +1505,18 @@ def Table(s, char='|', extras=[], types=None):
       s = '_' + s
       
     heads[i] = ''.join(i if i in safe else '_' for i in s)
+    
+  Row = slot('Row', ' '.join(heads), *(['']*len(heads)))
   
-  class Row:
-    __slots__ = heads
-    def __init__(self, *l):
-      for k, v in zip(self.__slots__, l):
-        setattr(self, k, v)
-
-    def __repr__(self):
-      return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
-          for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
-
+  #class Row:
+  #  __slots__ = heads
+  #  def __init__(self, *l):
+  #    for k, v in zip(self.__slots__, l):
+  #      setattr(self, k, v)
+  #
+  #  def __repr__(self):
+  #    return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
+  #        for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
   
   if types:
     ds = [Row(*i) for i in ds]
@@ -1506,6 +1526,12 @@ def Table(s, char='|', extras=[], types=None):
     return ds
   else:
     return [Row(*i) for i in ds]
+    
+def table2str(t):
+  head = t[0].__slots__
+  body = ((getattr(i, j) for j in head) for i in t)
+  return align([head], body)
+
 
 def stagger(l, d):
   d = d/len(l)
