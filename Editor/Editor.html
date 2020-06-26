@@ -737,6 +737,16 @@ class groupby:
       except StopIteration:
         return
       self.currkey = self.keyfunc(self.currvalue)
+      
+def gba(l, *k):
+  k = attrgetter(*k)
+    
+  gb = {}
+  
+  for i in l:
+    gb.setdefault(k(i), []).append(i)
+    
+  return gb.items()
 
 class zip_longest:
   def __init__(self, *args, fillvalue = None):
@@ -1522,6 +1532,12 @@ def Table(s, char='|', extras=[], types=None):
     return ds
   else:
     return [Row(*i) for i in ds]
+    
+def table2str(t):
+  head = t[0].__slots__
+  body = ((getattr(i, j) for j in head) for i in t)
+  return align([head], body)
+
 
 def stagger(l, d):
   d = d/len(l)
