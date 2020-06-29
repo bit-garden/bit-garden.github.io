@@ -631,10 +631,24 @@ import time
 
 class Q:
   def __call__(self, arg):
+    if callable(arg):
+      def f(*l, **kw):
+        _ret = arg(*l, **kw)
+        args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
+        print(f'{arg.__qualname__}({args}) -> {_ret}')
+        return _ret
+        
+      f.__name__ = arg.__name__
+      f.__qualname__ = arg.__qualname__
+      return f
+    print(arg)
+    return arg
+    
+  def __or__(self, arg):
     print(arg)
     return arg
   
-  __truediv__ = __div__ = __or__ = __call__
+  __truediv__ = __div__ = __or__
   
 q = Q()
 
@@ -935,11 +949,25 @@ def do_py() -> None:
       print_red.append(sep.join(str(o) for o in objects) + end)
     class Q:
       def __call__(self, arg):
+        if callable(arg):
+          def f(*l, **kw):
+            _ret = arg(*l, **kw)
+            args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
+            print(f'{arg.__qualname__}({args}) -> {_ret}')
+            return _ret
+            
+          f.__name__ = arg.__name__
+          f.__qualname__ = arg.__qualname__
+          return f
+        print(arg)
+        return arg
+        
+      def __or__(self, arg):
         print(arg)
         return arg
       
-      __truediv__ = __div__ = __or__ = __call__
-      
+      __truediv__ = __div__ = __or__
+    
     q = Q()
     window.vdo("gv")
     data = cm_editbox.getSelection()
