@@ -1503,7 +1503,8 @@ def table(s, types={}, *, char='|', gen=False):
     return [{k: types[k](v or types[k]()) if k in types else v
       for k, v in zip(h, i)} for i in ds]
     
-def table2str(t):
+def table2str(*t):
+  t = [x for x in t for x in x]
   _head = []
   for i in t:
     if isinstance(i, dict):
