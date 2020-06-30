@@ -1491,34 +1491,17 @@ def complement(r, g, b, *_):
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
 
-def Table(s, char='|', extras=[], types=None):
+def table(s, types={}, *, char='|', gen=False):
   ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
-      if i.strip() and not i.strip().startswith('#'))
-      
-  heads = next(ds) + extras
-  
-  safe = 'abcdefghijklmnopqurstuvwxyz0123456789'
-  for i in range(len(heads)):
-    s = heads[i].lower()
-    if s[0] in '0123456789':
-      s = '_' + s
-      
-    heads[i] = ''.join(i if i in safe else '_' for i in s)
-  
-  class Row:
-    __slots__ = heads
-    def __init__(self, *l):
-      for k, v in zip(self.__slots__, l):
-        setattr(self, k, v)
-  
-  if types:
-    ds = [Row(*i) for i in ds]
-    for i in ds:
-      for k, v in types.items():
-        setattr(i, k, v(getattr(i, k, None) or v()))
-    return ds
+    if i.strip() and not i.strip().startswith('#'))
+    
+  h = next(ds)
+  if gen:
+    return ({k: types[k](v or types[k]()) if k in types else v
+      for k, v in zip(h, i)} for i in ds)
   else:
-    return [Row(*i) for i in ds]
+    return [{k: types[k](v or types[k]()) if k in types else v
+      for k, v in zip(h, i)} for i in ds]
     
 def table2str(t):
   _head = []
@@ -1539,10 +1522,6 @@ def table2str(t):
 class attrDict:
   def __init__(self, **kw):
     self.__dict__.update(kw)
-    
-  def __setattr__(self, key, value):
-    assert key in self.__dict__, f'attrDict has no attribute {key}'
-    self.__dict__[key] = value
   
   def __repr__(self):
     return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
