@@ -641,11 +641,19 @@ class Q:
       f.__name__ = arg.__name__
       f.__qualname__ = arg.__qualname__
       return f
-    print(arg)
+    if object.__repr__ is not arg.__class__.__repr__:
+      print(arg)
+    else:
+      print(arg.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(arg, k, None)!r}'
+          for k in (arg.__slots__ if hasattr(arg, '__slots__') else vars(arg))) + ')')
     return arg
     
   def __or__(self, arg):
-    print(arg)
+    if object.__repr__ is not arg.__class__.__repr__:
+      print(arg)
+    else:
+      print(arg.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(arg, k, None)!r}'
+          for k in (arg.__slots__ if hasattr(arg, '__slots__') else vars(arg))) + ')')
     return arg
   
   __truediv__ = __div__ = __or__
@@ -752,11 +760,9 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
       
-def gba(l, *k):
-  k = attrgetter(*k)
-    
+def gba(l, k):
+  k = k or lambda i: i
   gb = {}
-  
   for i in l:
     gb.setdefault(k(i), []).append(i)
     
@@ -959,15 +965,23 @@ def do_py() -> None:
           f.__name__ = arg.__name__
           f.__qualname__ = arg.__qualname__
           return f
-        print(arg)
+        if object.__repr__ is not arg.__class__.__repr__:
+          print(arg)
+        else:
+          print(arg.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(arg, k, None)!r}'
+              for k in (arg.__slots__ if hasattr(arg, '__slots__') else vars(arg))) + ')')
         return arg
         
       def __or__(self, arg):
-        print(arg)
+        if object.__repr__ is not arg.__class__.__repr__:
+          print(arg)
+        else:
+          print(arg.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(arg, k, None)!r}'
+              for k in (arg.__slots__ if hasattr(arg, '__slots__') else vars(arg))) + ')')
         return arg
       
       __truediv__ = __div__ = __or__
-    
+      
     q = Q()
     window.vdo("gv")
     data = cm_editbox.getSelection()
@@ -1497,10 +1511,6 @@ def Table(s, char='|', extras=[], types=None):
       for k, v in zip(self.__slots__, l):
         setattr(self, k, v)
   
-    def __repr__(self):
-      return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
-          for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
-  
   if types:
     ds = [Row(*i) for i in ds]
     for i in ds:
@@ -1511,8 +1521,19 @@ def Table(s, char='|', extras=[], types=None):
     return [Row(*i) for i in ds]
     
 def table2str(t):
-  head = t[0].__slots__
-  body = ((getattr(i, j) for j in head) for i in t)
+  _head = []
+  for i in t:
+    if isinstance(i, dict):
+      _head.extend(i.keys())
+    elif (slots:=getattr(i, '__slots__', None)):
+      _head.extend(slots)
+    else:
+      _head.extend(vars(i).keys())
+  head = []
+  for i in _head:
+    if i not in head:
+      head.append(i)
+  body = ([i.get(j, '') if isinstance(i, dict) else getattr(i, j, '') for j in head] for i in t)
   return align([head], body)
   
 class attrDict:
