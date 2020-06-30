@@ -641,19 +641,11 @@ class Q:
       f.__name__ = arg.__name__
       f.__qualname__ = arg.__qualname__
       return f
-    if object.__repr__ is not arg.__class__.__repr__:
-      print(arg)
-    else:
-      print(arg.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(arg, k, None)!r}'
-          for k in (arg.__slots__ if hasattr(arg, '__slots__') else vars(arg))) + ')')
+    print(arg)
     return arg
     
   def __or__(self, arg):
-    if object.__repr__ is not arg.__class__.__repr__:
-      print(arg)
-    else:
-      print(arg.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(arg, k, None)!r}'
-          for k in (arg.__slots__ if hasattr(arg, '__slots__') else vars(arg))) + ')')
+    print(arg)
     return arg
   
   __truediv__ = __div__ = __or__
@@ -965,19 +957,11 @@ def do_py() -> None:
           f.__name__ = arg.__name__
           f.__qualname__ = arg.__qualname__
           return f
-        if object.__repr__ is not arg.__class__.__repr__:
-          print(arg)
-        else:
-          print(arg.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(arg, k, None)!r}'
-              for k in (arg.__slots__ if hasattr(arg, '__slots__') else vars(arg))) + ')')
+        print(arg)
         return arg
         
       def __or__(self, arg):
-        if object.__repr__ is not arg.__class__.__repr__:
-          print(arg)
-        else:
-          print(arg.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(arg, k, None)!r}'
-              for k in (arg.__slots__ if hasattr(arg, '__slots__') else vars(arg))) + ')')
+        print(arg)
         return arg
       
       __truediv__ = __div__ = __or__
@@ -1503,22 +1487,14 @@ def table(s, types={}, *, char='|', gen=False):
     return [{k: types[k](v or types[k]()) if k in types else v
       for k, v in zip(h, i)} for i in ds]
     
-def table2str(*t):
-  t = [x for x in t for x in x]
-  _head = []
-  for i in t:
-    if isinstance(i, dict):
-      _head.extend(i.keys())
-    elif (slots:=getattr(i, '__slots__', None)):
-      _head.extend(slots)
-    else:
-      _head.extend(vars(i).keys())
-  head = []
-  for i in _head:
-    if i not in head:
-      head.append(i)
-  body = ([i.get(j, '') if isinstance(i, dict) else getattr(i, j, '') for j in head] for i in t)
-  return align([head], body)
+def table2str(t, *attrs):
+  t = list(t)
+  if isinstance(t[0], dict):
+    h = attrs or t[0].keys()
+    return align([h], ((i[k] for k in h) for i in t))
+  else:
+    h = attrs or (t[0].__slots__ if hasattr(t[0], '__slots__') else vars(t[0]))
+    return align([h], ((getattr(i, k) for k in h) for i in t))
   
 class attrDict:
   def __init__(self, **kw):
