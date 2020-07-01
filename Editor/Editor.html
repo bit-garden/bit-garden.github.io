@@ -1504,6 +1504,10 @@ def table(s, types={}, *, char='|', gen=False, as_list=False):
     if i.strip() and not i.strip().startswith('#'))
 
   if as_list:
+    if gen:
+      return ([types[idx](i or types[idx]()) if idx in types else i
+        for idx, i in enumerate(j)] for j in ds)
+        
     return [[types[idx](i or types[idx]()) if idx in types else i
       for idx, i in enumerate(j)] for j in ds]
     
@@ -1511,9 +1515,9 @@ def table(s, types={}, *, char='|', gen=False, as_list=False):
   if gen:
     return ({k: types[k](v or types[k]()) if k in types else v
       for k, v in zip(h, i)} for i in ds)
-  else:
-    return [{k: types[k](v or types[k]()) if k in types else v
-      for k, v in zip(h, i)} for i in ds]
+      
+  return [{k: types[k](v or types[k]()) if k in types else v
+    for k, v in zip(h, i)} for i in ds]
   
 class attrDict:
   def __init__(self, **kw):
