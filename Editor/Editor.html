@@ -753,12 +753,16 @@ class groupby:
       self.currkey = self.keyfunc(self.currvalue)
       
 def gba(l, k):
-  k = k or lambda i: i
+  k = k or (lambda i: i)
   gb = {}
   for i in l:
     gb.setdefault(k(i), []).append(i)
     
   return gb
+  
+def chunk(l, n):
+  l = tuple(l)
+  return (l[i: i+n] for i in range(0, len(l), n))
 
 class zip_longest:
   def __init__(self, *args, fillvalue = None):
@@ -836,21 +840,41 @@ def grouper(iterable, n, fillvalue=None):
   # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
   args = [iter(iterable)] * n
   return zip_longest(*args, fillvalue=fillvalue)
-  
-  
-def is_num(_in):
-  try:
-    float(_in)
-    return True
-  except:
-    return False
 
-def align(*d):
-  d = [[f'{j}' for j in i] for i in zip_longest(*(x for x in d for x in x), fillvalue='')]
-  for col in d:
-    l = len(max(col, key=len))
-    col[:] = [f'{i}'.rjust(l) if is_num(i) else f'{i}'.ljust(l) for i in col]
-  return '\n'.join(' | '.join(i).rstrip() for i in zip(*d))
+
+def align(l, *attrs, zip=zip):
+  """ Aligns lists into a table like structure for neatness.
+  
+  This also aligns number like values to the right.
+  """
+
+  l = tuple(l)  # exhaust generators
+  if isinstance(l[0], dict):
+    h = attrs or l[0].keys()
+    l = ([i[k] for k in h] for i in l)
+  elif isinstance(l[0], (list, tuple)):
+    h = ()
+  else:
+    h = attrs or (l[0].__slots__ if hasattr(l[0], '__slots__') else vars(l[0]))
+    l = ([getattr(i, k) for k in h] for i in l)
+  
+  # transpose and fill in table.
+  if h:
+    l = [[f'{j}' for j in i] for i in zip(h, *l)]
+  else:
+    l = [[f'{j}' for j in i] for i in zip(*l)]
+
+  for col in l:
+    column_width = len(max(col, key=len))
+    for idx, c in enumerate(col):
+      try:
+        float(c)
+        col[idx] = c.rjust(column_width)
+      except:
+        col[idx] = c.ljust(column_width)
+  
+  # transpose back and return.
+  return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
 
 
 # --- end focus
@@ -1138,7 +1162,7 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()))
+  out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
@@ -1475,9 +1499,13 @@ def complement(r, g, b, *_):
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
 
-def table(s, types={}, *, char='|', gen=False):
+def table(s, types={}, *, char='|', gen=False, as_list=False):
   ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
     if i.strip() and not i.strip().startswith('#'))
+
+  if as_list:
+    return [[types[idx](i or types[idx]()) if idx in types else i
+      for idx, i in enumerate(j)] for j in ds]
     
   h = next(ds)
   if gen:
@@ -1486,15 +1514,6 @@ def table(s, types={}, *, char='|', gen=False):
   else:
     return [{k: types[k](v or types[k]()) if k in types else v
       for k, v in zip(h, i)} for i in ds]
-    
-def table2str(t, *attrs):
-  t = list(t)
-  if isinstance(t[0], dict):
-    h = attrs or t[0].keys()
-    return align([h], ((i[k] for k in h) for i in t))
-  else:
-    h = attrs or (t[0].__slots__ if hasattr(t[0], '__slots__') else vars(t[0]))
-    return align([h], ((getattr(i, k) for k in h) for i in t))
   
 class attrDict:
   def __init__(self, **kw):
