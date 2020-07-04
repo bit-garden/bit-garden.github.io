@@ -760,10 +760,16 @@ def gba(l, k):
     
   return gb
   
-def chunk(l, n):
-  l = tuple(l)
-  return (l[i: i+n] for i in range(0, len(l), n))
-
+def chunk(l, n=1):
+  current_batch = []
+  for item in l:
+    current_batch.append(item)
+    if len(current_batch) == n:
+      yield current_batch
+      current_batch = []
+  if current_batch:
+    yield current_batch
+    
 class zip_longest:
   def __init__(self, *args, fillvalue = None):
     self.args = [iter(arg) for arg in args]
@@ -851,18 +857,12 @@ def align(l, *attrs, zip=zip):
   l = tuple(l)  # exhaust generators
   if isinstance(l[0], dict):
     h = attrs or l[0].keys()
-    l = ([i[k] for k in h] for i in l)
+    l = [[f'{j}' for j in i] for i in zip(h, *([i[k] for k in h] for i in l))]
   elif isinstance(l[0], (list, tuple)):
-    h = ()
+    l = [[f'{j}' for j in i] for i in zip(*l)]
   else:
     h = attrs or (l[0].__slots__ if hasattr(l[0], '__slots__') else vars(l[0]))
-    l = ([getattr(i, k) for k in h] for i in l)
-  
-  # transpose and fill in table.
-  if h:
-    l = [[f'{j}' for j in i] for i in zip(h, *l)]
-  else:
-    l = [[f'{j}' for j in i] for i in zip(*l)]
+    l = [[f'{j}' for j in i] for i in zip(h, *([getattr(i, k) for k in h] for i in l))]
 
   for col in l:
     column_width = len(max(col, key=len))
@@ -875,6 +875,7 @@ def align(l, *attrs, zip=zip):
   
   # transpose back and return.
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
+
 
 
 # --- end focus
@@ -1499,26 +1500,16 @@ def complement(r, g, b, *_):
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
 
-def table(s, types={}, *, char='|', gen=False, as_list=False):
-  ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
-    if i.strip() and not i.strip().startswith('#'))
+def table(s, types={}, char='|'):
+  ds = ([j.strip() for j in i.split(char)] 
+    for i in s.strip().lstrip('#').splitlines()
+      if not i.strip().startswith('#'))
 
-  if as_list:
-    if gen:
-      return ([types[idx](i or types[idx]()) if idx in types else i
-        for idx, i in enumerate(j)] for j in ds)
-        
-    return [[types[idx](i or types[idx]()) if idx in types else i
-      for idx, i in enumerate(j)] for j in ds]
-    
   h = next(ds)
-  if gen:
-    return ({k: types[k](v or types[k]()) if k in types else v
-      for k, v in zip(h, i)} for i in ds)
-      
-  return [{k: types[k](v or types[k]()) if k in types else v
-    for k, v in zip(h, i)} for i in ds]
-  
+  for i in ds:
+    yield {k: types[k](v or types[k]()) if k in types else v
+        for k, v in zip(h, i)}
+
 class attrDict:
   def __init__(self, **kw):
     self.__dict__.update(kw)
