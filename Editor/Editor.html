@@ -1317,7 +1317,10 @@ class Box(DIV):
     
 class Tile(DIV):
   def __init__(self, text, x=0, y=0, width=0, height=0, display='inline', 
-      opacity=1, axis=('left', 'top'), font_size='24px', **kw):
+      opacity=1, axis=('left', 'top'), font_size='24px', data=None, **kw):
+          
+    self.data = data
+
     for k, v in (
         (axis[0], x),  (axis[1], y),
         ('width', width), ('height', height),
