@@ -1512,6 +1512,21 @@ def table(s, types={}, char='|'):
   for i in ds:
     yield {k: types[k](v or types[k]()) if k in types else v
         for k, v in zip(h, i)}
+        
+def matrix(s, types=None, char='|', _type=tuple):
+  ds = ([j.strip() for j in i.split(char)] 
+    for i in s.strip().splitlines()
+      if not i.strip().startswith('#'))
+   
+  if not types:
+    for i in ds:
+      yield _type(i)
+  elif isinstance(types, (list, tuple)):
+    for i in ds:
+      yield _type(k(v or k()) for k, v in zip(types, i))
+  else:
+    for i in ds:
+      yield _type(types(v or types()) for v in i)
 
 class attrDict:
   def __init__(self, **kw):
