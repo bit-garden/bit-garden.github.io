@@ -712,7 +712,7 @@ class fopen():
 # hacky exec version of itemgetter for speed
 # slower creation, but faster execute for more than 1 item
 def itemgetter(*items):
-  template = f'''def f(i): return {", ".join(f"i['{i}']" for i in items)}'''
+  template = f'''def f(i): return {", ".join(f"i[{i!r}]" for i in items)}'''
   loc = {}
   exec(template, {}, loc)
   return loc['f']
@@ -752,7 +752,7 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
       
-def gba(l, k):
+def gba(l, k=None):
   k = k or (lambda i: i)
   gb = {}
   for i in l:
@@ -1513,28 +1513,39 @@ def table(s, types={}, char='|'):
     yield {k: types[k](v or types[k]()) if k in types else v
         for k, v in zip(h, i)}
         
-def matrix(s, types=None, char='|', _type=tuple):
+def matrix(s, types=None, char='|'):
   ds = ([j.strip() for j in i.split(char)] 
     for i in s.strip().splitlines()
       if not i.strip().startswith('#'))
    
   if not types:
-    for i in ds:
-      yield _type(i)
+    yield from ds
   elif isinstance(types, (list, tuple)):
     for i in ds:
-      yield _type(k(v or k()) for k, v in zip(types, i))
+      yield [k(v or k()) for k, v in zip(types, i)]
   else:
     for i in ds:
-      yield _type(types(v or types()) for v in i)
+      yield [types(v or types()) for v in i]
 
 class attrDict:
   def __init__(self, **kw):
     self.__dict__.update(kw)
+    
+  def __iter__(self):
+    yield from (getattr(self, k, None) for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self)))
   
   def __repr__(self):
     return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
         for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
+
+def adestruct(l, *args):
+  yield from ((getattr(d, a) for a in args) for d in l)
+  
+def destruct(l, *args):
+  if args:
+    yield from ((d[a] for a in args) for d in l)
+  else:
+    yield from (d.values() for d in l)
 
 
 
