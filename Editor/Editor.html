@@ -752,13 +752,6 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
       
-def gba(l, k=None):
-  k = k or (lambda i: i)
-  gb = {}
-  for i in l:
-    gb.setdefault(k(i), []).append(i)
-    
-  return gb
   
 def chunk(l, n=1):
   current_batch = []
@@ -1509,9 +1502,12 @@ def table(s, types={}, char='|'):
       if not i.strip().startswith('#'))
 
   h = next(ds)
-  for i in ds:
-    yield {k: types[k](v or types[k]()) if k in types else v
-        for k, v in zip(h, i)}
+  if types:
+    for i in ds:
+      yield {k: types[k](v or types[k]()) if k in types else v
+          for k, v in zip(h, i)}
+  else:
+    yield from (dict(zip(h, i)) for i in ds)
         
 def matrix(s, types=None, char='|'):
   ds = ([j.strip() for j in i.split(char)] 
@@ -1537,16 +1533,6 @@ class attrDict:
   def __repr__(self):
     return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
         for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
-
-def adestruct(l, *args):
-  yield from ((getattr(d, a) for a in args) for d in l)
-  
-def destruct(l, *args):
-  if args:
-    yield from ((d[a] for a in args) for d in l)
-  else:
-    yield from (d.values() for d in l)
-
 
 
 def stagger(l, d):
