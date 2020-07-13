@@ -11,7 +11,7 @@
 })(function(CodeMirror) {
   "use strict";
 
-  var WORD = /[\w$\.]+/, RANGE = 50000;
+  var WORD = /[\w$]+/, RANGE = 50000;
   //var WORD = /((?<=(class|def)\s)\w+)|([A-Za-z_][A-Za-z_0-9]*(?=\s*([=\(\)\[\{,]| in|:=|\.\w)))/, RANGE = 50000;
 
   CodeMirror.registerHelper("hint", "anyword", function(editor, options) {
