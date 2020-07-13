@@ -1123,26 +1123,33 @@ def better_sort():
     window.vdo('gv') # hack for vim visual stating on codemirror
   dat = cm_editbox.getSelection()
 
-  # Genius snippet.
-  def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
-    return [int(text) if text.isdigit() else re.sub(r'\s\s+', ' ', text.strip().lower())
-            for text in _nsre.split(s)]
+  if '|' in dat:
+    # Genius snippet.
+    def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+      return [int(text) if text.isdigit() else re.sub(r'\s\s+', ' ', text.strip().lower())
+              for text in _nsre.split(s)]
 
-  def if_comment(i):
-    if i.lstrip().startswith('#'):
-      return i
-    if i.strip() == '':
-      return ''
-    return False
+    def if_comment(i):
+      if i.lstrip().startswith('#'):
+        return i
+      if i.strip() == '':
+        return ''
+      return False
 
-  def better_sort(s):
-    gb = groupby(s.splitlines(), key=if_comment)
-    gb = [list(v) for k, v in gb]
-    #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
-    gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
-    return(gb)
+    def better_sort(s):
+      gb = groupby(s.splitlines(), key=if_comment)
+      gb = [list(v) for k, v in gb]
+      #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
+      gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
+      return(gb)
 
-  cm_editbox.replaceSelection(better_sort(dat))
+    cm_editbox.replaceSelection(better_sort(dat))
+  else:
+    todo = parse_note(dat)
+    
+    todo[1][:] = sorted(todo[1], key=lambda i: (i[3].lower(), i[1], i[2], i[0].lower()))
+    
+    cm_editbox.replaceSelection(note2str(todo))
   window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(oldpos.line)+", 'ch':"+str(oldpos.ch)+"})")
   window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
 def run_better_sort(cm, params):
@@ -1156,7 +1163,13 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
+  if '|' in data:
+    out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
+  else:
+    todo = parse_note(data)
+    
+    out = note2str(todo)
+    
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
@@ -1495,6 +1508,45 @@ def complement(r, g, b, *_):
 
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
+
+def parse_note(s):
+  title= None
+  items = []
+  parent = None
+  parent_done = False
+  
+  for row in s.strip().splitlines():
+    if not title and row.startswith('#'):
+      title = row.lstrip('#').strip()
+      continue
+    
+    sub = False
+    done = False
+    
+    if row.startswith(' '):
+      sub = True
+      row = row.strip(' ')
+      
+    if row.startswith('-'):
+      done = True
+      row = row.lstrip('-').strip()
+      
+    if not sub and row.strip():
+      parent = row
+      parent_done = done
+    if sub and parent_done:
+      done = True
+      
+    items.append([row, sub, done, parent])
+    
+  return title, items
+  
+def note2str(n):
+  if n[0]:
+    return f'# {n[0]}\n' + '\n'.join(f'{sub and "  " or ""}{done and "- " or ""}{row}' for row, sub, done, parent in n[1])
+  else:
+    return '\n'.join(f'{sub and "  " or ""}{done and "- " or ""}{row}' for row, sub, done, parent in n[1])
+
 
 def table(s, types={}, char='|'):
   ds = ([j.strip() for j in i.split(char)] 
