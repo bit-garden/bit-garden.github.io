@@ -631,10 +631,24 @@ import time
 
 class Q:
   def __call__(self, arg):
+    if callable(arg):
+      def f(*l, **kw):
+        _ret = arg(*l, **kw)
+        args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
+        print(f'{arg.__qualname__}({args}) -> {_ret}')
+        return _ret
+        
+      f.__name__ = arg.__name__
+      f.__qualname__ = arg.__qualname__
+      return f
+    print(arg)
+    return arg
+    
+  def __or__(self, arg):
     print(arg)
     return arg
   
-  __truediv__ = __div__ = __or__ = __call__
+  __truediv__ = __div__ = __or__
   
 q = Q()
 
@@ -698,7 +712,7 @@ class fopen():
 # hacky exec version of itemgetter for speed
 # slower creation, but faster execute for more than 1 item
 def itemgetter(*items):
-  template = f'''def f(i): return {", ".join(f"i['{i}']" for i in items)}'''
+  template = f'''def f(i): return {", ".join(f"i[{i!r}]" for i in items)}'''
   loc = {}
   exec(template, {}, loc)
   return loc['f']
@@ -738,10 +752,33 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
       
-def gba(l, *k):
-  k = attrgetter(*k)
-  return ((k, list(v) for k, v in groupby(sorted(l, key=k), key=k)))
+def gatherby(l, k=None, m=None):
+  gb = {}
+  
+  if m:
+    for i in l:
+      gb.setdefault(k(i), []).append(m(i))
+  elif k:
+    for i in l:
+      gb.setdefault(k(i), []).append(i)
+  else:
+    for i in l:
+      gb.setdefault(i, []).append(i)
+  
+  return gb
 
+
+  
+def chunk(l, n=1):
+  current_batch = []
+  for item in l:
+    current_batch.append(item)
+    if len(current_batch) == n:
+      yield current_batch
+      current_batch = []
+  if current_batch:
+    yield current_batch
+    
 class zip_longest:
   def __init__(self, *args, fillvalue = None):
     self.args = [iter(arg) for arg in args]
@@ -818,22 +855,61 @@ def grouper(iterable, n, fillvalue=None):
   # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
   args = [iter(iterable)] * n
   return zip_longest(*args, fillvalue=fillvalue)
-  
-  
-def is_num(_in):
-  try:
-    float(_in)
-    return True
-  except:
-    return False
 
-def align(*d):
-  d = [[f'{j}' for j in i] for i in zip_longest(*(x for x in d for x in x), fillvalue='')]
-  for col in d:
-    l = len(max(col, key=len))
-    col[:] = [f'{i}'.rjust(l) if is_num(i) else f'{i}'.ljust(l) for i in col]
-  return '\n'.join(' | '.join(i).rstrip() for i in zip(*d))
 
+def align(l, *attrs, zip=zip):
+  """ Aligns lists into a table like structure for neatness.
+  
+  This also aligns number like values to the right.
+  """
+
+  l = tuple(l)  # exhaust generators
+  if isinstance(l[0], dict):
+    h = attrs or l[0].keys()
+    l = [[f'{j}' for j in i] for i in zip(h, *([i[k] for k in h] for i in l))]
+  elif isinstance(l[0], (list, tuple)):
+    l = [[f'{j}' for j in i] for i in zip(*l)]
+  else:
+    h = attrs or (l[0].__slots__ if hasattr(l[0], '__slots__') else vars(l[0]))
+    l = [[f'{j}' for j in i] for i in zip(h, *([getattr(i, k) for k in h] for i in l))]
+
+  for col in l:
+    column_width = len(max(col, key=len))
+    for idx, c in enumerate(col):
+      try:
+        float(c)
+        col[idx] = c.rjust(column_width)
+      except:
+        col[idx] = c.ljust(column_width)
+  
+  # transpose back and return.
+  return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
+
+
+class Property:
+  __slots__ = 'name', 'onname', 'attr'
+  def __set_name__(self, owner, name):
+    self.name = name
+    self.onname = f'on_{name}'
+    self.attr = f'_{name}'
+
+  def __get__(self, instance, owner):
+    if not instance: return self
+    return getattr(instance, self.attr)
+
+  def __delete__(self, instance):
+    delattr(instance, self.attr)
+
+  def __set__(self, instance, value):
+    if hasattr(instance, self.attr):
+      old = getattr(instance, self.attr)
+      setattr(instance, self.attr, value)
+      
+      if old != value and (on:=getattr(instance, self.onname, None)):
+        on(value)
+    else:
+      setattr(instance, self.attr, value)
+  
 
 # --- end focus
 
@@ -929,10 +1005,24 @@ def do_py() -> None:
       print_red.append(sep.join(str(o) for o in objects) + end)
     class Q:
       def __call__(self, arg):
+        if callable(arg):
+          def f(*l, **kw):
+            _ret = arg(*l, **kw)
+            args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
+            print(f'{arg.__qualname__}({args}) -> {_ret}')
+            return _ret
+            
+          f.__name__ = arg.__name__
+          f.__qualname__ = arg.__qualname__
+          return f
+        print(arg)
+        return arg
+        
+      def __or__(self, arg):
         print(arg)
         return arg
       
-      __truediv__ = __div__ = __or__ = __call__
+      __truediv__ = __div__ = __or__
       
     q = Q()
     window.vdo("gv")
@@ -1073,26 +1163,33 @@ def better_sort():
     window.vdo('gv') # hack for vim visual stating on codemirror
   dat = cm_editbox.getSelection()
 
-  # Genius snippet.
-  def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
-    return [int(text) if text.isdigit() else re.sub(r'\s\s+', ' ', text.strip().lower())
-            for text in _nsre.split(s)]
+  if '|' in dat:
+    # Genius snippet.
+    def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+      return [int(text) if text.isdigit() else re.sub(r'\s\s+', ' ', text.strip().lower())
+              for text in _nsre.split(s)]
 
-  def if_comment(i):
-    if i.lstrip().startswith('#'):
-      return i
-    if i.strip() == '':
-      return ''
-    return False
+    def if_comment(i):
+      if i.lstrip().startswith('#'):
+        return i
+      if i.strip() == '':
+        return ''
+      return False
 
-  def better_sort(s):
-    gb = groupby(s.splitlines(), key=if_comment)
-    gb = [list(v) for k, v in gb]
-    #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
-    gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
-    return(gb)
+    def better_sort(s):
+      gb = groupby(s.splitlines(), key=if_comment)
+      gb = [list(v) for k, v in gb]
+      #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
+      gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
+      return(gb)
 
-  cm_editbox.replaceSelection(better_sort(dat))
+    cm_editbox.replaceSelection(better_sort(dat))
+  else:
+    todo = parse_note(dat)
+    
+    todo[1][:] = sorted(todo[1], key=lambda i: (i[3].lower(), i[1], i[2], i[0].lower()))
+    
+    cm_editbox.replaceSelection(note2str(todo))
   window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(oldpos.line)+", 'ch':"+str(oldpos.ch)+"})")
   window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
 def run_better_sort(cm, params):
@@ -1106,7 +1203,13 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()))
+  if '|' in data:
+    out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
+  else:
+    todo = parse_note(data)
+    
+    out = note2str(todo)
+    
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
@@ -1260,7 +1363,10 @@ class Box(DIV):
     
 class Tile(DIV):
   def __init__(self, text, x=0, y=0, width=0, height=0, display='inline', 
-      opacity=1, axis=('left', 'top'), font_size='24px', **kw):
+      opacity=1, axis=('left', 'top'), font_size='24px', data=None, **kw):
+          
+    self.data = data
+
     for k, v in (
         (axis[0], x),  (axis[1], y),
         ('width', width), ('height', height),
@@ -1443,96 +1549,83 @@ def complement(r, g, b, *_):
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
 
-def slot(f, *components, verbose=False):
-  'Slot class generator. Similar to named tuple, but mutable.'
-  if callable(f):
-    args = tuple({x for x in (vars(i) for i in f.__mro__ if i is not object) for x in x if not x.startswith('__')})
-    defaults = tuple(getattr(f, i) for i in args)
-    supers = tuple(i.__qualname__ for i in f.__mro__ if i is not object and i is not f)
-    components = '__components__ = ' + repr(supers)
-    name = f.__name__ 
+def parse_note(s):
+  title= None
+  items = []
+  parent = None
+  parent_done = False
+  
+  for row in s.strip().splitlines():
+    if not title and row.startswith('#'):
+      title = row.lstrip('#').strip()
+      continue
     
-    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+    sub = False
+    done = False
+    
+    if row.startswith(' '):
+      sub = True
+      row = row.strip(' ')
+      
+    if row.startswith('-'):
+      done = True
+      row = row.lstrip('-').strip()
+      
+    if not sub and row.strip():
+      parent = row
+      parent_done = done
+    if sub and parent_done:
+      done = True
+      
+    items.append([row, sub, done, parent])
+    
+  return title, items
+  
+def note2str(n):
+  if n[0]:
+    return f'# {n[0]}\n' + '\n'.join(f'{sub and "  " or ""}{done and "- " or ""}{row}' for row, sub, done, parent in n[1])
   else:
-    components = list(components)
-    slots = components.pop(0)
-    defaults = components
-    args = tuple(slots.split(' '))
-    largs = ', '.join(args[:-len(defaults)] if defaults else args)
-    name = f
-    supers = ()
+    return '\n'.join(f'{sub and "  " or ""}{done and "- " or ""}{row}' for row, sub, done, parent in n[1])
 
-  # Gather list of collections
-  collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
-      if type(v) in (list, tuple, dict, set)}
 
-  # Set default signature.
-  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
-  all_args = ', '.join(i for i in [largs, kwargs] if i)
+def table(s, types={}, char='|'):
+  ds = ([j.strip() for j in i.split(char)] 
+    for i in s.strip().lstrip('#').splitlines()
+      if not i.strip().startswith('#'))
 
-  # Self setters.
-  sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
-
-  slot_template = f'''
-class {name}:
-  __slots__ = {repr(args)}
-  {components if supers else ''}
-  def __init__(self,
-      {all_args}):
-    {sargs}
-    
-  def __repr__(self):
-    return f'{{self.__class__.__name__}}({{", ".join(f"{{k}}={{getattr(self, k)!r}}" for k in self.__slots__)}})'
-'''.strip()
-  # Verbosity to print out generated code.
-  if verbose:
-    return slot_template
-
-  local = {}
-  exec(slot_template, local)
-  return local[name]
-
-def Table(s, char='|', extras=[], types=None):
-  ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
-      if i.strip() and not i.strip().startswith('#'))
-      
-  heads = next(ds) + extras
-  
-  safe = 'abcdefghijklmnopqurstuvwxyz0123456789'
-  for i in range(len(heads)):
-    s = heads[i].lower()
-    if s[0] in '0123456789':
-      s = '_' + s
-      
-    heads[i] = ''.join(i if i in safe else '_' for i in s)
-    
-  Row = slot('Row', ' '.join(heads), *(['']*len(heads)))
-  
-  #class Row:
-  #  __slots__ = heads
-  #  def __init__(self, *l):
-  #    for k, v in zip(self.__slots__, l):
-  #      setattr(self, k, v)
-  #
-  #  def __repr__(self):
-  #    return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
-  #        for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
-  
+  h = next(ds)
   if types:
-    ds = [Row(*i) for i in ds]
     for i in ds:
-      for k, v in types.items():
-        setattr(i, k, v(getattr(i, k, None) or v()))
-    return ds
+      yield {k: types[k](v or types[k]()) if k in types else v
+          for k, v in zip(h, i)}
   else:
-    return [Row(*i) for i in ds]
+    yield from (dict(zip(h, i)) for i in ds)
+        
+def matrix(s, types=None, char='|'):
+  ds = ([j.strip() for j in i.split(char)] 
+    for i in s.strip().splitlines()
+      if not i.strip().startswith('#'))
+   
+  if not types:
+    yield from ds
+  elif isinstance(types, (list, tuple)):
+    for i in ds:
+      yield [k(v or k()) for k, v in zip(types, i)]
+  else:
+    for i in ds:
+      yield [types(v or types()) for v in i]
+
+class attrDict:
+  def __init__(self, **kw):
+    self.__dict__.update(kw)
     
-def table2str(t):
-  head = t[0].__slots__
-  body = ((getattr(i, j) for j in head) for i in t)
-  return align([head], body)
-
-
+  def __iter__(self):
+    yield from (getattr(self, k, None) for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self)))
+  
+  def __repr__(self):
+    return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
+        for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
+        
 def stagger(l, d):
   d = d/len(l)
   def _stagger(f):
