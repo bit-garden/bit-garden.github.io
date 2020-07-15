@@ -1,5 +1,5 @@
 <html>
-<title>Auto_fill</title>
+<title>Launcher</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="shortcut icon" href="rabbit.png"><style>
 
@@ -182,5 +182,16 @@ root = tb, run
 body <= root
 
 
+</script>
+<script>
+var _logger = function(msg){
+  if(msg != "using indexedDB for stdlib modules cache"){
+    alert(msg)
+  }
+}
+
+//console.log=_logger
+//console.error=_logger
+//console.warning=_logger
 </script>
 </html>
