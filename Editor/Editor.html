@@ -752,6 +752,22 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
       
+def gatherby(l, k=None, m=None):
+  gb = {}
+  
+  if m:
+    for i in l:
+      gb.setdefault(k(i), []).append(m(i))
+  elif k:
+    for i in l:
+      gb.setdefault(k(i), []).append(i)
+  else:
+    for i in l:
+      gb.setdefault(i, []).append(i)
+  
+  return gb
+
+
   
 def chunk(l, n=1):
   current_batch = []
@@ -870,6 +886,30 @@ def align(l, *attrs, zip=zip):
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
 
 
+class Property:
+  __slots__ = 'name', 'onname', 'attr'
+  def __set_name__(self, owner, name):
+    self.name = name
+    self.onname = f'on_{name}'
+    self.attr = f'_{name}'
+
+  def __get__(self, instance, owner):
+    if not instance: return self
+    return getattr(instance, self.attr)
+
+  def __delete__(self, instance):
+    delattr(instance, self.attr)
+
+  def __set__(self, instance, value):
+    if hasattr(instance, self.attr):
+      old = getattr(instance, self.attr)
+      setattr(instance, self.attr, value)
+      
+      if old != value and (on:=getattr(instance, self.onname, None)):
+        on(value)
+    else:
+      setattr(instance, self.attr, value)
+  
 
 # --- end focus
 
@@ -1585,8 +1625,7 @@ class attrDict:
   def __repr__(self):
     return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
         for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
-
-
+        
 def stagger(l, d):
   d = d/len(l)
   def _stagger(f):
