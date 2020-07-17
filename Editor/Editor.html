@@ -885,30 +885,6 @@ def align(l, *attrs, zip=zip):
   # transpose back and return.
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
 
-
-class Property:
-  __slots__ = 'name', 'callback', 'attr'
-  def __set_name__(self, owner, name):
-    self.name = name
-    self.callback = getattr(owner, f'on_{name}', None)
-    self.attr = f'_{name}'
-
-  def __get__(self, instance, owner):
-    if not instance: return self
-    return getattr(instance, self.attr)
-
-  def __delete__(self, instance):
-    delattr(instance, self.attr)
-
-  def __set__(self, instance, value):
-    if hasattr(instance, self.attr):
-      old = getattr(instance, self.attr)
-      setattr(instance, self.attr, value)
-      
-      if old != value and self.callback:
-        self.callback(instance, value)
-    else:
-      setattr(instance, self.attr, value)
   
 
 # --- end focus
@@ -1187,9 +1163,7 @@ def better_sort():
   else:
     todo = parse_note(dat)
     
-    todo[1][:] = sorted(todo[1], key=lambda i: (i[3].lower(), i[1], i[2], i[0].lower()))
-    
-    cm_editbox.replaceSelection(note2str(todo))
+    cm_editbox.replaceSelection(note2sortedstr(todo))
   window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(oldpos.line)+", 'ch':"+str(oldpos.ch)+"})")
   window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
 def run_better_sort(cm, params):
@@ -1213,6 +1187,54 @@ def run_align(cm, params):
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
+
+def slots(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection().strip()
+  
+  out = '  __slots__ = ' + ', '.join(repr(i) for i in data.split(' '))
+    
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("slots", None, slots)
+
+def init(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection().strip()
+  
+  args = data.split(' ')
+  selfs = '\n'.join(f'    self.{i} = {i}' for i in args)
+  args = ', '.join(args)
+  
+  out = f'''  def __init__(self, {args}):
+{selfs}'''
+    
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("init", None, init)
+
+def props(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection().strip()
+  
+  args = data.split(' ')
+  out = ''
+  
+  for i in args:
+    out += f'''  @property
+  def {i}(self):
+    return self._{i}
+  @{i}.setter
+  def {i}(self, value):
+    if (old:=self._{i}) is not value:
+      self._{i} = value
+    
+'''
+    
+  window.vdo('gv')
+  cm_editbox.replaceSelection(out.strip('\n'))
+window.CodeMirror.Vim.defineEx("props", None, props)
+
 
 def double_tap(cm, params):
   try:
@@ -1550,42 +1572,66 @@ def complement(r, g, b, *_):
 #tuple(bytes.fromhex("aabbccaa"))
 
 def parse_note(s):
-  title= None
-  items = []
-  parent = None
+  title = None
+  items = {}
+  current_group = None
   parent_done = False
-  
+
   for row in s.strip().splitlines():
-    if not title and row.startswith('#'):
-      title = row.lstrip('#').strip()
+    if not title and row.startswith('['):
+      title = row.strip().lstrip('[').rstrip(']').strip()
       continue
-    
+
     sub = False
     done = False
-    
+
     if row.startswith(' '):
       sub = True
       row = row.strip(' ')
-      
-    if row.startswith('-'):
+
+    if row.startswith('#'):
       done = True
-      row = row.lstrip('-').strip()
-      
+      row = row.lstrip('#').strip()
+
     if not sub and row.strip():
-      parent = row
       parent_done = done
+      current_group = items.get(row, {'done': done, 'items': {}})
+      items[row] = current_group
+      continue
+
     if sub and parent_done:
       done = True
-      
-    items.append([row, sub, done, parent])
-    
-  return title, items
+
+    current_group['items'][row] = done
+  
+  return {'title': title, 'items': items}
   
 def note2str(n):
-  if n[0]:
-    return f'# {n[0]}\n' + '\n'.join(f'{sub and "  " or ""}{done and "- " or ""}{row}' for row, sub, done, parent in n[1])
+  if n['title']:
+    out = f"[ {n['title']} ]\n"
   else:
-    return '\n'.join(f'{sub and "  " or ""}{done and "- " or ""}{row}' for row, sub, done, parent in n[1])
+    out = ''
+  for k, v in n['items'].items():
+    out += f"{'# ' if v['done'] else ''}{k}\n"
+    for kk, vv in v['items'].items():
+      out += f"  {'# ' if (vv or v['done']) else ''}{kk}\n"
+  return out.strip()
+
+def note2sortedstr(n):
+  def item_sort(i):
+    return i[1], i[0].lower()
+  def group_sort(i):
+    return i[1]['done'], i[0].lower()
+
+  if n['title']:
+    out = f"[ {n['title']} ]\n"
+  else:
+    out = ''
+  for k, v in sorted(n['items'].items(), key=group_sort):
+    out += f"{'# ' if v['done'] else ''}{k}\n"
+    for kk, vv in sorted(v['items'].items(), key=item_sort):
+      out += f"  {'# ' if (vv or v['done']) else ''}{kk}\n"
+  return out.strip()
 
 
 def table(s, types={}, char='|'):
