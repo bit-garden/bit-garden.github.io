@@ -752,18 +752,16 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
       
-def gatherby(l, k=None, m=None):
+def gatherby(l, *keys):
   gb = {}
   
-  if m:
+  if len(keys) == 1:
+    k = keys[0]
     for i in l:
-      gb.setdefault(k(i), []).append(m(i))
-  elif k:
-    for i in l:
-      gb.setdefault(k(i), []).append(i)
+      gb.setdefault(i[k], []).append(i)
   else:
     for i in l:
-      gb.setdefault(i, []).append(i)
+      gb.setdefault(tuple(i[k] for k in keys), []).append(i)
   
   return gb
 
@@ -1139,31 +1137,27 @@ def better_sort():
     window.vdo('gv') # hack for vim visual stating on codemirror
   dat = cm_editbox.getSelection()
 
-  if '|' in dat:
-    # Genius snippet.
-    def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
-      return [int(text) if text.isdigit() else re.sub(r'\s\s+', ' ', text.strip().lower())
-              for text in _nsre.split(s)]
+  # Genius snippet.
+  def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+    return [int(text) if text.isdigit() else re.sub(r'\s\s+', ' ', text.strip().lower())
+            for text in _nsre.split(s)]
 
-    def if_comment(i):
-      if i.lstrip().startswith('#'):
-        return i
-      if i.strip() == '':
-        return ''
-      return False
+  def if_comment(i):
+    if i.lstrip().startswith('#'):
+      return i
+    if i.strip() == '':
+      return ''
+    return False
 
-    def better_sort(s):
-      gb = groupby(s.splitlines(), key=if_comment)
-      gb = [list(v) for k, v in gb]
-      #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
-      gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
-      return(gb)
+  def better_sort(s):
+    gb = groupby(s.splitlines(), key=if_comment)
+    gb = [list(v) for k, v in gb]
+    #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
+    gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
+    return(gb)
 
-    cm_editbox.replaceSelection(better_sort(dat))
-  else:
-    todo = parse_note(dat)
-    
-    cm_editbox.replaceSelection(note2sortedstr(todo))
+  cm_editbox.replaceSelection(better_sort(dat))
+
   window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(oldpos.line)+", 'ch':"+str(oldpos.ch)+"})")
   window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
 def run_better_sort(cm, params):
@@ -1177,13 +1171,8 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  if '|' in data:
-    out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
-  else:
-    todo = parse_note(data)
-    
-    out = note2str(todo)
-    
+  out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
+
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
@@ -1571,67 +1560,6 @@ def complement(r, g, b, *_):
 #decode hex to tuple
 #tuple(bytes.fromhex("aabbccaa"))
 
-def parse_note(s):
-  title = None
-  items = {}
-  current_group = None
-  parent_done = False
-
-  for row in s.strip().splitlines():
-    if not title and row.startswith('['):
-      title = row.strip().lstrip('[').rstrip(']').strip()
-      continue
-
-    sub = False
-    done = False
-
-    if row.startswith(' '):
-      sub = True
-      row = row.strip(' ')
-
-    if row.startswith('#'):
-      done = True
-      row = row.lstrip('#').strip()
-
-    if not sub and row.strip():
-      parent_done = done
-      current_group = items.get(row, {'done': done, 'items': {}})
-      items[row] = current_group
-      continue
-
-    if sub and parent_done:
-      done = True
-
-    current_group['items'][row] = done
-  
-  return {'title': title, 'items': items}
-  
-def note2str(n):
-  if n['title']:
-    out = f"[ {n['title']} ]\n"
-  else:
-    out = ''
-  for k, v in n['items'].items():
-    out += f"{'# ' if v['done'] else ''}{k}\n"
-    for kk, vv in v['items'].items():
-      out += f"  {'# ' if (vv or v['done']) else ''}{kk}\n"
-  return out.strip()
-
-def note2sortedstr(n):
-  def item_sort(i):
-    return i[1], i[0].lower()
-  def group_sort(i):
-    return i[1]['done'], i[0].lower()
-
-  if n['title']:
-    out = f"[ {n['title']} ]\n"
-  else:
-    out = ''
-  for k, v in sorted(n['items'].items(), key=group_sort):
-    out += f"{'# ' if v['done'] else ''}{k}\n"
-    for kk, vv in sorted(v['items'].items(), key=item_sort):
-      out += f"  {'# ' if (vv or v['done']) else ''}{kk}\n"
-  return out.strip()
 
 
 def table(s, types={}, char='|'):
