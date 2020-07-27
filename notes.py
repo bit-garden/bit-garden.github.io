@@ -1,6 +1,33 @@
+from itertools import zip_longest, permutations, groupby
+from operator import attrgetter
+
 #    
 # --- PURE PYTHON ---
 # there should be no platform specific code here
+
+class Q:
+  def __call__(self, arg):
+    if callable(arg):
+      def f(*l, **kw):
+        _ret = arg(*l, **kw)
+        args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
+        print(f'{arg.__qualname__}({args}) -> {_ret}')
+        return _ret
+        
+      f.__name__ = arg.__name__
+      f.__qualname__ = arg.__qualname__
+      return f
+    print(arg)
+    return arg
+    
+  def __or__(self, arg):
+    print(arg)
+    return arg
+  
+  __truediv__ = __div__ = __or__
+
+q = Q()
+
 
 class COLOR:
   crimson = (220, 20, 60)
@@ -17,301 +44,213 @@ def grouper(iterable, n, fillvalue=None):
   args = [iter(iterable)] * n
   return zip_longest(*args, fillvalue=fillvalue)
 
-def parse_by(string_in, delimiter=',', quotes=('"', "'")):
-  """ Splits text by lines accounting for quotes. """
-  
-  last = ''  # last valid quote character
-  last_idx = 0  # position of last quote character
-  ignore_next_char = False  # ignore next char. Used for backslashes
-  current_row = []  # contains currnet row until it's yielded
-
-  for idx, i in enumerate(string_in):
-    if ignore_next_char: 
-      ignore_next_char = False
-      continue
-    if i in quotes and not last:
-      last = i
-    elif i in quotes and i == last:
-      last = ''
-    #elif i == '\\':
-    #  ignore_next_char = True
-    elif not last and i in (delimiter, '\n'):
-      current_row.append(''.join(string_in[last_idx: idx].strip()))
-      if i == '\n':
-        yield current_row
-        current_row = []
-      last_idx = idx + 1
-  current_row.append(''.join(string_in[last_idx:].strip()))
-  yield current_row
-
-def slot(f, args='', *defaults, verbose=False):
+def slot(f, *components, verbose=False):
   """ A simple c-struct like generator. 
   
-  This can be used to decorate annotated classes as well.
   This does not inherit functions and constructs a new class from scratch
     using exec.
   """
-  
-  # Switch between decorator or normal call handling.
   if callable(f):
-    args = tuple({x for x in (i.__annotations__ for i in f.__mro__ if i is not object) for x in x})
-    defaults = [getattr(f, i) for i in args if hasattr(f, i)]
-    name = f.__name__
+    args = tuple({x for x in (vars(i) for i in f.__mro__ if i is not object) for x in x if not x.startswith('__')})
+    defaults = tuple(getattr(f, i) for i in args)
+    supers = tuple(i.__qualname__ for i in f.__mro__ if i is not object and i is not f)
+    components = '__components__ = ' + repr(supers)
+    name = f.__name__ 
+    
+    largs = ', '.join(args[:-len(defaults)] if defaults else args)
   else:
-    args = tuple(args.split(' '))
+    components = list(components)
+    slots = components.pop(0)
+    defaults = components
+    args = tuple(slots.split(' '))
+    largs = ', '.join(args[:-len(defaults)] if defaults else args)
     name = f
-  largs = ', '.join(args[:-len(defaults)] if defaults else args)
+    supers = ()
 
   # Gather list of collections
   collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
       if type(v) in (list, tuple, dict, set)}
 
   # Set default signature.
-  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' 
-      for k, v in zip(args[-len(defaults):], defaults))
+  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
   all_args = ', '.join(i for i in [largs, kwargs] if i)
 
   # Self setters.
-  sargs = '\n    '.join(f'self.{k} = {v}' 
-      for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' 
-      if i in collections else i for i in args)))
+  sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
 
   slot_template = f'''
 class {name}:
   __slots__ = {repr(args)}
+  {components if supers else ''}
   def __init__(self,
       {all_args}):
     {sargs}
 
+  def __iter__(self):
+    yield from ({", ".join(f"self.{i}" for i in args)})
+    
   def __repr__(self):
-    return f"""{{self.__class__.__name__}}({{", ".join(f"{{k}}={{getattr(self, k)!r}}" 
-        for k in self.__slots__)}})"""
+    return f"""{{self.__class__.__name__}}({{", ".join(f"{{k}}={{v!r}}" 
+        for k, v in zip(self.__slots__, self))}})"""
 '''.strip()
-
+  # Verbosity to print out generated code.
   if verbose:
     print(slot_template)
 
   local = {}
   exec(slot_template, local)
   return local[name]
-  
-# used with align function
-def is_num(string_in):
-  """ True if string is able to be casted to float. """
-  try:
-    float(string_in)
-    return True
-  except:
-    return False
 
-def align(*l):
+
+def parse_note(s):
+  title = None
+  items = {}
+  current_group = None
+  parent_done = False
+
+  for row in s.strip().splitlines():
+    if not title and row.startswith('['):
+      title = row.strip().lstrip('[').rstrip(']').strip()
+      continue
+
+    sub = False
+    done = False
+
+    if row.startswith(' '):
+      sub = True
+      row = row.strip(' ')
+
+    if row.startswith('#'):
+      done = True
+      row = row.lstrip('#').strip()
+
+    if not sub and row.strip():
+      parent_done = done
+      current_group = items.get(row, {'done': done, 'items': {}})
+      items[row] = current_group
+      continue
+
+    if sub and parent_done:
+      done = True
+
+    current_group['items'][row] = done
+  
+  return {'title': title, 'items': items}
+
+def note2str(n):
+  if n['title']:
+    out = f"[ {n['title']} ]\n"
+  else:
+    out = ''
+  for k, v in n['items'].items():
+    out += f"{'# ' if v['done'] else ''}{k}\n"
+    for kk, vv in v['items'].items():
+      out += f"  {'# ' if (vv or v['done']) else ''}{kk}\n"
+  return out.strip()
+
+def note2sortedstr(n):
+  def item_sort(i):
+    return i[1], i[0].lower()
+  def group_sort(i):
+    return i[1]['done'], i[0].lower()
+
+  if n['title']:
+    out = f"[ {n['title']} ]\n"
+  else:
+    out = ''
+  for k, v in sorted(n['items'].items(), key=group_sort):
+    out += f"{'# ' if v['done'] else ''}{k}\n"
+    for kk, vv in sorted(v['items'].items(), key=item_sort):
+      out += f"  {'# ' if (vv or v['done']) else ''}{kk}\n"
+  return out.strip()
+  
+def align(l, *attrs, zip=zip):
   """ Aligns lists into a table like structure for neatness.
   
   This also aligns number like values to the right.
   """
-  
-  # transpose and fill in table.
-  l = [[*i] for i in zip_longest(*(x for x in l for x in x), fillvalue='')]
+
+  l = (*l,)  # exhaust generators
+  if isinstance(l[0], dict):
+    h = attrs or l[0].keys()
+    l = [[f'{j}' for j in i] for i in zip(h, *([i[k] for k in h] for i in l))]
+  elif isinstance(l[0], (list, tuple)):
+    l = [[f'{j}' for j in i] for i in zip(*l)]
+  else:
+    h = attrs or (l[0].__slots__ if hasattr(l[0], '__slots__') else vars(l[0]))
+    l = [[f'{j}' for j in i] for i in zip(h, *([getattr(i, k) for k in h] for i in l))]
+
   for col in l:
-    column_width = max(len(f'{i}') for i in col)
-    col[:] = [f'{i}'.rjust(column_width) if is_num(i) else f'{i}'.ljust(column_width) 
-        for i in col]
+    column_width = len(max(col, key=len))
+    for idx, c in enumerate(col):
+      try:
+        float(c)
+        col[idx] = c.rjust(column_width)
+      except:
+        col[idx] = c.ljust(column_width)
   
   # transpose back and return.
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
-  
-def attr_map(instance, **kw):
-  """ Map dict to object attributes. (like dict.update())"""
-  for k, v in kw.items():
-    setattr(instance, k, v)
 
-def recycle(items, data, how=attr_map):
-  """ Recycles items using data. (like reusing ui elements) """
-  for i, d in zip_longest(items, data, fillvalue={}):
-    if isinstance(d, dict):
-      how(i, **d)
-    else:
-      how(i, **{k: getattr(d, k) for k in d.__slots__})
-      
-def parse(pattern, s):
-  """ Extract text from strings using pattern.
+def table(s, types={}, char='|'):
+  ds = ([j.strip() for j in i.split(char)] 
+    for i in s.strip().lstrip('#').splitlines()
+      if not i.strip().startswith('#'))
 
-  parse('[]:[]', '12:31') --> ['12', '31']
-  """
-  
-  if pattern.startswith('[]'):
-    pattern = ' ' + pattern
-    s = ' ' + s
-  ends = False
-  if pattern.endswith('[]'): ends = True
-  pattern = pattern.split('[]')
-  out = []
-  for idx, p in enumerate(pattern):
-    if ends and idx == len(pattern)-1:
-      out.append(s)
-    else:
-      _s = s.partition(p)
-      out.append(_s[0])
-      s = _s[2]
-  return out[1:]
-
-def lcast(l, *kinds):
-  """ Cast list of data. 
-  
-  If kinds is only one type, cast all elements in l to that type.
-  If more than one type, it maps the types to l.
-  """
-  
-  if len(kinds) == 1:
-    return (kinds[0](i) for i in l)
-  return [k(i) for k, i in zip(kinds, l)]
-  
-def fix_name(s):
-  """ Return a safe string for Table to use. """
-  safe = 'abcdefghijklmnopqurstuvwxyz0123456789'
-  s = s.lower()
-  if s[0] in '0123456789':
-    s = '_' + s
-  return ''.join(i if i in safe else '_' for i in s)
-
-def Table(s, char='|', extras=[], cast=None):
-  """ Splits string by lines and char.
-  
-  This returns Row objects with attributes that match the columns defined in the
-    pipe table.
-  Extra fields are generated from extras.
-  Fields can be casted automatically.
-  """
-  
-  ds = ([j.strip() for j in i.split(char)] for i in s.strip().lstrip('#').splitlines()
-      if (_i:=i.strip()) and not _i.startswith('#'))
-  heads = next(ds)
-  Row = slot('Row', ' '.join(fix_name(i) for i in heads+extras), *['' for i in extras])
-  if cast:
-    return [Row(*lcast(i, *cast)) for i in ds]
+  h = next(ds)
+  if types:
+    for i in ds:
+      yield {k: types[k](v or types[k]()) if k in types else v
+          for k, v in zip(h, i)}
   else:
-    return [Row(*i) for i in ds]
-    
-class Property:
-  __slots__ = 'default', 'name'
-  def __init__(self, default):
-    self.default = default
-    
-  def __set_name__(self, owner, name):
-    self.name = name
+    yield from (dict(zip(h, i)) for i in ds)
 
-  def __get__(self, instance, owner):
-    if not instance: return self
-    return getattr(instance, f'_{self.name}')
+def matrix(s, types=None, char='|'):
+  ds = ([j.strip() for j in i.split(char)] 
+    for i in s.strip().splitlines()
+      if not i.strip().startswith('#'))
 
-  def __delete__(self, instance):
-    delattr(instance, f'_{self.name}')
-
-  def __set__(self, instance, value):
-    if hasattr(instance, f'_{self.name}'):
-      old = getattr(instance, f'_{self.name}')
-      setattr(instance, f'_{self.name}', value)
-      if old != value:
-        instance.dispatch(self.name, value)
-    else:
-      setattr(instance, f'_{self.name}', value)
-      
-class Observable:
-  """ Observable base class for observable pattern. 
-  
-  Looks for Property objects in the parent classes to set defualt values and await changes.
-  """
-  __slots__ = 'callbacks',
-  
-  def __init__(self, *events, **kw):
-    props = {x for x in [dir(i) for i in self.__class__.__mro__] 
-        for x in x if isinstance(getattr(self.__class__, x, None), Property)}
-        
-    self.__class__.__props__ = props
-        
-    for i in props:
-      prop = getattr(self.__class__, i)
-      if prop.name in kw:
-        setattr(self, prop.name, kw.pop(prop.name))
-      else:
-        setattr(self, prop.name, type(prop.default)(prop.default))
-        
-    self.callbacks = {i:[] for i in (*props, *events)}
-
-  # Decorator and normal function
-  def bind(self, *l, **kw):
-    if kw:
-      for k, v in kw.items():
-        self.callbacks[k].append(v)
-    else:
-      def _bind(f):
-        self.callbacks[l[0]].append(f)
-        return f
-      return _bind
-
-  def unbind(self, **kw):
-    for k, v in kw.items():
-      self.callbacks[k].remove(v)
-
-  def dispatch(self, event, *l, **kw):
-    for c in reversed(self.callbacks[event]):
-      if c(self, *l, **kw) is True:
-        break
-    else:
-      if hasattr(self, f'on_{event}'):
-        getattr(self, f'on_{event}')(*l, **kw)
-      
-  def __repr__(self):
-    return f"""{self.__class__.__name__}({", ".join(f"{k}={getattr(self, k)!r}" 
-        for k in self.__props__)})"""
-      
-func_type = type(lambda:True)
-watch_depth = -1
-def watch(f):
-  """ Wrap class/functions to print out call graph live as the functions are called. """
-  if isinstance(f, type):
-    class _watch(f):
-      def __setattr__(self, key, value):
-        if (hasattr(self, key) and 
-            getattr(self, key) != value):
-          print(f'{"| "*(watch_depth+1)}{f.__name__}.__setattr__({self!r}, {key!r}, {value!r})')
-        super().__setattr__(key, value)
-
-    defs = [i for i in {*dir(_watch)} - {*dir(object)} 
-        if not i.startswith('__') and callable(getattr(_watch, i))]
-
-    for i in defs:
-      setattr(_watch, i, watch(getattr(_watch, i)))
-
-  elif not isinstance(f, func_type):
-    def _watch(self, *l, **kw):
-      global watch_depth
-      watch_depth += 1
-      print(f'{"| "*watch_depth}{f.__qualname__}('\
-          + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])+ ')')
-      ret = f(*l, **kw)
-      if ret is not None:
-        print(f'{"| "*(watch_depth)}|-> {ret!r}')
-      watch_depth -= 1
-      return ret
-
+  if not types:
+    yield from ds
+  elif isinstance(types, (list, tuple)):
+    for i in ds:
+      yield [k(v or k()) for k, v in zip(types, i)]
   else:
-    def _watch(*l, **kw):
-      global watch_depth
-      watch_depth += 1
-      print(f'{"| "*watch_depth}{f.__qualname__}('\
-          + ', '.join([repr(j) for j in l] + [f'{k}={v!r}' for k, v in kw.items()])+ ')')
-      ret = f(*l, **kw)
-      if ret is not None:
-        print(f'{"| "*(watch_depth)}|-> {ret!r}')
-      watch_depth -= 1
-      return ret
+    for i in ds:
+      yield [types(v or types()) for v in i]
 
-  _watch.__name__ = f.__name__
-  _watch.__qualname__ = f.__qualname__
 
-  return _watch
-      
+def chunk(l, n=1):
+  current_batch = []
+  for item in l:
+    current_batch.append(item)
+    if len(current_batch) == n:
+      yield current_batch
+      current_batch = []
+  if current_batch:
+    yield current_batch
+
+def gatherby(l, k=None, m=None):
+  gb = {}
+
+  if m:
+    for i in l:
+      gb.setdefault(k(i), []).append(m(i))
+  elif k:
+    for i in l:
+      gb.setdefault(k(i), []).append(i)
+  else:
+    def k(i):
+      return i
+    for i in l:
+      gb.setdefault(i, []).append(i)
+
+  return gb
+    
+
+
+
+    
 # --- color tools
 # dark material height to tint
 opacities = {0: 0, 1: .05, 2: .07, 3: .08, 4: .09, 6: .11, 8: .12, 12: .14, 16: .15, 24: .16}
@@ -353,20 +292,6 @@ def hilo(a, b, c):
 # --- timer methods
 import time
 #import asyncio
-
-class timer:
-  """ Timer context to time fragments of code. """
-  
-  def __init__(self, label='', func=print):
-    self.func = func
-    self.label = label
-
-  def __enter__(self):
-    self.start = time.time()
-    return self
-
-  def __exit__(self, *l):
-    self.func(f'{self.label} {time.time() - self.start}')
     
 class Ticker:
   """ Holds reference to last diff or tick of time. 
