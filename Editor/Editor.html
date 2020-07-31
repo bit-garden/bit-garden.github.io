@@ -755,7 +755,10 @@ class groupby:
 def gatherby(l, *keys):
   gb = {}
   
-  if len(keys) == 1:
+  if len(keys) == 0:
+    for i in l:
+      gb.setdefault(i, []).append(i)
+  elif len(keys) == 1:
     k = keys[0]
     for i in l:
       gb.setdefault(i[k], []).append(i)
@@ -883,7 +886,91 @@ def align(l, *attrs, zip=zip):
   # transpose back and return.
   return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
 
+def slot(f, *components, verbose=False):
+  """ A simple c-struct like generator. 
   
+  This does not inherit functions and constructs a new class from scratch
+    using exec.
+  """
+  if callable(f):
+    args = tuple({x for x in (vars(i) for i in f.__mro__ if i is not object) for x in x if not x.startswith('__')})
+    defaults = tuple(getattr(f, i) for i in args)
+    supers = tuple(i.__qualname__ for i in f.__mro__ if i is not object and i is not f)
+    components = '__components__ = ' + repr(supers)
+    name = f.__name__ 
+    
+    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+  else:
+    components = list(components)
+    slots = components.pop(0)
+    defaults = components
+    args = tuple(slots.split(' '))
+    largs = ', '.join(args[:-len(defaults)] if defaults else args)
+    name = f
+    supers = ()
+
+  # Gather list of collections
+  collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
+      if type(v) in (list, tuple, dict, set)}
+
+  # Set default signature.
+  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
+  all_args = ', '.join(i for i in [largs, kwargs] if i)
+
+  # Self setters.
+  sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
+
+  slot_template = f'''
+class {name}:
+  __slots__ = {repr(args)}
+  {components if supers else ''}
+  def __init__(self,
+      {all_args}):
+    {sargs}
+        
+  def __repr__(self):
+    return self.__class__.__name__ + '(' + ', '.join(f'{{k}}={{getattr(self, k, None)!r}}'
+        for k in self.__slots__) + ')'
+'''.strip()
+  # Verbosity to print out generated code.
+  if verbose:
+    print(slot_template)
+
+  local = {}
+  exec(slot_template, local)
+  return local[name]
+  
+  
+def todict(obj):
+  # dict
+  if isinstance(obj, dict):
+    #return {k: todict(v) for k, v in obj.items()}
+    data = {}
+    for k, v in obj.items():
+      data[k] = todict(v)
+    return data
+  # slot objects
+  elif hasattr(obj, '__slots__'):
+    #return {k: todict(getattr(obj, k)) for k in obj.__slots__} # brython issue
+    data = {}
+    for k in obj.__slots__:
+      data[k] = todict(getattr(obj, k))
+    return data
+  # something iterable, like tuples or lists
+  elif hasattr(obj, "__iter__") and not isinstance(obj, str):
+    return type(obj)(todict(v) for v in obj)
+  # simple classes
+  elif hasattr(obj, "__dict__"):
+    #return {k: todict(v) for k, v in obj.__dict__.items()
+    #  if not callable(v) and not k.startswith('_')}
+    data = {}
+    for k, v in obj.__dict__.items():
+      if not callable(v) and not k.startswith('_'):
+        data[k] = todict(v)
+    return data
+  # finally simple type
+  else:
+    return obj
 
 # --- end focus
 
@@ -1177,30 +1264,6 @@ def run_align(cm, params):
   cm_editbox.replaceSelection(out.strip('\n'))
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
-def slots(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection().strip()
-  
-  out = '  __slots__ = ' + ', '.join(repr(i) for i in data.split(' '))
-    
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("slots", None, slots)
-
-def init(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection().strip()
-  
-  args = data.split(' ')
-  selfs = '\n'.join(f'    self.{i} = {i}' for i in args)
-  args = ', '.join(args)
-  
-  out = f'''  def __init__(self, {args}):
-{selfs}'''
-    
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("init", None, init)
 
 def props(cm, params):
   window.vdo('gv')
