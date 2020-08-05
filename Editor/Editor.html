@@ -182,7 +182,7 @@ button, textarea, input{
   background: none;
   color: rgba(255,255,255,.87);
   border: none;
-  border-bottom: 2px solid rgb(220, 20, 60);
+  border-bottom: 1px solid rgb(222, 222, 222);
   outline: none;
   box-sizing: border-box;
 }
@@ -230,7 +230,7 @@ div:focus > .show_over {
 }
 
 .warn{
-  border-bottom: 2px solid #B00020;
+  border-bottom: 1px solid #B00020;
 }
 
 ::placeholder {
@@ -907,7 +907,7 @@ def slot(f, *components, verbose=False):
     args = tuple(slots.split(' '))
     largs = ', '.join(args[:-len(defaults)] if defaults else args)
     name = f
-    supers = ()
+    supers = None
 
   # Gather list of collections
   collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
@@ -919,11 +919,13 @@ def slot(f, *components, verbose=False):
 
   # Self setters.
   sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
+  
+  reprs = f'return f"{name}(' + ', '.join(f'{a}={{self.{a}!r}}' for a in args) + ')"'
 
   slot_template = f'''
 class {name}:
   __slots__ = {repr(args)}
-  {components if supers else ''}
+  {components if supers is not None else ''}
   def __init__(self,
       {all_args}):
     {sargs}
@@ -932,8 +934,7 @@ class {name}:
     yield from ({', '.join(f'self.{i}' for i in args)})
         
   def __repr__(self):
-    return self.__class__.__name__ + '(' + ', '.join(f'{{k}}={{getattr(self, k, None)!r}}'
-        for k in self.__slots__) + ')'
+    {reprs}
 '''.strip()
   # Verbosity to print out generated code.
   if verbose:
