@@ -94,7 +94,7 @@
   overflow:hidden;
   }
   .CodeMirror-hints{
-  background: rgba(18,18,18, 1);
+  background: rgba(0,0,0, 1);
   color:white;
   overflow:hidden;
   }
@@ -116,7 +116,7 @@
   font-size: 14px;
   cursor: default;
   color: white;
-  background-color: rgba(18,18,18, 1);
+  background-color: rgba(0,0,0, 1);
   /*box-shadow: 0 4px 8px #000;*/
   outline: none;
   font-family: Mono !important;
@@ -858,33 +858,33 @@ def grouper(iterable, n, fillvalue=None):
   return zip_longest(*args, fillvalue=fillvalue)
 
 
-def align(l, *attrs, zip=zip):
-  """ Aligns lists into a table like structure for neatness.
-  
-  This also aligns number like values to the right.
-  """
-
-  l = tuple(l)  # exhaust generators
-  if isinstance(l[0], dict):
-    h = attrs or l[0].keys()
-    l = [[f'{j}' for j in i] for i in zip(h, *([i[k] for k in h] for i in l))]
-  elif isinstance(l[0], (list, tuple)):
-    l = [[f'{j}' for j in i] for i in zip(*l)]
-  else:
-    h = attrs or (l[0].__slots__ if hasattr(l[0], '__slots__') else vars(l[0]))
-    l = [[f'{j}' for j in i] for i in zip(h, *([getattr(i, k) for k in h] for i in l))]
-
-  for col in l:
-    column_width = len(max(col, key=len))
-    for idx, c in enumerate(col):
-      try:
-        float(c)
-        col[idx] = c.rjust(column_width)
-      except:
-        col[idx] = c.ljust(column_width)
-  
-  # transpose back and return.
-  return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
+#def align(l, *attrs, zip=zip):
+#  """ Aligns lists into a table like structure for neatness.
+#  
+#  This also aligns number like values to the right.
+#  """
+#
+#  l = tuple(l)  # exhaust generators
+#  if isinstance(l[0], dict):
+#    h = attrs or l[0].keys()
+#    l = [[f'{j}' for j in i] for i in zip(h, *([i[k] for k in h] for i in l))]
+#  elif isinstance(l[0], (list, tuple)):
+#    l = [[f'{j}' for j in i] for i in zip(*l)]
+#  else:
+#    h = attrs or (l[0].__slots__ if hasattr(l[0], '__slots__') else vars(l[0]))
+#    l = [[f'{j}' for j in i] for i in zip(h, *([getattr(i, k) for k in h] for i in l))]
+#
+#  for col in l:
+#    column_width = len(max(col, key=len))
+#    for idx, c in enumerate(col):
+#      try:
+#        float(c)
+#        col[idx] = c.rjust(column_width)
+#      except:
+#        col[idx] = c.ljust(column_width)
+#  
+#  # transpose back and return.
+#  return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
 
 def slot(f, *components, verbose=False):
   """ A simple c-struct like generator. 
@@ -1200,20 +1200,20 @@ def visual_shard(*l, **kw):
   #print(editbox.value.splitlines()[start:end])
 window.CodeMirror.Vim.defineEx("visual_shard", None, visual_shard)
 
-def do_tp() -> None:
-  try:
-    window.vdo("gvo")
-    data = cm_editbox.getSelection()
-    data = list(list(i) for i in zip_longest(*([j.strip() for j in i.split('|')] for i in data.splitlines())))
-    out = align(data)
-    cm_editbox.replaceSelection(out.strip('\n'))
-  except Exception as e:
-    import traceback
-    window.make_popup(traceback.format_exc())
-
-def run_tp(cm, params):
-  do_tp()
-window.CodeMirror.Vim.defineEx("do_tp", None, run_tp)
+#def do_tp() -> None:
+#  try:
+#    window.vdo("gvo")
+#    data = cm_editbox.getSelection()
+#    data = list(list(i) for i in zip_longest(*([j.strip() for j in i.split('|')] for i in data.splitlines())))
+#    out = align(data)
+#    cm_editbox.replaceSelection(out.strip('\n'))
+#  except Exception as e:
+#    import traceback
+#    window.make_popup(traceback.format_exc())
+#
+#def run_tp(cm, params):
+#  do_tp()
+#window.CodeMirror.Vim.defineEx("do_tp", None, run_tp)
 
 def runpy(cm, params):
   #g = globals()
@@ -1265,7 +1265,8 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
+  #out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
+  out = align(table(data))
 
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
@@ -1632,32 +1633,29 @@ def complement(r, g, b, *_):
 
 
 
-def table(s, types={}, char='|'):
-  ds = ([j.strip() for j in i.split(char)] 
-    for i in s.strip().lstrip('#').splitlines()
-      if not i.strip().startswith('#'))
-
-  h = next(ds)
-  if types:
-    for i in ds:
-      yield {k: types[k](v or types[k]()) if k in types else v
-          for k, v in zip(h, i)}
-  else:
-    yield from (dict(zip(h, i)) for i in ds)
-        
-def matrix(s, types=None, char='|'):
-  ds = ([j.strip() for j in i.split(char)] 
-    for i in s.strip().splitlines()
-      if not i.strip().startswith('#'))
-   
-  if not types:
-    yield from ds
-  elif isinstance(types, (list, tuple)):
-    for i in ds:
-      yield [k(v or k()) for k, v in zip(types, i)]
-  else:
-    for i in ds:
-      yield [types(v or types()) for v in i]
+def table(s, cast=None, char='|'):
+  out = [[j.strip() for j in i.split(char)]
+      for i in s.strip().splitlines()]
+      
+  width = len(out[0])
+  
+  if cast:
+    return [cast(dict(zip(out[0], i+(['']*(width-len(i)))))) for i in out[1:]]
+  return [dict(zip(out[0], i+(['']*(width-len(i))))) for i in out[1:]]
+  
+def align(l, cast=None):
+  if cast:
+    l = [cast(i) for i in l]
+    
+  widths = {k: len(k) for k in l[0].keys()}
+  
+  for i in l:
+    for k, v in i.items():
+      i[k] = str(v)
+      widths[k] = max(len(i[k]), widths[k])
+    
+  return ' | '.join(i.rjust(widths[i]) if i.endswith(':') else i.ljust(widths[i]) for i in widths.keys()).rstrip() + '\n' + \
+      '\n'.join(' | '.join(v.rjust(widths[k]) if k.endswith(':') else v.ljust(widths[k]) for k, v in i.items()).rstrip() for i in l)
 
 class attrDict:
   def __init__(self, **kw):
