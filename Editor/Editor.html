@@ -303,14 +303,14 @@ CodeMirror.Vim.map('<Tab>r', ':js alignRight()', 'visual')
 CodeMirror.Vim.map('<Tab>l', ':js alignLeft()', 'visual')
 CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
 
-//CodeMirror.Vim.map('(', ':double_tap ()', 'insert')
-//CodeMirror.Vim.map(')', ':double_tap )', 'insert')
-//CodeMirror.Vim.map('{', ':double_tap {}', 'insert')
-//CodeMirror.Vim.map('}', ':double_tap }', 'insert')
-//CodeMirror.Vim.map('[', ':double_tap []', 'insert')
-//CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
-//CodeMirror.Vim.map('"', ':double_tap "', 'insert')
-//CodeMirror.Vim.map("'", ":double_tap '", 'insert')
+CodeMirror.Vim.map('(', ':double_tap ()', 'insert')
+CodeMirror.Vim.map(')', ':double_tap )', 'insert')
+CodeMirror.Vim.map('{', ':double_tap {}', 'insert')
+CodeMirror.Vim.map('}', ':double_tap }', 'insert')
+CodeMirror.Vim.map('[', ':double_tap []', 'insert')
+CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
+CodeMirror.Vim.map('"', ':double_tap "', 'insert')
+CodeMirror.Vim.map("'", ":double_tap '", 'insert')
 
 CodeMirror.Vim.unmap('s', 'visual')
 CodeMirror.Vim.map('s(', ':surround ()', 'visual')
@@ -1754,7 +1754,121 @@ def throttle(d):
     return __throttle
   return _throttle
 
-
+class HiveList:
+  def __init__(self, box, items=None, key=None, _refs=None):
+    self.box = box  # owning box
+    box.addList(self)  # register self to owning box
+    self.key = key
+    self.refs = list(_refs) or []  # for loading repr'd hive lists
+    
+    # build reference list to items
+    if items:
+      for i in items:
+        self.refs.append(next(k for k, v in box.items() if i is v))
+        
+  # call to remove list registration with box
+  def dispose(self):
+    self.box.removeList(self)
+    
+  def __repr__(self):
+    return str(tuple(self.refs))
+  def __str__(self):
+    return str(tuple(self.box[r] for r in self.refs))
+    
+  def __setitem__(self, key, value):
+    self.refs[key] = next(k for k, v in self.box.items() if value is v)
+    # dispatch change to listenables
+    self.box.dispatch(BoxEvent(self.key, self, False))
+    
+  def __getitem__(self, key):
+    return self.box[self.refs[key]]
+    
+  def __delitem__(self, key):
+    del self.refs[key]
+    # dispatch
+    self.box.dispatch(BoxEvent(self.key, None, True))
+    
+  def append(self, value):
+    self.refs.append(next(k for k, v in self.box.items() if value is v))
+    self.box.dispatch(BoxEvent(self.key, self, False))
+    
+  def extend(self, values):
+    self.refs.extend([next(k for k, v in self.box.items() if val is v) for val in values])
+    self.box.dispatch(BoxEvent(self.key, self, False))
+    
+  def remove(self, value):
+    for i in self.refs[:]:
+      if value is self.box[i]:
+        self.refs.remove(i)
+        # dispatch
+        self.box.dispatch(BoxEvent(self.key, None, True))
+        break
+    
+# event notifications
+class BoxEvent:
+  __slots__ = ('key', 'value', 'deleted')
+  def __init__(self, key, value, deleted):
+    self.key, self.value, self.deleted = key, value, deleted
+    
+  def __repr__(self):
+    return f'BoxEvent({self.key}, {self.value}, {self.deleted})'
+    
+class Box(dict):
+  def __init__(self, *largs, **kwargs):
+    self.listeners = {'': []}
+    self.hivelists = []
+    super().__init__(*largs, **kwargs)
+    
+    for k, v in self.items():
+      if isinstance(v, tuple):
+        self[k] = HiveList(self, _refs=v, key=k)
+      
+      if isinstance(v, dict):
+        for kk, vv in v.items():
+          if isinstance(vv, tuple):
+            v[kk] = HiveList(self, _refs=vv, key=k)
+    
+  def dispatch(self, event):
+    for l in self.listeners.get(event.key, []):
+      l(event)
+    for l in self.listeners['']:
+      l(event)
+      
+  def watch(self, fun, key=''):
+    self.listeners.setdefault(key, []).append(fun)
+    
+  def unwatch(self, fun, key=''):
+    self.listeners[key].remove(fun)
+    
+  # should be called by HiveList only
+  def addList(self, hl):
+    self.hivelists.append(hl)
+    
+  # should be called by HiveList only
+  def removeList(self, hl):
+    self.hivelists.remove(hl)
+    
+  # add incrementing key
+    
+  # updated key value
+  def __setitem__(self, attr, value):
+    super().__setitem__(attr, value)
+    
+    if isinstance(value, HiveList):
+      value.key = attr
+    
+    self.dispatch(BoxEvent(attr, value, False))
+      
+  # delete key value, update all hivelists
+  def __delitem__(self, attr):
+    for hl in self.hivelists:
+      if attr in hl.refs:
+        hl.refs.remove(attr)
+        self.dispatch(BoxEvent(hl.key, hl, False))
+        
+    super().__delitem__(attr)
+      
+    self.dispatch(BoxEvent(attr, None, True))
 
   
 </script>
