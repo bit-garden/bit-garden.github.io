@@ -1759,7 +1759,7 @@ class HiveList:
     self.box = box  # owning box
     box.addList(self)  # register self to owning box
     self.key = key
-    self.refs = list(_refs) or []  # for loading repr'd hive lists
+    self.refs = list(_refs) if _refs else []  # for loading repr'd hive lists
     
     # build reference list to items
     if items:
