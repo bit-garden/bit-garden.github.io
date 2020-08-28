@@ -1864,7 +1864,7 @@ class Box(dict):
     for hl in self.hivelists:
       if attr in hl.refs:
         hl.refs.remove(attr)
-        self.dispatch(BoxEvent(hl.key, hl, False))
+        self.dispatch(BoxEvent(hl.key, hl, True))
         
     super().__delitem__(attr)
       
