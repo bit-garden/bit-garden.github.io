@@ -2042,5 +2042,10 @@ def ValueListenableBuilder(value, builder, child=None):
   
   return widget
   
+def bind(el, **kw):
+  for k, v in kw.items():
+    el.bind(k, v)
+  return el
+  
 </script>
 </html>
