@@ -1430,7 +1430,7 @@ class El:
   def __exit__(self, *l):
     self.el.remove()
     
-class Box(DIV):
+class UIBox(DIV):
   def __init__(self, *l, x=0, y=0, width=0, height=0, display='inline', 
       opacity=1, axis=('left', 'top'), **kw):
     for k, v in (
@@ -1870,6 +1870,177 @@ class Box(dict):
       
     self.dispatch(BoxEvent(attr, None, True))
 
+class ChangeNotifier:
+  def __init__(self):
+    self._listeners = []
+    
+  @classmethod
+  def merge(cls, listenables):
+    c = cls()
+    for l in listenables:
+      l.addListener(c.notifyListeners)
+    return c
+      
+  def addListener(self, f):
+    self._listeners.append(f)
+
+  def removeListener(self, f):
+    self._listeners.remove(f)
+
+  def dispose(self):
+    self._listeners.clear()
+
+  def notifyListeners(self):
+    for l in self._listeners[:]:
+      try:
+        l()
+      except Exception as e:
+        print(e)
+
+  @property
+  def hasListeners(self):
+    return self._listeners == []
+
+class ValueNotifier(ChangeNotifier):
+  def __init__(self, value):
+    super().__init__()
+    self._value = value
+
+  def __repr__(self):
+    return repr(self._value)
+  def __str__(self):
+    return str(self._value)
+
+  @property
+  def value(self):
+    return self._value
+  @value.setter
+  def value(self, value):
+    if self._value == value:
+      return
+    self._value = value
+    self.notifyListeners()
+
+class ListNotifier(ChangeNotifier, list):
+  def __init__(self, *l, **kw):
+    list.__init__(self, *l, **kw)
+    ChangeNotifier.__init__(self)
+
+  def __setitem__(self, *l, **kw):
+    list.__setitem__(self, *l, **kw)
+    self.notifyListeners()
+
+  def __delitem__(self, *l, **kw):
+    list.__delitem__(self, *l, **kw)
+    self.notifyListeners()
+
+  def __iadd__(self, *l, **kw):
+    list.__iadd__(self, *l, **kw)
+    self.notifyListeners()
+
+  def __imul__(self, *l, **kw):
+    list.__imul__(self, *l, **kw)
+    self.notifyListeners()
+
+  def append(self, *l, **kw):
+    list.append(self, *l, **kw)
+    self.notifyListeners()
+
+  def remove(self, *l, **kw):
+    list.remove(self, *l, **kw)
+    self.notifyListeners()
+
+  def insert(self, *l, **kw):
+    list.insert(self, *l, **kw)
+    self.notifyListeners()
+
+  def pop(self, *l, **kw):
+    list.pop(self, *l, **kw)
+    self.notifyListeners()
+
+  def extend(self, *l, **kw):
+    list.extend(self, *l, **kw)
+    self.notifyListeners()
+
+  def sort(self, *l, **kw):
+    list.sort(self, *l, **kw)
+    self.notifyListeners()
+
+  def reverse(self, *l, **kw):
+    list.reverse(self, *l, **kw)
+    self.notifyListeners()
+
+  def clear(self, *l, **kw):
+    list.clear(self, *l, **kw)
+    self.notifyListeners()
+
+class DictNotifier(ChangeNotifier, dict):
+  def __init__(self, *l, **kw):
+    dict.__init__(self, *l, **kw)
+    ChangeNotifier.__init__(self)
+
+  def __setitem__(self, *l, **kw):
+    dict.__setitem__(self, *l, **kw)
+    self.notifyListeners()
+
+  def __delitem__(self, *l, **kw):
+    dict.__delitem__(self, *l, **kw)
+    self.notifyListeners()
+
+  def remove(self, *l, **kw):
+    dict.remove(self, *l, **kw)
+    self.notifyListeners()
+
+  def insert(self, *l, **kw):
+    dict.insert(self, *l, **kw)
+    self.notifyListeners()
+
+  def pop(self, *l, **kw):
+    dict.pop(self, *l, **kw)
+    self.notifyListeners()
+
+  def extend(self, *l, **kw):
+    dict.extend(self, *l, **kw)
+    self.notifyListeners()
+
+  def popitem(self, *l, **kw):
+    dict.popitem(self, *l, **kw)
+    self.notifyListeners()
+
+  def setdefaultupdate(self, *l, **kw):
+    dict.setdefaultupdate(self, *l, **kw)
+    self.notifyListeners()
+
+  def clear(self, *l, **kw):
+    dict.clear(self, *l, **kw)
+    self.notifyListeners()
+
+def toNotifier(obj):
+  if isinstance(obj, dict):
+    d = DictNotifier({k: toNotifier(v) for k, v in obj.items()})
+    for k, v in d.items():
+      if isinstance(v, (ListNotifier, DictNotifier)):
+        v.addListener(d.notifyListeners)
+    return d
+  elif isinstance(obj, list):
+    l = ListNotifier(toNotifier(v) for v in obj)
+    for v in l:
+      if isinstance(v, (ListNotifier, DictNotifier)):
+        v.addListener(l.notifyListeners)
+    return l
+  else:
+    return obj
+    
+def ValueListenableBuilder(value, builder, child=None):
+  widget = SPAN(builder(value, child))
+  
+  def build():
+    widget.clear()
+    widget <= builder(value, child)
+    
+  value.addListener(build)
+  
+  return widget
   
 </script>
 </html>
