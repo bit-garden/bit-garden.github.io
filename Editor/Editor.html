@@ -2037,7 +2037,7 @@ def toNotifier(obj):
     #l = ListNotifier(toNotifier(v) for v in obj)
     l = ListNotifier([])
     for i in obj:
-      l.append(i)
+      l.append(toNotifier(i))
     for v in l:
       if isinstance(v, (ListNotifier, DictNotifier)):
         v.addListener(l.notifyListeners)
