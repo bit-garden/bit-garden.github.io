@@ -1955,8 +1955,9 @@ class ListNotifier(ChangeNotifier, list):
     self.notifyListeners()
 
   def pop(self, *l, **kw):
-    list.pop(self, *l, **kw)
+    t = list.pop(self, *l, **kw)
     self.notifyListeners()
+    return t
 
   def extend(self, *l, **kw):
     list.extend(self, *l, **kw)
@@ -1996,34 +1997,47 @@ class DictNotifier(ChangeNotifier, dict):
     self.notifyListeners()
 
   def pop(self, *l, **kw):
-    dict.pop(self, *l, **kw)
+    t = dict.pop(self, *l, **kw)
     self.notifyListeners()
+    return t
 
   def extend(self, *l, **kw):
     dict.extend(self, *l, **kw)
     self.notifyListeners()
 
   def popitem(self, *l, **kw):
-    dict.popitem(self, *l, **kw)
+    t = dict.popitem(self, *l, **kw)
     self.notifyListeners()
+    return t
 
   def setdefaultupdate(self, *l, **kw):
-    dict.setdefaultupdate(self, *l, **kw)
+    t = dict.setdefaultupdate(self, *l, **kw)
     self.notifyListeners()
+    return t
 
   def clear(self, *l, **kw):
     dict.clear(self, *l, **kw)
     self.notifyListeners()
+    
+  def update(self, *l, **kw):
+    dict.update(self, *l, **kw)
+    self.notifyListeners()
 
 def toNotifier(obj):
   if isinstance(obj, dict):
-    d = DictNotifier({k: toNotifier(v) for k, v in obj.items()})
+    #d = DictNotifier({k: toNotifier(v) for k, v in obj.items()})
+    d = DictNotifier({})
+    for k, v in obj.items():
+      d[k] = toNotifier(v)
     for k, v in d.items():
       if isinstance(v, (ListNotifier, DictNotifier)):
         v.addListener(d.notifyListeners)
     return d
   elif isinstance(obj, list):
-    l = ListNotifier(toNotifier(v) for v in obj)
+    #l = ListNotifier(toNotifier(v) for v in obj)
+    l = ListNotifier([])
+    for i in obj:
+      l.append(i)
     for v in l:
       if isinstance(v, (ListNotifier, DictNotifier)):
         v.addListener(l.notifyListeners)
