@@ -754,20 +754,25 @@ class groupby:
         return
       self.currkey = self.keyfunc(self.currvalue)
       
-def gatherby(l, *keys):
+#def gatherby(l, *keys):
+#  gb = {}
+#  
+#  if len(keys) == 0:
+#    for i in l:
+#      gb.setdefault(i, []).append(i)
+#  elif len(keys) == 1:
+#    k = keys[0]
+#    for i in l:
+#      gb.setdefault(i[k], []).append(i)
+#  else:
+#    for i in l:
+#      gb.setdefault(tuple(i[k] for k in keys), []).append(i)
+#  
+#  return gb
+
+def groupBy(l, key):
   gb = {}
-  
-  if len(keys) == 0:
-    for i in l:
-      gb.setdefault(i, []).append(i)
-  elif len(keys) == 1:
-    k = keys[0]
-    for i in l:
-      gb.setdefault(i[k], []).append(i)
-  else:
-    for i in l:
-      gb.setdefault(tuple(i[k] for k in keys), []).append(i)
-  
+  for i in l: gb.setdefault(key(i), []).append(i)
   return gb
 
 
@@ -1267,7 +1272,13 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  #out = align(([j.strip() for j in i.split('|')] for i in data.splitlines()), zip=lambda *i: zip_longest(*i, fillvalue=''))
+  
+  def table(s, cast=None, char='|'):
+    if cast is None: cast = lambda i: i
+    out = [[j.strip() for j in i.split(char)] for i in s.strip().splitlines()]
+    width = len(out[0])
+    return [cast(dict(zip(out[0], i+(['']*(width-len(i)))))) for i in out[1:]]
+  
   out = align(table(data))
 
   window.vdo('gv')
@@ -1478,6 +1489,22 @@ class Icon(I):
     
     self.style['font-size'] = font_size
 
+class Dot(DIV):
+  def __init__(self, *l, color='blue', shown=False, axis=('top', 'right')):
+    self.color = color
+    self.shown = shown
+    
+    super().__init__(*l, style={
+      'background': color,
+      'display': 'default' if shown else 'none',
+      'position': 'absolute',
+      axis[0]: 0,
+      axis[1]: 0,
+      'border-radius': '64px',
+      'min-width': '12px',
+      'min-height': '12px',
+      'box-shadow': '0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)',
+      })
 
 def make_ripple(el, base_color=(18,18,18,1), no_key=False):
   mutator = tint if is_dark(*base_color) else shade
@@ -1636,28 +1663,28 @@ def complement(r, g, b, *_):
 
 
 def table(s, cast=None, char='|'):
-  out = [[j.strip() for j in i.split(char)]
-      for i in s.strip().splitlines()]
-      
+  if cast is None: cast = lambda i: i
+  out = [[j.strip() for j in i.split(char)] for i in s.strip().splitlines() if i.strip() and not i.strip().startswith('#')]
   width = len(out[0])
+  return [cast(dict(zip(out[0], i+(['']*(width-len(i)))))) for i in out[1:]]
   
-  if cast:
-    return [cast(dict(zip(out[0], i+(['']*(width-len(i)))))) for i in out[1:]]
-  return [dict(zip(out[0], i+(['']*(width-len(i))))) for i in out[1:]]
+def matrix(s, cast=None, char='|'):
+  if cast is None: cast = lambda i: i
+  return [
+    cast([j.strip() for j in i.split(char)])
+      for i in s.strip().splitlines()]
   
 def align(l, cast=None):
-  if cast:
-    l = [cast(i) for i in l]
-    
+  if cast: l = [cast(i) for i in cast]
   widths = {k: len(k) for k in l[0].keys()}
   
   for i in l:
     for k, v in i.items():
       i[k] = str(v)
-      widths[k] = max(len(i[k]), widths[k])
-    
-  return ' | '.join(i.rjust(widths[i]) if i.endswith(':') else i.ljust(widths[i]) for i in widths.keys()).rstrip() + '\n' + \
-      '\n'.join(' | '.join(v.rjust(widths[k]) if k.endswith(':') else v.ljust(widths[k]) for k, v in i.items()).rstrip() for i in l)
+      if len(i[k]) > widths[k]: widths[k] = len(i[k])
+      
+  return '\n'.join(' | '.join(v.rjust(widths[k]) if k.endswith(':') else v.ljust(widths[k]) for k, v in i.items()).rstrip() 
+      for i in [{k:k for k in widths.keys()}, *l])
 
 class attrDict:
   def __init__(self, **kw):
