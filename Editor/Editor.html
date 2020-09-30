@@ -319,6 +319,7 @@ CodeMirror.Vim.map('s[', ':surround []', 'visual')
 CodeMirror.Vim.map('s]', ':surround []', 'visual')
 CodeMirror.Vim.map('s{', ':surround {}', 'visual')
 CodeMirror.Vim.map('s}', ':surround {}', 'visual')
+CodeMirror.Vim.map('sq', ':surround q', 'visual')
 
 CodeMirror.Vim.map("s'", ":surround ''", 'visual')
 CodeMirror.Vim.map('s"', ':surround ""', 'visual')
@@ -1335,7 +1336,10 @@ def run_surround(cm, params):
     chars = params.argString.strip()
     window.vdo("gv")
     data = cm_editbox.getSelection()
-    out = f'{chars[0]}{data}{chars[1]}'
+    if chars=='q':
+      out = f'q({data})'
+    else:
+      out = f'{chars[0]}{data}{chars[1]}'
     cm_editbox.replaceSelection(out.strip('\n'))
     window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
   except Exception as e:
@@ -2078,8 +2082,11 @@ def ValueListenableBuilder(value, builder, child=None):
   widget = SPAN(builder(value, child))
   
   def build():
+    last_focus = doc.activeElement
     widget.clear()
     widget <= builder(value, child)
+    if last_focus.inside(widget):
+      last_focus.focus()
     
   value.addListener(build)
   
