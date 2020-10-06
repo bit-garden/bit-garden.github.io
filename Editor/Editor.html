@@ -2114,18 +2114,22 @@ class Stateful(SPAN):
   def __init__(self, data, builder):
     self.data = data
     self.builder = builder
+    self.isDirty = False
     super().__init__(self.builder(self))
     
-  def build(self):
+  def build(self, *l, **kw):
     last_focus = doc.activeElement
     self.clear()
     self <= self.builder(self)
-    if last_focus.inside(widget):
+    if last_focus.inside(self):
       last_focus.focus()
+    self.isDirty = False
     
   def setState(self, f=None):
     if f: f()
-    self.build()
+    if not self.isDirty:
+      self.isDirty = True
+      window.requestAnimationFrame(self.build)
   
 def bind(el, **kw):
   for k, v in kw.items():
