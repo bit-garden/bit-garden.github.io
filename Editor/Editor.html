@@ -1495,8 +1495,8 @@ class Icon(I):
 
 class Dot(DIV):
   def __init__(self, *l, color='blue', shown=False, axis=('top', 'right')):
-    self.color = color
     self.shown = shown
+    self.color = color
     
     super().__init__(*l, style={
       'background': color,
@@ -1505,10 +1505,27 @@ class Dot(DIV):
       axis[0]: 0,
       axis[1]: 0,
       'border-radius': '64px',
-      'min-width': '12px',
-      'min-height': '12px',
+      'min-width': '16px',
+      'min-height': '16px',
       'box-shadow': '0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)',
       })
+
+class Bubble(DIV):
+  def __init__(self, *l, x=0, y=0, width=64, height=64, display='inline-block', 
+      opacity=1, axis=('left', 'top'), **kw):
+    for k, v in (
+        (axis[0], x),  (axis[1], y),
+        ('min-width', width), ('min-height', height),
+        ('display', display), ('opacity', opacity),
+        ('box-sizing', 'border-box'), ('position', 'fixed'),
+        ('border-radius', '64px'),
+        ('box-shadow', '0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)'),
+        ('background-size', 'cover'),
+        ('transition-timing-function', 'cubic-bezier(0.4, 0.0, 0.2, 1)'),
+        ('transition', 'all 0.3s')):
+      self.style[k] = v
+      
+    super().__init__(*l, **kw)
 
 def make_ripple(el, base_color=(18,18,18,1), no_key=False):
   mutator = tint if is_dark(*base_color) else shade
@@ -2091,6 +2108,24 @@ def ValueListenableBuilder(value, builder, child=None):
   value.addListener(build)
   
   return widget
+
+# alternate approach to data driven ui
+class Stateful(SPAN):
+  def __init__(self, data, builder):
+    self.data = data
+    self.builder = builder
+    super().__init__(self.builder(self))
+    
+  def build(self):
+    last_focus = doc.activeElement
+    self.clear()
+    self <= self.builder(self)
+    if last_focus.inside(widget):
+      last_focus.focus()
+    
+  def setState(self, f=None):
+    if f: f()
+    self.build()
   
 def bind(el, **kw):
   for k, v in kw.items():
