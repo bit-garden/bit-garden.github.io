@@ -295,8 +295,8 @@ CodeMirror.Vim.map('<Tab>y', ':js sort_by()', 'visual')
 CodeMirror.Vim.map('<Tab><Space>', ':noh', 'normal')
 
 // Save command, TODO
-CodeMirror.Vim.map('ZA', ':py save_me.append(1)', 'normal')
-CodeMirror.Vim.map('ZA', ':py save_me.append(1)', 'insert')
+//CodeMirror.Vim.map('ZA', ':py save_me.append(1)', 'normal')
+//CodeMirror.Vim.map('ZA', ':py save_me.append(1)', 'insert')
 
 // Align text selections
 CodeMirror.Vim.map('<Tab>r', ':js alignRight()', 'visual')
@@ -332,9 +332,11 @@ CodeMirror.Vim.map('zv', ':vblock', 'normal')
 
 
 editbox = document.querySelector('.editbox')
-//if ('data' in localStorage){
-//  editbox.value = localStorage.getItem('data')
-//}
+if ('data' in localStorage){
+  editbox.value = localStorage.getItem('data')
+}else{
+  editbox.value = 'No local storage found'
+}
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
@@ -368,7 +370,7 @@ function on_change(cm, _change){
     cm_editbox.closeHint()
     just_completed = false
     }
-//  localStorage.setItem('data', editbox.value.replace(/ +$/mgi, ""));
+  localStorage.setItem('data', editbox.value.replace(/ +$/mgi, ""));
 }
 
 cm_editbox.on('change',on_change)
@@ -666,39 +668,39 @@ class COLOR:
   
 
 # TODO
-class fopen():
-  def __init__(self, new_file=False):
-    if new_file:
-      self.opts = {
-        'type': 'saveFile',
-        'accepts': [{
-          'description': 'Text file',
-          'extensions': ['txt'],
-          'mimeTypes': ['text/plain'],
-        }],
-      }
-    else:
-      self.opts = {}
-
-  async def __aenter__(self):
-    if self.opts:
-      self.fileHandle = await window.chooseFileSystemEntries(self.opts)
-    else:
-      self.fileHandle = await window.chooseFileSystemEntries()
-    self.file = await self.fileHandle.getFile()
-    self.text = await self.file.text()
-
-    return self
-
-  async def write(self, content):
-    writer = await self.fileHandle.createWritable()
-    await writer.truncate(0)  
-    await writer.write(content)
-
-    await writer.close()
-
-  async def __aexit__(self, *l):
-    pass
+#class fopen():
+#  def __init__(self, new_file=False):
+#    if new_file:
+#      self.opts = {
+#        'type': 'saveFile',
+#        'accepts': [{
+#          'description': 'Text file',
+#          'extensions': ['txt'],
+#          'mimeTypes': ['text/plain'],
+#        }],
+#      }
+#    else:
+#      self.opts = {}
+#
+#  async def __aenter__(self):
+#    if self.opts:
+#      self.fileHandle = await window.chooseFileSystemEntries(self.opts)
+#    else:
+#      self.fileHandle = await window.chooseFileSystemEntries()
+#    self.file = await self.fileHandle.getFile()
+#    self.text = await self.file.text()
+#
+#    return self
+#
+#  async def write(self, content):
+#    writer = await self.fileHandle.createWritable()
+#    await writer.truncate(0)  
+#    await writer.write(content)
+#
+#    await writer.close()
+#
+#  async def __aexit__(self, *l):
+#    pass
 
   
 # pure python versions for faster load
@@ -1358,48 +1360,48 @@ def center(el):
   el.left = int(root.center[0] - eldim.width//2)
   el.top = int(root.center[1] - eldim.height//2)
 
-save_me = []
-loaded = False
-_options['save_me'] = save_me
+#save_me = []
+#loaded = False
+#_options['save_me'] = save_me
+#
+#def save_on_blur(*l, **kw):
+#  if loaded:
+#    save_me.append(2)
+#
+#window.onblur = save_on_blur
+#
+#async def auto_saver():
+#  global loaded
+#  async with fopen() as f:
+#    cm_editbox.setValue(f.text)
+#    loaded = True
+#    while True:
+#      while not save_me:
+#        await asyncio.sleep(.1)
+#      cm_editbox.save()
+#      await f.write(editbox.value)
+#      if 1 in save_me:
+#        #window.alert('saved')
+#        asyncio.run(saved_notif())
+#      save_me.clear()
+#      print('Saved')
+#
+#async def saved_notif():
+#  notif = DIV([
+#      (time_display:=DIV('Saved'))],
+#    Class='card',
+#    style={
+#      'right': 0,
+#      'bottom': 0,
+#      'position':'fixed',
+#      'z-index': 99})
+#  with El(notif, doc) as n:
+#    await asyncio.sleep(1)
 
-def save_on_blur(*l, **kw):
-  if loaded:
-    save_me.append(2)
-
-window.onblur = save_on_blur
-
-async def auto_saver():
-  global loaded
-  async with fopen() as f:
-    cm_editbox.setValue(f.text)
-    loaded = True
-    while True:
-      while not save_me:
-        await asyncio.sleep(.1)
-      cm_editbox.save()
-      await f.write(editbox.value)
-      if 1 in save_me:
-        #window.alert('saved')
-        asyncio.run(saved_notif())
-      save_me.clear()
-      print('Saved')
-
-async def saved_notif():
-  notif = DIV([
-      (time_display:=DIV('Saved'))],
-    Class='card',
-    style={
-      'right': 0,
-      'bottom': 0,
-      'position':'fixed',
-      'z-index': 99})
-  with El(notif, doc) as n:
-    await asyncio.sleep(1)
-
-def _e(cm, params):
-  asyncio.run(auto_saver())
-window.CodeMirror.Vim.defineEx("e", None, _e)
-window.CodeMirror.Vim.defineEx("edit", None, _e)
+#def _e(cm, params):
+#  asyncio.run(auto_saver())
+#window.CodeMirror.Vim.defineEx("e", None, _e)
+#window.CodeMirror.Vim.defineEx("edit", None, _e)
 
 #async def main():
 #  res = await asyncio.gather(auto_saver())
