@@ -1276,13 +1276,7 @@ def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
   
-  def table(s, cast=None, char='|'):
-    if cast is None: cast = lambda i: i
-    out = [[j.strip() for j in i.split(char)] for i in s.strip().splitlines()]
-    width = len(out[0])
-    return [cast(dict(zip(out[0], i+(['']*(width-len(i)))))) for i in out[1:]]
-  
-  out = align(table(data))
+  out = align(matrix2(data))
 
   window.vdo('gv')
   cm_editbox.replaceSelection(out.strip('\n'))
@@ -1685,29 +1679,35 @@ def complement(r, g, b, *_):
 
 
 
-def table(s, cast=None, char='|'):
-  if cast is None: cast = lambda i: i
-  out = [[j.strip() for j in i.split(char)] for i in s.strip().splitlines() if i.strip() and not i.strip().startswith('#')]
+def matrix(s, delim='|'):
+  return [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
+ 
+def matrix2(s, delim='|'):
+  out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
+ 
   width = len(out[0])
-  return [cast(dict(zip(out[0], i+(['']*(width-len(i)))))) for i in out[1:]]
-  
-def matrix(s, cast=None, char='|'):
-  if cast is None: cast = lambda i: i
-  return [
-    cast([j.strip() for j in i.split(char)])
-      for i in s.strip().splitlines()]
-  
-def align(l, cast=None):
-  if cast: l = [cast(i) for i in cast]
-  widths = {k: len(k) for k in l[0].keys()}
-  
+ 
+  return [[*i, *(['']*(width-len(i)))] for i in out]
+ 
+def table(s, delim='|'):
+  l = matrix2(s, delim)
+  l[0][0] = l[0][0].lstrip('#')
+  return [dict(zip(l[0], i)) for i in l[1:] if not i[0].startswith('#')]
+ 
+def align(l):
+  widths = [0 for i in l[0]]
+  width = len(l[0])
+ 
   for i in l:
-    for k, v in i.items():
-      i[k] = str(v)
-      if len(i[k]) > widths[k]: widths[k] = len(i[k])
-      
-  return '\n'.join(' | '.join(v.rjust(widths[k]) if k.endswith(':') else v.ljust(widths[k]) for k, v in i.items()).rstrip() 
-      for i in [{k:k for k in widths.keys()}, *l])
+    for j in range(width):
+      i[j] = f'{i[j]}'
+      if len(i[j]) > widths[j]: widths[j] = len(i[j])
+ 
+  aligns = [i.endswith(':') for i in l[0]]
+ 
+  return '\n'.join(' | '.join(
+    i[j].rjust(widths[j]) if aligns[j] else i[j].ljust(widths[j])
+      for j in range(width)).rstrip() for i in l)
 
 class attrDict:
   def __init__(self, **kw):
