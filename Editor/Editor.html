@@ -831,6 +831,21 @@ def groupBy(l, key):
   for i in l: gb.setdefault(key(i), []).append(i)
   return gb
 
+def chunkBy(l, key):
+  last_key = k = None
+  last_group = []
+
+  for i in l:
+    k = key(i)
+    if k == last_key:
+      last_group.append(i)
+    else:
+      if len(last_group) > 0: yield [last_key, last_group]
+      last_key = k
+      last_group = [i]
+
+  if len(last_group) > 0: yield [last_key, last_group]
+
 
   
 def chunk(l, n=1):
@@ -1975,9 +1990,40 @@ class Box(dict):
       
     self.dispatch(BoxEvent(attr, None, True))
 
-class ChangeNotifier:
+# alternate approach to data driven ui
+class Stateful:
   def __init__(self):
-    self._listeners = []
+    self.isDirty = False
+    self.widget = SPAN(self.build())
+    
+  def build(self): pass
+  
+  def builder(self, *l, **kw):
+    last_focus = doc.activeElement
+    self.widget.clear()
+    self.widget <= self.build()
+    if last_focus.inside(self.widget):
+      last_focus.focus()
+    self.isDirty = False
+    
+  def setState(self, f=None):
+    if f: f()
+    if not self.isDirty:
+      self.isDirty = True
+      window.requestAnimationFrame(self.builder)
+
+class Listenable:
+  def __init__(self): self._listeners = []
+  
+  def addListener(self, f): self._listeners.append(f)
+  def removeListener(self, f): self._listeners.remove(f)
+  def dispose(self): self._listeners.clear()
+  
+  @property
+  def hasListeners(self): return self._listeners == []
+  
+  def notifyListeners(self):
+    for l in self._listeners[:]: l()
     
   @classmethod
   def merge(cls, listenables):
@@ -1985,51 +2031,11 @@ class ChangeNotifier:
     for l in listenables:
       l.addListener(c.notifyListeners)
     return c
-      
-  def addListener(self, f):
-    self._listeners.append(f)
-
-  def removeListener(self, f):
-    self._listeners.remove(f)
-
-  def dispose(self):
-    self._listeners.clear()
-
-  def notifyListeners(self):
-    for l in self._listeners[:]:
-      try:
-        l()
-      except Exception as e:
-        print(e)
-
-  @property
-  def hasListeners(self):
-    return self._listeners == []
-
-class ValueNotifier(ChangeNotifier):
-  def __init__(self, value):
-    super().__init__()
-    self._value = value
-
-  def __repr__(self):
-    return repr(self._value)
-  def __str__(self):
-    return str(self._value)
-
-  @property
-  def value(self):
-    return self._value
-  @value.setter
-  def value(self, value):
-    if self._value == value:
-      return
-    self._value = value
-    self.notifyListeners()
-
-class ListNotifier(ChangeNotifier, list):
+    
+class ListenableList(Listenable, list):
   def __init__(self, *l, **kw):
     list.__init__(self, *l, **kw)
-    ChangeNotifier.__init__(self)
+    Listenable.__init__(self)
 
   def __setitem__(self, *l, **kw):
     list.__setitem__(self, *l, **kw)
@@ -2080,10 +2086,10 @@ class ListNotifier(ChangeNotifier, list):
     list.clear(self, *l, **kw)
     self.notifyListeners()
 
-class DictNotifier(ChangeNotifier, dict):
+class ListenableDict(Listenable, dict):
   def __init__(self, *l, **kw):
     dict.__init__(self, *l, **kw)
-    ChangeNotifier.__init__(self)
+    Listenable.__init__(self)
 
   def __setitem__(self, *l, **kw):
     dict.__setitem__(self, *l, **kw)
@@ -2127,65 +2133,7 @@ class DictNotifier(ChangeNotifier, dict):
   def update(self, *l, **kw):
     dict.update(self, *l, **kw)
     self.notifyListeners()
-
-def toNotifier(obj):
-  if isinstance(obj, dict):
-    #d = DictNotifier({k: toNotifier(v) for k, v in obj.items()})
-    d = DictNotifier({})
-    for k, v in obj.items():
-      d[k] = toNotifier(v)
-    for k, v in d.items():
-      if isinstance(v, (ListNotifier, DictNotifier)):
-        v.addListener(d.notifyListeners)
-    return d
-  elif isinstance(obj, list):
-    #l = ListNotifier(toNotifier(v) for v in obj)
-    l = ListNotifier([])
-    for i in obj:
-      l.append(toNotifier(i))
-    for v in l:
-      if isinstance(v, (ListNotifier, DictNotifier)):
-        v.addListener(l.notifyListeners)
-    return l
-  else:
-    return obj
-    
-def ValueListenableBuilder(value, builder, child=None):
-  widget = SPAN(builder(value, child))
-  
-  def build():
-    last_focus = doc.activeElement
-    widget.clear()
-    widget <= builder(value, child)
-    if last_focus.inside(widget):
-      last_focus.focus()
-    
-  value.addListener(build)
-  
-  return widget
-
-# alternate approach to data driven ui
-class Stateful:
-  def __init__(self):
-    self.isDirty = False
-    self.widget = SPAN(self.build())
-    
-  def build(self): pass
-  
-  def builder(self, *l, **kw):
-    last_focus = doc.activeElement
-    self.widget.clear()
-    self.widget <= self.build()
-    if last_focus.inside(self.widget):
-      last_focus.focus()
-    self.isDirty = False
-    
-  def setState(self, f=None):
-    if f: f()
-    if not self.isDirty:
-      self.isDirty = True
-      window.requestAnimationFrame(self.builder)
-  
+      
 def bind(el, **kw):
   for k, v in kw.items():
     el.bind(k, v)
