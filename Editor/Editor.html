@@ -1180,7 +1180,28 @@ def do_py() -> None:
     q = Q()
     window.vdo("gv")
     data = cm_editbox.getSelection()
-    exec(data)
+    exec('''from browser import aio as asyncio
+
+redrawPending = False
+redraws = []
+
+def redraw(fn=None):
+  if fn: fn()
+  if redrawPending: return
+  asyncio.run(_redraw())
+
+async def _redraw():
+  global redrawPending
+
+  redrawPending = True
+  await asyncio.sleep(1.0/30) # 30 fps
+
+  root.clear()
+  for f in redraws: f()
+  
+  redrawPending = False
+
+''' + data)
     if print_red:
       out = '\n'.join([data, ''.join(print_red)])
       window.vdo("gv")
@@ -2195,6 +2216,54 @@ class Deck:
     
   def __repr__(self):
     return f'Deck{self.cards, self.discard}'
+  
+#from browser import aio as asyncio
+#
+#redrawPending = False
+#redraws = []
+#
+#def redraw(fn=None):
+#  if fn: fn()
+#  asyncio.run(_redraw())
+#  
+#async def _redraw():
+#  global redrawPending
+#  if redrawPending: return
+#  
+#  redrawPending = True
+#  await asyncio.sleep(1.0/30) # 30 fps
+#  
+#  # clear root
+#  last_focus = doc.activeElement
+#  root.clear()
+#  
+#  for f in redraws: f()
+#  
+#  if last_focus.inside(root):
+#    last_focus.focus()
+#      
+#  redrawPending = False
+
+#from browser import aio as asyncio
+#
+#redrawPending = False
+#redraws = []
+#
+#def redraw(fn=None):
+#  if fn: fn()
+#  if redrawPending: return
+#  asyncio.run(_redraw())
+#
+#async def _redraw():
+#  global redrawPending
+#
+#  redrawPending = True
+#  await asyncio.sleep(1.0/30) # 30 fps
+#
+#  root.clear()
+#  for f in redraws: f()
+#  
+#  redrawPending = False
   
 </script>
 </html>
