@@ -863,6 +863,8 @@ def chunkBy(l, key):
 def chunk(l, n):
   for i in range(len(l)//n):
     yield l[n*i: n*(i+1)]
+  if len(l) % n != 0:
+    yield l[-n+1:]
 
     
 class zip_longest:
@@ -2264,6 +2266,14 @@ class Deck:
 #  for f in redraws: f()
 #  
 #  redrawPending = False
+
+#popup([root:=SPAN()])
+#
+#def update_ui():
+#  root <= DIV('test')
+#
+#redraw(lambda: redraws.append(update_ui))
+
   
 </script>
 </html>
