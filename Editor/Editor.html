@@ -684,6 +684,10 @@ function splitPipe(s){
   return s.trim().split('\n').map((j) => j.split(/(\|)(?=(?:[^"]|"[^"]*")*$)/).filter((i, idx) => idx%2==0).map((i) => i.trim()));
 }
 
+function csv2tab(s){
+  return s.trim().split('\n').map((j) => j.split(/(,)(?=(?:[^"]|"[^"]*")*$)/).filter((i, idx) => idx%2==0).map((i) => i.trim())).map((i) => i.join('\t')).join('\n');
+}
+
 </script>
 <!--<script src="lib/brython_aio.js"></script>-->
 <script src="lib/brython.js"></script>
