@@ -2238,23 +2238,26 @@ class Matrix:
     
   @property
   def T(self):  # transpose
-    return [list(i) for i in zip(*self)]
+    return Matrix([list(i) for i in zip(*self)])
   
   def __init__(self, l):
     self.values = l
     
   @classmethod
   def fill(cls, m, n, value=0.0):
-    assert m>0 and n>0
+    assert m>0 and n>0, 'One of the dims are negative on fill'
     return cls([[value for j in range(n)] for i in range(m)])
     
   @classmethod
   def random(cls, m, n):
     import random
-    assert m>0 and n>0
+    assert m>0 and n>0, 'One of the dims are negative, on random'
     return cls([[random.random() for j in range(n)] for i in range(m)])
     
-  @staticmethod
+  @classmethod
+  def identity(cls, m, n):
+    return [[1.0 if i == j else 0.0 for i in range(m)] for j in range(n)]
+    
   def getMinor(self,i,j):
     return Matrix([row[:j] + row[j+1:] for row in (self[:i]+self[i+1:])])
     
@@ -2305,7 +2308,7 @@ class Matrix:
     
   def __add__(self, other):
     if isinstance(other, Matrix):
-      assert other.m == self.m and other.n == self.n
+      assert other.m == self.m and other.n == self.n, 'Dims are not matching, on add'
       return Matrix([[self[i][j] + other[i][j] 
         for j in range(self.n)] 
           for i in range(self.m)])
@@ -2313,11 +2316,19 @@ class Matrix:
       for j in range(self.n)]
         for i in range(self.m)])
         
-  __radd__ = __add__
+  def __radd__(self, other):
+    if isinstance(other, Matrix):
+      assert other.m == self.m and other.n == self.n, 'Dims are not matching, on radd'
+      return Matrix([[other[i][j] + self[i][j] 
+        for j in range(self.n)] 
+          for i in range(self.m)])
+    return Matrix([[other + self[i][j]
+      for j in range(self.n)]
+        for i in range(self.m)])
   
   def __sub__(self, other):
     if isinstance(other, Matrix):
-      assert other.m == self.m and other.n == self.n
+      assert other.m == self.m and other.n == self.n, 'Dims are not matching, on sub'
       return Matrix([[self[i][j] - other[i][j] 
         for j in range(self.n)] 
           for i in range(self.m)])
@@ -2325,11 +2336,19 @@ class Matrix:
       for j in range(self.n)]
         for i in range(self.m)])
         
-  __rsub__ = __sub__
+  def __rsub__(self, other):
+    if isinstance(other, Matrix):
+      assert other.m == self.m and other.n == self.n, 'Dims are not matching, on rsub'
+      return Matrix([[other[i][j] - self[i][j] 
+        for j in range(self.n)] 
+          for i in range(self.m)])
+    return Matrix([[other - self[i][j] 
+      for j in range(self.n)]
+        for i in range(self.m)])
   
   def __mul__(self, other):
     if isinstance(other, Matrix):
-      assert other.m == self.n and other.n == self.m
+      #assert other.m == self.n and other.n == self.m, 'Dims are not matching, on dot'
       # dot
       return Matrix([
         [sum(x * y for x, y in zip(m1_r, m2_c)) for m2_c in zip(*other)] for m1_r in self
@@ -2350,6 +2369,11 @@ class Matrix:
       for j in range(self.n)]
         for i in range(self.m)])
         
+  def __rtruediv__(self, other):
+    return Matrix([[other/self[i][j]
+      for j in range(self.n)]
+        for i in range(self.m)])
+        
   def __floordiv__(self, other):
     if isinstance(other, Matrix):
       assert other.m == self.m and other.n == self.n
@@ -2359,6 +2383,9 @@ class Matrix:
     return Matrix([[self[i][j] // other
       for j in range(self.n)]
         for i in range(self.m)])
+       
+  def __neg__(self):
+    return -1 * self
         
   def multiply(self, other):
     # Hadamard product, element wise multiply 
@@ -2379,17 +2406,6 @@ class Matrix:
     for j in range(self.n):
       for i in range(self.m):
         if self[i][j] < _m:
-          _m = self[i][j] 
-    
-    return _m
-    
-  @property
-  def max(self):
-    _m = self[0][0]
-    
-    for j in range(self.n):
-      for i in range(self.m):
-        if self[i][j] > _m:
           _m = self[i][j] 
     
     return _m
