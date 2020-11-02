@@ -2245,54 +2245,16 @@ class Matrix:
     
   @classmethod
   def fill(cls, m, n, value=0.0):
-    assert m>0 and n>0, 'One of the dims are negative on fill'
     return cls([[value for j in range(n)] for i in range(m)])
     
   @classmethod
   def random(cls, m, n):
     import random
-    assert m>0 and n>0, 'One of the dims are negative, on random'
     return cls([[random.random() for j in range(n)] for i in range(m)])
     
   @classmethod
   def identity(cls, m, n):
-    return [[1.0 if i == j else 0.0 for i in range(m)] for j in range(n)]
-    
-  def getMinor(self,i,j):
-    return Matrix([row[:j] + row[j+1:] for row in (self[:i]+self[i+1:])])
-    
-  @staticmethod
-  def getDeterminant(self):
-    #base case for 2x2 matrix
-    if len(self) == 2:
-      return self[0][0]*self[1][1]-self[0][1]*self[1][0]
-
-    determinant = 0
-    for c in range(len(self)):
-      determinant += ((-1)**c)*self[0][c]*self.getDeterminant(self.getMinor(0,c))
-    return determinant
-    
-  @property
-  def inv(self):
-    determinant = self.getDeterminant(self)
-    #special case for 2x2 matrix:
-    if len(self) == 2:
-      return Matrix([[self[1][1]/determinant, -1*self[0][1]/determinant],
-          [-1*self[1][0]/determinant, self[0][0]/determinant]])
-
-    #find matrix of cofactors
-    cofactors = []
-    for r in range(len(self)):
-      cofactorRow = []
-      for c in range(len(self)):
-        minor = self.getMinor(r,c)
-        cofactorRow.append(((-1)**(r+c)) * self.getDeterminant(minor))
-      cofactors.append(cofactorRow)
-    cofactors = transposeMatrix(cofactors)
-    for r in range(len(cofactors)):
-      for c in range(len(cofactors)):
-        cofactors[r][c] = cofactors[r][c]/determinant
-    return Matrix(cofactors)
+    return Matrix([[1.0 if i == j else 0.0 for i in range(m)] for j in range(n)])
     
   def __repr__(self):
     return repr(self.values)
@@ -2308,81 +2270,36 @@ class Matrix:
     
   def __add__(self, other):
     if isinstance(other, Matrix):
-      assert other.m == self.m and other.n == self.n, 'Dims are not matching, on add'
-      return Matrix([[self[i][j] + other[i][j] 
-        for j in range(self.n)] 
-          for i in range(self.m)])
+      if other.m == self.m and other.n == self.n:
+        return Matrix([[self[i][j] + other[i][j] 
+          for j in range(self.n)] 
+            for i in range(self.m)])
+      elif other.m == self.m and other.n == 1:
+        return Matrix([[j+m[0] for j in row]
+          for row, m in zip(self, other)])
     return Matrix([[self[i][j] + other
       for j in range(self.n)]
         for i in range(self.m)])
         
-  def __radd__(self, other):
-    if isinstance(other, Matrix):
-      assert other.m == self.m and other.n == self.n, 'Dims are not matching, on radd'
-      return Matrix([[other[i][j] + self[i][j] 
-        for j in range(self.n)] 
-          for i in range(self.m)])
-    return Matrix([[other + self[i][j]
-      for j in range(self.n)]
-        for i in range(self.m)])
-  
-  def __sub__(self, other):
-    if isinstance(other, Matrix):
-      assert other.m == self.m and other.n == self.n, 'Dims are not matching, on sub'
-      return Matrix([[self[i][j] - other[i][j] 
-        for j in range(self.n)] 
-          for i in range(self.m)])
-    return Matrix([[self[i][j] - other
-      for j in range(self.n)]
-        for i in range(self.m)])
-        
-  def __rsub__(self, other):
-    if isinstance(other, Matrix):
-      assert other.m == self.m and other.n == self.n, 'Dims are not matching, on rsub'
-      return Matrix([[other[i][j] - self[i][j] 
-        for j in range(self.n)] 
-          for i in range(self.m)])
-    return Matrix([[other - self[i][j] 
-      for j in range(self.n)]
-        for i in range(self.m)])
+  __radd__ = __add__ 
+  def __sub__(self, other): return self + -other
+  __rsub__ = __sub__
   
   def __mul__(self, other):
     if isinstance(other, Matrix):
-      #assert other.m == self.n and other.n == self.m, 'Dims are not matching, on dot'
-      # dot
-      return Matrix([
-        [sum(x * y for x, y in zip(m1_r, m2_c)) for m2_c in zip(*other)] for m1_r in self
-      ])
+      if other.m == self.n and other.n == self.m:
+        # dot
+        return Matrix([
+          [sum(x * y for x, y in zip(m1_r, m2_c)) for m2_c in zip(*other)] for m1_r in self
+        ])
+      elif other.m == self.m and other.n == 1:
+        return Matrix([[j*m[0] for j in row]
+          for row, m in zip(self, other)])
     return Matrix([[self[i][j] * other
       for j in range(self.n)]
         for i in range(self.m)])
         
   __rmul__ = __mul__
-  
-  def __truediv__(self, other):
-    if isinstance(other, Matrix):
-      assert other.m == self.m and other.n == self.n
-      return Matrix([[self[i][j] / other[i][j] 
-        for j in range(self.n)] 
-          for i in range(self.m)])
-    return Matrix([[self[i][j] / other
-      for j in range(self.n)]
-        for i in range(self.m)])
-        
-  def __rtruediv__(self, other):
-    return Matrix([[other/self[i][j]
-      for j in range(self.n)]
-        for i in range(self.m)])
-        
-  def __floordiv__(self, other):
-    if isinstance(other, Matrix):
-      assert other.m == self.m and other.n == self.n
-      return Matrix([[self[i][j] // other[i][j] 
-        for j in range(self.n)] 
-          for i in range(self.m)])
-    return Matrix([[self[i][j] // other
-      for j in range(self.n)]
-        for i in range(self.m)])
        
   def __neg__(self):
     return -1 * self
@@ -2409,6 +2326,54 @@ class Matrix:
           _m = self[i][j] 
     
     return _m
+    
+  @property
+  def max(self):
+    _m = self[0][0]
+    
+    for j in range(self.n):
+      for i in range(self.m):
+        if self[i][j] > _m:
+          _m = self[i][j] 
+    
+    return _m
+    
+  @staticmethod
+  def getMatrixMinor(m,i,j):
+    return [row[:j] + row[j+1:] for row in (m[:i]+m[i+1:])]
+
+  @staticmethod
+  def getMatrixDeternminant(m):
+    #base case for 2x2 matrix
+    if len(m) == 2:
+      return m[0][0]*m[1][1]-m[0][1]*m[1][0]
+
+    determinant = 0
+    for c in range(len(m)):
+      determinant += ((-1)**c)*m[0][c]*Matrix.getMatrixDeternminant(Matrix.getMatrixMinor(m,0,c))
+    return determinant
+
+  @property
+  def inv(self):
+    determinant = Matrix.getMatrixDeternminant(self)
+    #special case for 2x2 matrix:
+    if len(self) == 2:
+      return [[self[1][1]/determinant, -1*self[0][1]/determinant],
+          [-1*self[1][0]/determinant, self[0][0]/determinant]]
+
+    #find matrix of cofactors
+    cofactors = []
+    for r in range(len(self)):
+      cofactorRow = []
+      for c in range(len(self)):
+        minor = Matrix.getMatrixMinor(self,r,c)
+        cofactorRow.append(((-1)**(r+c)) * Matrix.getMatrixDeternminant(minor))
+      cofactors.append(cofactorRow)
+    cofactors = transposeMatrix(cofactors)
+    for r in range(len(cofactors)):
+      for c in range(len(cofactors)):
+        cofactors[r][c] = cofactors[r][c]/determinant
+    return Matrix(cofactors)
   
 #from browser import aio as asyncio
 #
