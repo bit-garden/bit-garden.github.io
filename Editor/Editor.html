@@ -2321,13 +2321,14 @@ class Matrix:
   __radd__ = __add__ 
   def __sub__(self, other): return self + -other
   __rsub__ = __sub__
-  
+        
   def __mul__(self, other):
     if isinstance(other, Matrix):
-      if other.m == self.n and other.n == self.m:
+      if other.m == self.m and other.n == self.n:
         return Matrix([[self[i][j] * other[i][j] 
           for j in range(self.n)] 
-            for i in range(self.m)])ther.m == self.m and other.n == 1:
+            for i in range(self.m)])
+      elif other.m == self.m and other.n == 1:
         return Matrix([[j*m[0] for j in row]
           for row, m in zip(self, other)])
     return Matrix([[self[i][j] * other
