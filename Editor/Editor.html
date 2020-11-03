@@ -303,17 +303,17 @@ CodeMirror.Vim.map('<Tab>r', ':js alignRight()', 'visual')
 CodeMirror.Vim.map('<Tab>l', ':js alignLeft()', 'visual')
 CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
 
-CodeMirror.Vim.map('((', ':double_tap ()', 'insert')
-//CodeMirror.Vim.map(')', ':double_tap )', 'insert')
-CodeMirror.Vim.map('{{', ':double_tap {}', 'insert')
-//CodeMirror.Vim.map('}', ':double_tap }', 'insert')
-CodeMirror.Vim.map('[[', ':double_tap []', 'insert')
-//CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
-CodeMirror.Vim.map('""', ':double_tap ""', 'insert')
-CodeMirror.Vim.map("''", ":double_tap ''", 'insert')
+//CodeMirror.Vim.map('((', ':double_tap ()', 'insert')
+////CodeMirror.Vim.map(')', ':double_tap )', 'insert')
+//CodeMirror.Vim.map('{{', ':double_tap {}', 'insert')
+////CodeMirror.Vim.map('}', ':double_tap }', 'insert')
+//CodeMirror.Vim.map('[[', ':double_tap []', 'insert')
+////CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
+//CodeMirror.Vim.map('""', ':double_tap ""', 'insert')
+//CodeMirror.Vim.map("''", ":double_tap ''", 'insert')
 
 CodeMirror.Vim.map('{}', ':bracespace {}', 'insert')
-CodeMirror.Vim.map('[]', ':bracespace []', 'insert')
+//CodeMirror.Vim.map('[]', ':bracespace []', 'insert')
 
 CodeMirror.Vim.unmap('s', 'visual')
 CodeMirror.Vim.map('s(', ':surround ()', 'visual')
@@ -1377,11 +1377,29 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  
-  out = align(matrix2(data))
+  try:
+    if data.startswith('[['):
+      trans = False
+      if data.endswith('.T'):
+        trans = True
+        m = eval(data[:-2])
+      else:
+        m = eval(data)
+      w = len(m[0])
+      for row in m:
+        while len(row) < w:
+          row.append(0)
+      if trans:
+        out = str(Matrix(m).T)
+      else:
+        out = str(Matrix(m))
+    else:
+      out = align(matrix2(data))
 
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
+    window.vdo('gv')
+    cm_editbox.replaceSelection(out.strip('\n'))
+  except:
+    pass
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
 
@@ -2241,6 +2259,15 @@ class Matrix:
     return Matrix([list(i) for i in zip(*self)])
   
   def __init__(self, l):
+    #if not (type(l) == list):
+    #  raise Exception('Not a list')
+    #if not ({list} == {type(i) for i in l}):
+    #  raise Exception('Not a list of lists')
+    #if not ({int, float} >= {type(j) for i in l for j in i}):
+    #  raise Exception('Must be list<list<float/int>>')
+    assert type(l) == list, type(l)
+    assert {list} == {type(i) for i in l}, {type(i) for i in l}
+    assert {int, float} >= {type(j) for i in l for j in i}, {type(j) for i in l for j in i}
     self.values = l
     
   @classmethod
@@ -2248,14 +2275,24 @@ class Matrix:
     return cls([[value for j in range(n)] for i in range(m)])
     
   @classmethod
-  def random(cls, m, n):
-    import random
-    return cls([[random.random() for j in range(n)] for i in range(m)])
+  def generate(cls, m, n, fn):
+    return cls([[fn(i, j) for j in range(n)] for i in range(m)])
     
   @classmethod
   def identity(cls, m, n):
-    return Matrix([[1.0 if i == j else 0.0 for i in range(m)] for j in range(n)])
+    return cls([[1.0 if i == j else 0.0 for i in range(m)] for j in range(n)])
+  
+  def __str__(self):
+    width = 0
     
+    for row in self.values:
+      for col in row:
+        if len(f'{col}') > width:
+          width = len(f'{col}')
+          
+    return '[[' + '],\n ['.join(', '.join(f'{col}'.rjust(width) for col in row)
+      for row in self.values) + ']]'
+      
   def __repr__(self):
     return repr(self.values)
     
@@ -2306,7 +2343,6 @@ class Matrix:
         
   def multiply(self, other):
     # Hadamard product, element wise multiply 
-    assert other.m == self.m and other.n == self.n
     return Matrix([[self[i][j] * other[i][j] 
       for j in range(self.n)] 
         for i in range(self.m)])
@@ -2369,7 +2405,8 @@ class Matrix:
         minor = Matrix.getMatrixMinor(self,r,c)
         cofactorRow.append(((-1)**(r+c)) * Matrix.getMatrixDeternminant(minor))
       cofactors.append(cofactorRow)
-    cofactors = transposeMatrix(cofactors)
+    #cofactors = transposeMatrix(cofactors)
+    cofactors = [list(i) for i in zip(*cofactors)]
     for r in range(len(cofactors)):
       for c in range(len(cofactors)):
         cofactors[r][c] = cofactors[r][c]/determinant
