@@ -2325,11 +2325,9 @@ class Matrix:
   def __mul__(self, other):
     if isinstance(other, Matrix):
       if other.m == self.n and other.n == self.m:
-        # dot
-        return Matrix([
-          [sum(x * y for x, y in zip(m1_r, m2_c)) for m2_c in zip(*other)] for m1_r in self
-        ])
-      elif other.m == self.m and other.n == 1:
+        return Matrix([[self[i][j] * other[i][j] 
+          for j in range(self.n)] 
+            for i in range(self.m)])ther.m == self.m and other.n == 1:
         return Matrix([[j*m[0] for j in row]
           for row, m in zip(self, other)])
     return Matrix([[self[i][j] * other
@@ -2337,15 +2335,14 @@ class Matrix:
         for i in range(self.m)])
         
   __rmul__ = __mul__
+  
+  def dot(self, other):
+    return Matrix([
+          [sum(x * y for x, y in zip(m1_r, m2_c)) for m2_c in zip(*other)] for m1_r in self
+        ])
        
   def __neg__(self):
     return -1 * self
-        
-  def multiply(self, other):
-    # Hadamard product, element wise multiply 
-    return Matrix([[self[i][j] * other[i][j] 
-      for j in range(self.n)] 
-        for i in range(self.m)])
         
   def map(self, fn):
     return Matrix([[fn(self[i][j])
