@@ -902,6 +902,15 @@ def partial(func, *args, **keywords):
   newfunc.keywords = keywords
   return newfunc
   
+# dart style implementations
+def fold(l, v, f):
+  for i in l: v = f(v, i)
+  return v
+  
+def reduce(l, f):
+  return fold(_:=iter(l), next(_), f)
+
+  
 class permutations:
   def __init__(self, iterable, r = None):
     self.pool = tuple(iterable)
@@ -1854,15 +1863,15 @@ def align(l):
     i[j].rjust(widths[j]) if aligns[j] else i[j].ljust(widths[j])
       for j in range(width)).rstrip() for i in l)
       
-def mstr(l):
+def mstr(l, tostring=str):
   widths = [0 for i in l[0]]
 
   for row in l:
     for idx, col in enumerate(row):
-      cur = len(f'{col!r}')
+      cur = len(tostring(col))
       if cur > widths[idx]: widths[idx] = cur
       
-  return '[[' + '],\n ['.join(', '.join(f'{col!r}'.rjust(widths[idx]) if isinstance(col, (int, float)) else f'{col!r}'.ljust(widths[idx])
+  return '[[' + '],\n ['.join(', '.join(tostring(col).rjust(widths[idx]) if isinstance(col, (int, float)) else tostring(col).ljust(widths[idx])
     for idx, col in enumerate(row))
       for row in l) + ']]'  
 
