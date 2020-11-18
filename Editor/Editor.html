@@ -1044,6 +1044,36 @@ class {name}:
   exec(slot_template, local)
   return local[name]
   
+def struct(name, args, verbose=False):
+  args = tuple(args.split(' '))
+  sargs = '\n'.join(f'    self.{i} = {i}' for i in args)
+  
+  slot_template = f'''
+class {name}:
+  __slots__ = {repr(args)}
+  def __init__(self, {', '.join(args)}):
+{sargs}
+
+  def __iter__(self):
+    yield from [{', '.join(f'self.{i}' for i in args)}]
+    
+  def __repr__(self):
+    return f'{{[{', '.join(f'self.{i}' for i in args)}]}}'
+'''.strip()
+  if verbose:
+    return slot_template
+  
+  local = {}
+  exec(slot_template, local)
+  return local[name]
+  
+def structs(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection().strip().splitlines()
+    
+  window.vdo('gv')
+  cm_editbox.replaceSelection(struct(*data, verbose=True).strip())
+window.CodeMirror.Vim.defineEx("struct", None, structs)
   
 def todict(obj):
   # dict
@@ -1386,7 +1416,12 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
+  keep = ''
   try:
+    if data.splitlines()[0].endswith('= \\'): 
+      keep=data.splitlines()[0]+'\n'
+      data = '\n'.join(data.splitlines()[1:])
+    
     if data.startswith('[['):
       trans = False
       if data.endswith('.T'):
@@ -1395,13 +1430,19 @@ def run_align(cm, params):
       else:
         m = eval(data)
       w = len(m[0])
+      
       for row in m:
         while len(row) < w:
           row.append(0)
-      if trans:
-        out = str(Matrix(m).T)
+          
+      if {int, float} >= {type(j) for i in m for j in i}:
+        if trans:
+          out = keep+str(Matrix(m).T)
+        else:
+          out = keep+str(Matrix(m))
       else:
-        out = str(Matrix(m))
+        out = keep+mstr(m, repr)
+
     else:
       out = align(matrix2(data))
 
