@@ -26,6 +26,16 @@
 }
 
 @font-face {
+  font-family: Roboto;
+  src: url("lib/Roboto-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: Thin;
+  src: url("lib/Roboto-Thin.ttf") format("truetype");
+}
+
+@font-face {
   font-family: 'Material Icons';
   font-style: normal;
   font-weight: 400;
@@ -57,11 +67,9 @@
   font-feature-settings: 'liga';
 }
 
-* {
-        font-family: Mono !important;
-}
 
 .CodeMirror, .CodeMirror-gutters{background:#000000 !important;}
+
 
  .cm-strike{color: #888888;}
  .cm-under{text-decoration: underline;}
@@ -169,6 +177,7 @@ dialog {
   padding: 0px;
   box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.20);
   box-sizing: border-box;
+  font-family: Roboto !important;
 }
 .card {
   background-color: rgba(18,18,18,1);
@@ -235,6 +244,24 @@ div:focus > .show_over {
 
 ::placeholder {
   color: rgba(255,255,255,.6);
+}
+
+.separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: rgba(255,255,255,.50);
+}
+.separator::before, .separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid rgba(255,255,255,.50);
+}
+.separator::before {
+    margin-right: .25em;
+}
+.separator::after {
+    margin-left: .25em;
 }
 
 </style>
@@ -332,7 +359,6 @@ CodeMirror.Vim.map('<C-j>', ':rundown', 'normal')
 
 // quick select column in pipe table
 CodeMirror.Vim.map('zv', ':vblock', 'normal')
-
 
 
 
@@ -1044,28 +1070,30 @@ class {name}:
   exec(slot_template, local)
   return local[name]
   
-def struct(name, args, verbose=False):
-  args = tuple(args.split(' '))
-  sargs = '\n'.join(f'    self.{i} = {i}' for i in args)
+def struct(__name, __args, verbose=False, **__defaults):
+  __args = tuple(__args.split(' '))
+  sargs = '\n'.join(f'    self.{i} = {i}' for i in __args)
+  reprs = ', '.join(f'{i}={{self.{i}!r}}' for i in __args)
+  all_args = ', '.join(f'{a}={__defaults[a]!r}' if a in __defaults else a for a in __args)
   
   slot_template = f'''
-class {name}:
-  __slots__ = {repr(args)}
-  def __init__(self, {', '.join(args)}):
+class {__name}:
+  __slots__ = {repr(__args)}
+  def __init__(self, {all_args}):
 {sargs}
 
-  def __iter__(self):
-    yield from [{', '.join(f'self.{i}' for i in args)}]
+  def copy(self):
+    return {__name}({', '.join(f'self.{i}' for i in __args)})
     
   def __repr__(self):
-    return f'{{[{', '.join(f'self.{i}' for i in args)}]}}'
+    return f'{__name}({reprs})'
 '''.strip()
   if verbose:
     return slot_template
   
   local = {}
   exec(slot_template, local)
-  return local[name]
+  return local[__name]
   
 def structs(cm, params):
   window.vdo('gv')
@@ -1074,6 +1102,8 @@ def structs(cm, params):
   window.vdo('gv')
   cm_editbox.replaceSelection(struct(*data, verbose=True).strip())
 window.CodeMirror.Vim.defineEx("struct", None, structs)
+
+
   
 def todict(obj):
   # dict
@@ -1771,6 +1801,125 @@ def make_ripple(el, base_color=(18,18,18,1), no_key=False):
     el.bind('keydown', _key_ripple)
   
   return el, _do_ripple
+  
+  
+def diamond(*l, width=64, height=64, style={}, **kw):
+  return DIV(DIV(*l, **kw, style={
+      'width': width,
+      'height': height,
+      'transform': 'rotate(-45deg)',
+    }),style={
+      'width': width,
+      'height': height,
+      'transform': 'rotate(45deg)',
+      'display': 'inline-block',
+      **style,
+    })
+    
+def linebreak(label=''):
+  if not label:
+    return HR(style={'border': 'none', 'border-bottom': 'solid 2px rgba(255,255,255,.50)'})
+  return DIV(label, style={'padding-bottom': '2px', 'margin': '8px 0px', 'color': 'rgba(255,255,255,.50)', 'border': 'none', 'border-bottom': 'solid 2px rgba(255,255,255,.50)'})
+  
+def textbox(*l, style={}, **kw):
+  return INPUT(
+    *l, **kw,
+    style={
+      'background': 'none',
+      'color': 'rgba(255,255,255,.87)',
+      'border': 'none',
+      'border-bottom': '1px solid rgb(255,255,255,.87)',
+      'outline': 'none',
+      'box-sizing': 'border-box',
+      'padding': '4px',
+      **style
+    })
+  
+def button(*l, style={}, **kw):
+  return BUTTON(
+    *l, **kw,
+    style={
+      'background': 'none',
+      'color': 'rgba(255,255,255,.87)',
+      'font-weight': 'bold', 'font-family': 'Thin', 'font-size': '18px',
+      'border': '1px solid rgb(255,255,255,.87)',
+      'outline': 'none',
+      'box-sizing': 'border-box',
+      'padding': '8px',
+      'text-align': 'center',
+      #'opacity': .83,
+      'letter-spacing': '3px',
+      **style
+    })
+  
+def popover(attach_to, color='', header='', sub_header='', body='', 
+    keybind_hints='', offset=(0, 0), axis=('left', 'top'), width=350):
+  win_size = window.innerWidth, window.innerHeight
+  
+  if isinstance(attach_to, list):
+    x, y = attach_to
+    alignment = {
+      axis[0] if (x+offset[0]+width < win_size[0]) else 'right': x + offset[0],
+      axis[1]: y + offset[1],
+    }
+    
+  else:
+    target_bounds = attach_to.getBoundingClientRect()
+  
+    opposites = ('right', 'bottom' if axis[0]=='top' else 'top')
+    
+    alignment = {
+      axis[0] if (getattr(target_bounds, opposites[0]) + offset[0]+width < win_size[0]) else 'right': 
+        getattr(target_bounds, opposites[0]) + offset[0],
+      axis[1]: getattr(target_bounds, opposites[1]) + offset[1],
+    }
+
+  elements = []
+  
+  if header:
+    elements.append(DIV(
+      [
+        DIV(header, style={
+          'font-weight': 'bold',
+          'font-size': '20pt',
+        }),
+        DIV(sub_header, style={
+          'color': 'rgba(255,255,255,.66)',
+        }),
+      ],
+      style={
+        'background': color,  #'#B00020',
+        'padding': '6px 12px',
+        'border-top': 'white solid 2px',
+      }
+    ))
+
+  if body:
+    elements.append(DIV(body,
+      style={
+        'padding': '6px 12px',
+      }
+    ))
+
+  if keybind_hints:
+    elements.append(DIV(keybind_hints,
+      style={
+        'padding': '6px 12px',
+        'text-align': 'right',
+      }
+    ))
+
+  return DIV(
+    elements,
+    style={
+      'width': width,
+      'color': 'rgba(255,255,255,.83)',
+      'background': 'rgba(0, 0, 0, .5)',
+      'position': 'fixed',
+      'font-style': 'Roboto',
+      **alignment,
+    },
+  )
 
 # import from notes file
 
@@ -2471,6 +2620,7 @@ class Matrix:
       for c in range(len(cofactors)):
         cofactors[r][c] = cofactors[r][c]/determinant
     return Matrix(cofactors)
+
   
 #from browser import aio as asyncio
 #
