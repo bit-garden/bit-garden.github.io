@@ -264,6 +264,28 @@ div:focus > .show_over {
     margin-left: .25em;
 }
 
+
+.unseen {
+  animation-name: unseen;
+  animation-duration: 4s;
+  animation-iteration-count: infinite;
+}
+
+@keyframes unseen {
+  0% {
+    background-color: rgba(255,255,255, 0);
+  }
+  10% {
+    background-color: rgba(255,255,255, .25);
+  }
+  20% {
+    background-color: rgba(255,255,255, 0);
+  }
+  100% {
+    background-color: rgba(255,255,255, 0);
+  }
+}
+
 </style>
 <script>
 CodeMirror.defineSimpleMode("simplemode", {
@@ -1071,22 +1093,14 @@ class {name}:
   return local[name]
   
 def struct(__name, __args, verbose=False, **__defaults):
-  __args = tuple(__args.split(' '))
   sargs = '\n'.join(f'    self.{i} = {i}' for i in __args)
-  reprs = ', '.join(f'{i}={{self.{i}!r}}' for i in __args)
   all_args = ', '.join(f'{a}={__defaults[a]!r}' if a in __defaults else a for a in __args)
   
   slot_template = f'''
 class {__name}:
-  __slots__ = {repr(__args)}
+  __slots__ = {repr(tuple(__args))}
   def __init__(self, {all_args}):
 {sargs}
-
-  def copy(self):
-    return {__name}({', '.join(f'self.{i}' for i in __args)})
-    
-  def __repr__(self):
-    return f'{__name}({reprs})'
 '''.strip()
   if verbose:
     return slot_template
@@ -1097,10 +1111,10 @@ class {__name}:
   
 def structs(cm, params):
   window.vdo('gv')
-  data = cm_editbox.getSelection().strip().splitlines()
+  data = cm_editbox.getSelection().strip().split(' ')
     
   window.vdo('gv')
-  cm_editbox.replaceSelection(struct(*data, verbose=True).strip())
+  cm_editbox.replaceSelection(struct(data[0], data[1:], verbose=True).strip())
 window.CodeMirror.Vim.defineEx("struct", None, structs)
 
 
@@ -2453,7 +2467,7 @@ class Deck:
     return f'Deck{self.cards, self.discard}'
     
 class Matrix:
-  __slots__ = ('values')
+  __slots__ = ('values',)
   
   # rows
   @property
