@@ -265,24 +265,30 @@ div:focus > .show_over {
 }
 
 
-.unseen {
-  animation-name: unseen;
-  animation-duration: 4s;
+.wiggle {
+  animation-name: wiggle;
+  animation-duration: 6s;
   animation-iteration-count: infinite;
 }
 
-@keyframes unseen {
+@keyframes wiggle {
   0% {
-    background-color: rgba(255,255,255, 0);
+    transform: rotate(0deg);
+  }
+  2% {
+    transform: rotate(-10deg);
+  }
+  4% {
+    transform: rotate(8deg);
+  }
+  6% {
+    transform: rotate(-5deg);
+  }
+  8% {
+    transform: rotate(-2deg);
   }
   10% {
-    background-color: rgba(255,255,255, .25);
-  }
-  20% {
-    background-color: rgba(255,255,255, 0);
-  }
-  100% {
-    background-color: rgba(255,255,255, 0);
+    transform: rotate(0deg);
   }
 }
 
@@ -393,7 +399,7 @@ if ('data' in localStorage){
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
-            'lineNumbers':       true,
+            'lineNumbers':       false,
             "mode":              'simplemode',
             "theme":             "material",
             'tabSize':           2,
@@ -1092,29 +1098,34 @@ class {name}:
   exec(slot_template, local)
   return local[name]
   
-def struct(__name, __args, verbose=False, **__defaults):
-  sargs = '\n'.join(f'    self.{i} = {i}' for i in __args)
-  all_args = ', '.join(f'{a}={__defaults[a]!r}' if a in __defaults else a for a in __args)
-  
-  slot_template = f'''
-class {__name}:
-  __slots__ = {repr(tuple(__args))}
-  def __init__(self, {all_args}):
+def struct(name, args, verbose=False):
+  sargs = '\n'.join(f'    self.{i} = {i}' for i in args)
+  reprs = ', '.join(f'{i}={{self.{i}!r}}' for i in args)
+  slot_template = f"""
+class {name}:
+  __slots__ = {repr(tuple(args))}
+  def __init__(self, {', '.join(args)}):
 {sargs}
-'''.strip()
+
+  def __repr__(self):
+    return f"{name}({reprs})"
+""".strip()
+  
   if verbose:
     return slot_template
   
   local = {}
   exec(slot_template, local)
-  return local[__name]
+  return local[name]
   
 def structs(cm, params):
   window.vdo('gv')
-  data = cm_editbox.getSelection().strip().split(' ')
+  data = cm_editbox.getSelection().strip().splitlines()
+  
+  out = [struct(i.split(' ')[0], i.split(' ')[1:], verbose=True) for i in data]
     
   window.vdo('gv')
-  cm_editbox.replaceSelection(struct(data[0], data[1:], verbose=True).strip())
+  cm_editbox.replaceSelection('\n\n'.join(out))
 window.CodeMirror.Vim.defineEx("struct", None, structs)
 
 
@@ -1163,7 +1174,7 @@ editbox = window.editbox
 cm_editbox = window.cm_editbox
 _options['editbox'] = cm_editbox
 _options['so'] = 6*12
-_options['center'] = True
+_options['center'] = False
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = None
@@ -1197,7 +1208,7 @@ doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
 
 
 
-_options['_line_numbers'] = True
+_options['_line_numbers'] = False
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
   _options['_line_numbers'] = state
@@ -1269,28 +1280,29 @@ def do_py() -> None:
     q = Q()
     window.vdo("gv")
     data = cm_editbox.getSelection()
-    exec('''from browser import aio as asyncio
+    exec(data)
+#    exec('''from browser import aio as asyncio
+#
+#redrawPending = False
+#redraws = []
+#
+#def redraw(fn=None):
+#  if fn: fn()
+#  if redrawPending: return
+#  asyncio.run(_redraw())
+#
+#async def _redraw():
+#  global redrawPending
+#
+#  redrawPending = True
+#  await asyncio.sleep(1.0/30) # 30 fps
+#
+#  root.clear()
+#  for f in redraws: f()
+#  
+#  redrawPending = False
 
-redrawPending = False
-redraws = []
-
-def redraw(fn=None):
-  if fn: fn()
-  if redrawPending: return
-  asyncio.run(_redraw())
-
-async def _redraw():
-  global redrawPending
-
-  redrawPending = True
-  await asyncio.sleep(1.0/30) # 30 fps
-
-  root.clear()
-  for f in redraws: f()
-  
-  redrawPending = False
-
-''' + data)
+#''' + data)
     if print_red:
       out = '\n'.join([data, ''.join(print_red)])
       window.vdo("gv")
@@ -1815,8 +1827,43 @@ def make_ripple(el, base_color=(18,18,18,1), no_key=False):
     el.bind('keydown', _key_ripple)
   
   return el, _do_ripple
-  
-  
+
+def tooltip(attach_to, content, down=True, style={}, color='black'):
+  if isinstance(attach_to, list):
+    x, y = attach_to
+  else:
+    target_bounds = attach_to.getBoundingClientRect()
+    x = target_bounds.x + (target_bounds.right - target_bounds.x)/2
+
+    if down:
+      y = target_bounds.bottom
+    else:
+      y = target_bounds.top
+
+  arrow = DIV(style={
+    'width': '0',
+    'height': '0',
+    'border': '12px solid transparent',
+    'border-bottom-color' if down else 'border-top-color': color,
+    'position': 'absolute',
+    'top' if down else 'bottom': '-24px',
+    'left': '50%',
+    'transform': 'translate(-50%, 0%)',
+  })
+
+  return DIV([arrow, content], style={
+    'position': 'fixed',
+    'left': x,
+    'top': y + (14 if down else -14),
+    'color': 'rgba(255, 255, 255, .83)',
+    'background': color,
+    'position': 'fixed',
+    'font-style': 'Roboto',
+    'padding': '4px 8px',
+    'transform': f'translate(-50%, {"0" if down else "-100"}%)',
+    **style,
+  }) 
+
 def diamond(*l, width=64, height=64, style={}, **kw):
   return DIV(DIV(*l, **kw, style={
       'width': width,
@@ -2691,6 +2738,208 @@ class Matrix:
 #
 #redraw(lambda: redraws.append(update_ui))
 
+MAX_ENTITIES = 32
+
+class Entity_Manager:
+  def __init__(self):
+    # List of available ids for entities.
+    self.available = list(range(MAX_ENTITIES))
+
+    # Signatures for entities should be a list of types of components.
+    self.signatures = [set() for i in range(MAX_ENTITIES)]
+
+    # How many entities are alive at the moment.
+    self.alive = 0;
+
+  # Give an Id if one is available.
+  def make(self):
+    self.alive += 1
+    return self.available.pop(0)
+    
+  def dispose(self, entity):
+    self.signatures[entity].clear()
+    self.available.append(entity)
+    
+    self.alive -= 1
+    
+  def set_signature(self, entity, signature):
+    self.signatures[entity] = signature
+    
+  def get_signature(self, entity):
+    return self.signatures[entity]
+    
+  def __repr__(self):
+    return f'Entity_Manager(alive: {self.alive})'
+    
+class Component_Array:
+  def __init__(self):
+    self.size = 0
+    self.items = [None for i in range(MAX_ENTITIES)]
+    
+    self.entity_to_index = {}
+    self.index_to_entity = {}
+    
+  def add(self, entity, component):
+    new_index = self.size
+    
+    self.entity_to_index[entity] = new_index
+    self.index_to_entity[new_index] = entity
+    
+    self.items[new_index] = component
+    
+    self.size += 1
+    
+  def remove(self, entity):
+    index_of_removed_entity = self.entity_to_index[entity]
+    index_of_last_element = self.size - 1
+    self.items[index_of_removed_entity] = self.items[index_of_last_element]
+    
+    entity_of_last_element = self.index_to_entity[index_of_last_element]
+    self.entity_to_index[entity_of_last_element] = index_of_removed_entity
+    self.index_to_entity[index_of_removed_entity] = entity_of_last_element
+    
+    del self.entity_to_index[entity]
+    del self.index_to_entity[index_of_last_element]
+    
+    self.size -= 1
+    
+  def get(self, entity):
+    return self.items[self.entity_to_index[entity]]
+    
+  def __repr__(self):
+    return f'Component_Array(size: {self.size})'
+    
+class Component_Manager:
+  def __init__(self):
+    self.arrays = {}
+    
+  def register(self, type):
+    self.arrays[type] = Component_Array()
+    
+  def add(self, type, entity, component):
+    self.arrays[type].add(entity, component)
+    
+  def remove(self, type, entity):
+    self.arrays[type].remove(entity)
+    
+  def get(self, type, entity):
+    return self.arrays[type].get(entity)
+    
+  def __repr__(self):
+    return f'Component_Manager(arrays: {self.arrays})'
+    
+class System:
+  def __init__(self):
+    self.entities = set()
+    self.ECS = None
+    
+  def update(self, delta = 0):
+    pass
+    
+  def __repr__(self):
+    return f'{self.__class__.__name__}(entities: {self.entities})'
+    
+class System_Manager:
+  def __init__(self):
+    self.signatures = {}
+    self.systems = {}
+    
+  def register(self, type, system):
+    self.systems[type] = system
+    
+  def set_signature(self, type, signature):
+    self.signatures[type] = signature
+    
+  def entity_signature_changed(self, entity, signature):
+    for type, system in self.systems.items():
+      system_signature = self.signatures[type]
+      
+      if signature >= system_signature:
+        system.entities.add(entity)
+      else:
+        if entity in system.entities:
+          system.entities.remove(entity)
+        
+  def remove(self, entity): 
+    for k, v in self.systems.items():
+      v.entities.remove(entity)
+      
+  def update(self, delta = 0):
+    for k, v in self.systems.items():
+      v.update(delta)
+      
+  def __repr__(self):
+    return f'System_Manager(signatures: {self.signatures}, systems: {self.systems})'
+    
+class Engine:
+  def __init__(self):
+    self.entity_manager = Entity_Manager()
+    self.component_manager = Component_Manager()
+    self.system_manager = System_Manager()
+    
+  # --- Entity stuff
+  
+  def create_entity(self, components = ()):
+    entity = self.entity_manager.make()
+    
+    for c in components:
+      T = type(c)
+      self.component_manager.arrays[T].add(entity, c)
+      
+      signature = self.entity_manager.get_signature(entity)
+      signature.add(T)
+      
+      self.system_manager.entity_signature_changed(entity ,signature)
+      
+    return entity
+    
+  def dispose_entity(self, entity):
+    for T in self.entity_manager.get_signature(entity):
+      self.component_manager.arrays[T].remove(entity)
+      
+    self.system_manager.remove(entity)
+    self.entity_manager.dispose(entity)
+    
+  def get_entity_components(self, entity):
+    return [self.component_manager.arrays[T].get(entity)
+      for T in self.entity_manager.get_signature(entity)]
+      
+  # --- Component stuff
+  
+  def register_component(self, type):
+    self.component_manager.register(type)
+    
+  def add_component(self, type, entity, component):
+    self.component_manager.add(type, entity, component)
+    
+    signature = self.entity_manager.get_signature(entity)
+    signature.add(type)
+    
+    self.system_manager.entity_signature_changed(entity, signature)
+    
+  def remove_component(self, type, entity):
+    self.component_manager.remove(type, entity)
+    
+    signature = self.entity_manager.get_signature(entity)
+    signature.remove(type)
+    
+    self.system_manager.entity_signature_changed(entity, signature)
+    
+  def get_component(self, type, entity):
+    return self.component_manager.get(type, entity)
+    
+  # --- System stuff
+  
+  def register_system(self, type, system, signature):
+    self.system_manager.register(type, system)
+    self.system_manager.set_signature(type, signature)
+    system.ECS = self
+    
+  def update(self, delta = 0):
+    self.system_manager.update(delta)
+    
+  def __repr__(self):
+    return f'Engine(entity_manager: {self.entity_manager}, component_manager: {self.component_manager}, system_manager: {self.system_manager})'
   
 </script>
 </html>
