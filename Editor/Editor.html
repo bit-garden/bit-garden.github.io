@@ -2738,11 +2738,11 @@ class Matrix:
 #
 #redraw(lambda: redraws.append(update_ui))
 
-def system(components, f):
-  def _system(es):
+def system(signature, f):
+  def _system(es, delta=0):
     for entity in es:
-      if set(entity.keys()) <= components:
-        f(entity)
+      if set(entity.keys()) <= signature:
+        f(entity, delta)
   return _system
   
 </script>
