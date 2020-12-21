@@ -2808,15 +2808,16 @@ class ECS:
 
   # ---
 
-  def addSystem(self, signature, f):
-    s = System(signature, f)
+  def addSystem(self, signature, f, enabled=True):
+    s = System(signature, f, enabled)
     self.systems.append(s)
     return s
 
   def update(self, delta = 0):
     for s in self.systems:
-      for entity in s.entities:
-        s.f(entity, delta)
+      if s.enabled:
+        for entity in s.entities:
+          s.f(entity, delta)
 
   def updateSignature(self, entity, signature):
     for s in self.systems:
@@ -2826,10 +2827,11 @@ class ECS:
         s.entities.remove(entity)
 
 class System:
-  def __init__(self, signature, f):
+  def __init__(self, signature, f, enabled=True):
     self.signature = signature
     self.f = f
     self.entities = [] # int
+    self.enabled = enabled
 
 class ComponentArray:
   def __init__(self, maxEntities):
