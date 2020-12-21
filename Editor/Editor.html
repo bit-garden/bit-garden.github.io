@@ -2794,7 +2794,7 @@ class ECS:
   def removeEntityComponent(self, T, entity):
     signature = self.entitySignature[entity]
     signature.remove(T)
-    self.components[T].remove(entity, component)
+    self.components[T].remove(entity)
     self.updateSignature(entity, signature)
 
   def getEntityComponent(self, T, entity):
