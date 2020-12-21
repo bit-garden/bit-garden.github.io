@@ -2739,11 +2739,133 @@ class Matrix:
 #redraw(lambda: redraws.append(update_ui))
 
 def system(signature, f):
-  def _system(es, delta=0):
+  def _system(es, delta = 0):
     for entity in es:
-      if set(entity.keys()) <= signature:
+      if set(entity.keys()) >= signature:
         f(entity, delta)
   return _system
+
+class ECS:
+  def __init__(self, maxEntities=32):
+    self.entitiesAvailable = list(range(maxEntities)) # int
+    self.entitySignature = [set() for i in range(maxEntities)] # Set<Class>
+    self.entitiesAlive = 0
+
+    self.components = {} # <Class, ComponentArray>
+    self.systems = [] # System
+
+    self.maxEntities = maxEntities
+
+  def createEntity(self, components=[]):
+    e = self.entitiesAvailable.pop(0)
+
+    if len(components) > 0:
+      signature = {type(c) for c in components}
+      self.entitySignature[e] = signature
+      for c in components:
+        self.components[type(c)].add(e, c)
+
+      for s in self.systems:
+        if signature >= s.signature:
+          s.entities.append(e)
+
+    self.entitiesAlive += 1
+
+    return e
+
+  def disposeEntity(self, e):
+    self.entitiesAvailable.append(e)
+    for T in self.entitySignature[e]:
+      self.components[T].remove(e)
+    for s in self.systems:
+      s.entities.remove(e)
+
+  # ---
+
+  def addComponent(self, T, _maxEntities=None):
+    self.components[T] = ComponentArray(_maxEntities if _maxEntities else self.maxEntities)
+
+  def addEntityComponent(self, T, entity, component):
+    signature = self.entitySignature[entity]
+    signature.add(T)
+    self.components[T].add(entity, component)
+    self.updateSignature(entity, signature)
+
+  def removeEntityComponent(self, T, entity):
+    signature = self.entitySignature[entity]
+    signature.remove(T)
+    self.components[T].remove(entity, component)
+    self.updateSignature(entity, signature)
+
+  def getEntityComponent(self, T, entity):
+    return self.components[T].get(entity)
+
+  def __call__(self, T, entity):
+    return self.components[T].get(entity)
+
+  def getEntityComponents(self, entity):
+    return [self.components[T].get(entity) for T in self.entitySignature[entity]]
+
+  # ---
+
+  def addSystem(self, signature, f):
+    s = System(signature, f)
+    self.systems.append(s)
+    return s
+
+  def update(self, delta = 0):
+    for s in self.systems:
+      for entity in s.entities:
+        s.f(entity, delta)
+
+  def updateSignature(self, entity, signature):
+    for s in self.systems:
+      if signature >= s.signature:
+        s.entites.add(entity)
+      else:
+        s.entities.remove(entity)
+
+class System:
+  def __init__(self, signature, f):
+    self.signature = signature
+    self.f = f
+    self.entities = [] # int
+
+class ComponentArray:
+  def __init__(self, maxEntities):
+    self.maxEntities = maxEntities
+    self.size = 0
+    self.items = [None for i in range(maxEntities)]
+
+    self.entityToIndex = {}
+    self.indexToEntity = {}
+
+  def add(self, entity, component):
+    newIndex = self.size
+
+    self.entityToIndex[entity] = newIndex
+    self.indexToEntity[newIndex] = entity
+
+    self.items[newIndex] = component
+
+    self.size += 1
+
+  def remove(self, entity):
+    indexOfRemovedEntity = self.entityToIndex[entity]
+    indexOfLastElement = self.size - 1
+    self.items[indexOfRemovedEntity] = self.items[indexOfLastElement]
+
+    entityOfLastElement = self.indexToEntity[indexOfLastElement]
+    self.entityToIndex[entityOfLastElement] = indexOfRemovedEntity
+    self.indexToEntity[indexOfRemovedEntity] = entityOfLastElement
+
+    del self.entityToIndex[entity]
+    del self.indexToEntity[indexOfLastElement]
+
+    self.size -= 1
+
+  def get(self, entity):
+    return self.items[self.entityToIndex[entity]]
   
 </script>
 </html>
