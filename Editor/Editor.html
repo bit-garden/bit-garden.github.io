@@ -399,7 +399,7 @@ if ('data' in localStorage){
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
-            'lineNumbers':       false,
+            'lineNumbers':       true,
             "mode":              'simplemode',
             "theme":             "material",
             'tabSize':           2,
@@ -1208,7 +1208,7 @@ doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
 
 
 
-_options['_line_numbers'] = False
+_options['_line_numbers'] = True
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
   _options['_line_numbers'] = state
@@ -2737,6 +2737,16 @@ class Matrix:
 #  root <= DIV('test')
 #
 #redraw(lambda: redraws.append(update_ui))
+
+async def aloop(update, FPS=1/30):
+  diff = 0
+  last_frame_time = time.time()
+
+  while update(diff + FPS) is not False:
+    diff = time.time() - last_frame_time
+
+    await asyncio.sleep(FPS - diff)
+    last_frame_time = time.time()
 
 def system(signature, f):
   def _system(es, delta = 0):
