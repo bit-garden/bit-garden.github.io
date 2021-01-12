@@ -897,14 +897,14 @@ def align(t):
 class Listenable:
   def __init__(self): self._listeners = []
   
-  def addListener(self, f): self._listeners.append(f)
-  def removeListener(self, f): self._listeners.remove(f)
+  def add(self, f): self._listeners.append(f)
+  def remove(self, f): self._listeners.remove(f)
   def dispose(self): self._listeners.clear()
   
   @property
   def hasListeners(self): return self._listeners == []
   
-  def notifyListeners(self):
+  def notify(self):
     for l in self._listeners[:]: l()
 
 async def aloop(update, FPS=1/30):
