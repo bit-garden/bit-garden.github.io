@@ -358,15 +358,6 @@ CodeMirror.Vim.map('<Tab>r', ':js alignRight()', 'visual')
 CodeMirror.Vim.map('<Tab>l', ':js alignLeft()', 'visual')
 CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
 
-//CodeMirror.Vim.map('((', ':double_tap ()', 'insert')
-////CodeMirror.Vim.map(')', ':double_tap )', 'insert')
-//CodeMirror.Vim.map('{{', ':double_tap {}', 'insert')
-////CodeMirror.Vim.map('}', ':double_tap }', 'insert')
-//CodeMirror.Vim.map('[[', ':double_tap []', 'insert')
-////CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
-//CodeMirror.Vim.map('""', ':double_tap ""', 'insert')
-//CodeMirror.Vim.map("''", ":double_tap ''", 'insert')
-
 CodeMirror.Vim.map('{}', ':bracespace {}', 'insert')
 //CodeMirror.Vim.map('[]', ':bracespace []', 'insert')
 
@@ -377,7 +368,6 @@ CodeMirror.Vim.map('s[', ':surround []', 'visual')
 CodeMirror.Vim.map('s]', ':surround []', 'visual')
 CodeMirror.Vim.map('s{', ':surround {}', 'visual')
 CodeMirror.Vim.map('s}', ':surround {}', 'visual')
-CodeMirror.Vim.map('sq', ':surround q', 'visual')
 
 CodeMirror.Vim.map("s'", ":surround ''", 'visual')
 CodeMirror.Vim.map('s"', ':surround ""', 'visual')
@@ -399,7 +389,7 @@ if ('data' in localStorage){
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
-            'lineNumbers':       true,
+            'lineNumbers':       false,
             "mode":              'simplemode',
             "theme":             "material",
             'tabSize':           2,
@@ -695,10 +685,9 @@ function matrix2(s, delim='|'){
 }
 
 function table(s, delim='|'){
-  var l = matrix2(s);
-  if (l[0][0].startsWith('#'))
-    l[0][0] = l[0][0].substring(1);
-
+  var out = s.trim().split('\n').map((i) => i.split(delim).map((j) => j.trim()));
+  var width = out[0].length;
+  var l = out.map((i) => [...i, ...(Array.apply(null, Array(width-i.length)).map(function() { return '' }))]);
   var keys = l.shift();
 
   l = l.map((values) => keys.reduce((acc, k, i) => (acc[k] = values[i], acc), {}));
@@ -756,146 +745,6 @@ import time
 
 input = window.prompt
 
-
-class Q:
-  def __call__(self, arg):
-    if callable(arg):
-      def f(*l, **kw):
-        _ret = arg(*l, **kw)
-        args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
-        print(f'{arg.__qualname__}({args}) -> {_ret}')
-        return _ret
-        
-      f.__name__ = arg.__name__
-      f.__qualname__ = arg.__qualname__
-      return f
-    print(arg)
-    return arg
-    
-  def __or__(self, arg):
-    print(arg)
-    return arg
-  
-  __truediv__ = __div__ = __or__
-  
-q = Q()
-
-class COLOR:
-  crimson = (220, 20, 60)
-  emerald = (0, 89, 11)
-  cobalt = (0, 71, 171)
-  gold = (255, 215, 0)
-  red = (255, 0, 0)
-  blue = (0, 0, 255)
-  green = (0, 255, 0)
-  
-
-# TODO
-#class fopen():
-#  def __init__(self, new_file=False):
-#    if new_file:
-#      self.opts = {
-#        'type': 'saveFile',
-#        'accepts': [{
-#          'description': 'Text file',
-#          'extensions': ['txt'],
-#          'mimeTypes': ['text/plain'],
-#        }],
-#      }
-#    else:
-#      self.opts = {}
-#
-#  async def __aenter__(self):
-#    if self.opts:
-#      self.fileHandle = await window.chooseFileSystemEntries(self.opts)
-#    else:
-#      self.fileHandle = await window.chooseFileSystemEntries()
-#    self.file = await self.fileHandle.getFile()
-#    self.text = await self.file.text()
-#
-#    return self
-#
-#  async def write(self, content):
-#    writer = await self.fileHandle.createWritable()
-#    await writer.truncate(0)  
-#    await writer.write(content)
-#
-#    await writer.close()
-#
-#  async def __aexit__(self, *l):
-#    pass
-
-  
-# pure python versions for faster load
-#def itemgetter(*items):
-#  if len(items) == 1:
-#    item = items[0]
-#    def g(obj):
-#      return obj[item]
-#  else:
-#    def g(obj):
-#      return tuple(obj[item] for item in items)
-#  return g
-
-# hacky exec version of itemgetter for speed
-# slower creation, but faster execute for more than 1 item
-def itemgetter(*items):
-  template = f'''def f(i): return {", ".join(f"i[{i!r}]" for i in items)}'''
-  loc = {}
-  exec(template, {}, loc)
-  return loc['f']
-
-# hacky exec version of attrgetter for speed
-# slower creation, but faster execute
-def attrgetter(*items):
-  template = f'''def f(i): return {", ".join(f"i.{i}" for i in items)}'''
-  loc = {}
-  exec(template, {}, loc)
-  return loc['f']
-
-class groupby:
-  # [k for k, g in groupby('AAAABBBCCDAABBB')] --> A B C D A B
-  # [list(g) for k, g in groupby('AAAABBBCCD')] --> AAAA BBB CC D
-  def __init__(self, iterable, key=None):
-    if key is None:
-      key = lambda x: x
-    self.keyfunc = key
-    self.it = iter(iterable)
-    self.tgtkey = self.currkey = self.currvalue = object()
-  def __iter__(self):
-    return self
-  def __next__(self):
-    self.id = object()
-    while self.currkey == self.tgtkey:
-      self.currvalue = next(self.it)  # Exit on StopIteration
-      self.currkey = self.keyfunc(self.currvalue)
-    self.tgtkey = self.currkey
-    return (self.currkey, self._grouper(self.tgtkey, self.id))
-  def _grouper(self, tgtkey, id):
-    while self.id is id and self.currkey == tgtkey:
-      yield self.currvalue
-      try:
-        self.currvalue = next(self.it)
-      except StopIteration:
-        return
-      self.currkey = self.keyfunc(self.currvalue)
-      
-#def gatherby(l, *keys):
-#  gb = {}
-#  
-#  if len(keys) == 0:
-#    for i in l:
-#      gb.setdefault(i, []).append(i)
-#  elif len(keys) == 1:
-#    k = keys[0]
-#    for i in l:
-#      gb.setdefault(i[k], []).append(i)
-#  else:
-#    for i in l:
-#      gb.setdefault(tuple(i[k] for k in keys), []).append(i)
-#  
-#  return gb
-
 def groupBy(l, key):
   gb = {}
   for i in l: gb.setdefault(key(i), []).append(i)
@@ -916,45 +765,11 @@ def chunkBy(l, key):
 
   if len(last_group) > 0: yield [last_key, last_group]
 
-
-  
 def chunk(l, n):
   for i in range(len(l)//n):
     yield l[n*i: n*(i+1)]
   if len(l) % n != 0:
     yield l[-n+1:]
-
-    
-class zip_longest:
-  def __init__(self, *args, fillvalue = None):
-    self.args = [iter(arg) for arg in args]
-    self.fillvalue = fillvalue
-    self.units = len(args)
-  
-  def __iter__(self):
-    return self
-  
-  def __next__(self):
-    temp = []
-    nb = 0
-    for i in range(self.units):
-      try:
-        temp.append(next(self.args[i]))
-        nb += 1
-      except StopIteration:
-        temp.append(self.fillvalue)
-    if nb==0:
-      raise StopIteration
-    return tuple(temp)
-
-def partial(func, *args, **keywords):
-  def newfunc(*fargs, **fkeywords):
-    newkeywords = {**keywords, **fkeywords}
-    return func(*args, *fargs, **newkeywords)
-  newfunc.func = func
-  newfunc.args = args
-  newfunc.keywords = keywords
-  return newfunc
   
 # dart style implementations
 def fold(l, v, f):
@@ -964,143 +779,11 @@ def fold(l, v, f):
 def reduce(l, f):
   return fold(_:=iter(l), next(_), f)
 
-  
-class permutations:
-  def __init__(self, iterable, r = None):
-    self.pool = tuple(iterable)
-    self.n = len(self.pool)
-    self.r = self.n if r is None else r
-    self.indices = list(range(self.n))
-    self.cycles = list(range(self.n, self.n - self.r, -1))
-    self.zero = False
-    self.stop = False
 
-  def __iter__(self):
-    return self
-
-  def __next__(self):
-    indices = self.indices
-    if self.r > self.n:
-      raise StopIteration
-    if not self.zero:
-      self.zero = True
-      return tuple(self.pool[i] for i in indices[:self.r])
-    
-    i = self.r - 1
-    while i >= 0:
-      j = self.cycles[i] - 1
-      if j > 0:
-        self.cycles[i] = j
-        indices[i], indices[-j] = indices[-j], indices[i]
-        return tuple(self.pool[i] for i in indices[:self.r])
-      self.cycles[i] = len(indices) - i
-      n1 = len(indices) - 1
-      assert n1 >= 0
-      num = indices[i]
-      for k in range(i, n1):
-        indices[k] = indices[k+1]
-      indices[n1] = num
-      i -= 1
-    raise StopIteration
-      
-
-
-def grouper(iterable, n, fillvalue=None):
-  "Collect data into fixed-length chunks or blocks"
-  # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
-  args = [iter(iterable)] * n
-  return zip_longest(*args, fillvalue=fillvalue)
-
-
-#def align(l, *attrs, zip=zip):
-#  """ Aligns lists into a table like structure for neatness.
-#  
-#  This also aligns number like values to the right.
-#  """
-#
-#  l = tuple(l)  # exhaust generators
-#  if isinstance(l[0], dict):
-#    h = attrs or l[0].keys()
-#    l = [[f'{j}' for j in i] for i in zip(h, *([i[k] for k in h] for i in l))]
-#  elif isinstance(l[0], (list, tuple)):
-#    l = [[f'{j}' for j in i] for i in zip(*l)]
-#  else:
-#    h = attrs or (l[0].__slots__ if hasattr(l[0], '__slots__') else vars(l[0]))
-#    l = [[f'{j}' for j in i] for i in zip(h, *([getattr(i, k) for k in h] for i in l))]
-#
-#  for col in l:
-#    column_width = len(max(col, key=len))
-#    for idx, c in enumerate(col):
-#      try:
-#        float(c)
-#        col[idx] = c.rjust(column_width)
-#      except:
-#        col[idx] = c.ljust(column_width)
-#  
-#  # transpose back and return.
-#  return '\n'.join(' | '.join(i).rstrip() for i in zip(*l))
-
-def slot(f, *components, verbose=False):
-  """ A simple c-struct like generator. 
-  
-  This does not inherit functions and constructs a new class from scratch
-    using exec.
-  """
-  if callable(f):
-    args = tuple({x for x in (vars(i) for i in f.__mro__ if i is not object) for x in x if not x.startswith('__')})
-    defaults = tuple(getattr(f, i) for i in args)
-    supers = tuple(i.__qualname__ for i in f.__mro__ if i is not object and i is not f)
-    components = '__components__ = ' + repr(supers)
-    name = f.__name__ 
-    
-    largs = ', '.join(args[:-len(defaults)] if defaults else args)
-  else:
-    components = list(components)
-    slots = components.pop(0)
-    defaults = components
-    args = tuple(slots.split(' '))
-    largs = ', '.join(args[:-len(defaults)] if defaults else args)
-    name = f
-    supers = None
-
-  # Gather list of collections
-  collections = {k: repr(v) for k, v in zip(args[-len(defaults):], defaults)
-      if type(v) in (list, tuple, dict, set)}
-
-  # Set default signature.
-  kwargs = ', '.join(f'{k}={repr(None if k in collections else v)}' for k, v in zip(args[-len(defaults):], defaults))
-  all_args = ', '.join(i for i in [largs, kwargs] if i)
-
-  # Self setters.
-  sargs = '\n    '.join(f'self.{k} = {v}' for k, v in zip(args, (f'{collections[i]} if {i} is None else {i}' if i in collections else i for i in args)))
-  
-  reprs = f'return f"{name}(' + ', '.join(f'{a}={{self.{a}!r}}' for a in args) + ')"'
-
-  slot_template = f'''
-class {name}:
-  __slots__ = {repr(args)}
-  {components if supers is not None else ''}
-  def __init__(self,
-      {all_args}):
-    {sargs}
-    
-  def __iter__(self):
-    yield from ({', '.join(f'self.{i}' for i in args)})
-        
-  def __repr__(self):
-    {reprs}
-'''.strip()
-  # Verbosity to print out generated code.
-  if verbose:
-    print(slot_template)
-
-  local = {}
-  exec(slot_template, local)
-  return local[name]
-  
 def struct(name, args, verbose=False):
   sargs = '\n'.join(f'    self.{i} = {i}' for i in args)
   reprs = ', '.join(f'{i}={{self.{i}!r}}' for i in args)
+  
   slot_template = f"""
 class {name}:
   __slots__ = {repr(tuple(args))}
@@ -1129,40 +812,117 @@ def structs(cm, params):
 window.CodeMirror.Vim.defineEx("struct", None, structs)
 
 
+def dstruct(name, args):
+  sargs = ', '.join(f'this.{i}' for i in args)
+  cargs = '\n'.join(f'  var {i};' for i in args)
+  strargs = ', '.join(f'{i}: ${i}' for i in args)
   
-def todict(obj):
-  # dict
-  if obj is None:
-    return None
-  elif isinstance(obj, dict):
-    #return {k: todict(v) for k, v in obj.items()}
-    data = {}
-    for k, v in obj.items():
-      data[k] = todict(v)
-    return data
-  # slot objects
-  elif hasattr(obj, '__slots__'):
-    #return {k: todict(getattr(obj, k)) for k in obj.__slots__} # brython issue
-    data = {}
-    for k in obj.__slots__:
-      if not k.startswith('_'):
-        data[k] = todict(getattr(obj, k))
-    return data
-  # something iterable, like tuples or lists
-  elif hasattr(obj, "__iter__") and not isinstance(obj, str):
-    return type(obj)(todict(v) for v in obj)
-  # simple classes
-  elif hasattr(obj, "__dict__"):
-    #return {k: todict(v) for k, v in obj.__dict__.items()
-    #  if not callable(v) and not k.startswith('_')}
-    data = {}
-    for k, v in obj.__dict__.items():
-      if not callable(v) and not k.startswith('_'):
-        data[k] = todict(v)
-    return data
-  # finally simple type
-  else:
-    return obj
+  slot_template = f"""
+class {name} {{
+{cargs}
+
+  {name}({sargs});
+  
+  toString () => '{name}({strargs})';
+}}
+""".strip()
+  
+  return slot_template
+  
+def dstructs(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection().strip().splitlines()
+  
+  out = [dstruct(i.split(' ')[0], i.split(' ')[1:]) for i in data]
+    
+  window.vdo('gv')
+  cm_editbox.replaceSelection('\n\n'.join(out))
+window.CodeMirror.Vim.defineEx("dstruct", None, dstructs)
+
+def tint(val, r, g, b, *_):
+  # Tints rgb values to apply 'light'
+
+  rt = r + (val * (255 - r))
+  gt = g + (val * (255 - g))
+  bt = b + (val * (255 - b))
+  return (rt, gt, bt, *_)
+
+def shade(val, r, g, b, *_):
+  # Tints rgb values to apply 'dark' 
+
+  rt = r - r*val 
+  gt = g - g*val 
+  bt = b - b*val 
+  return (rt, gt, bt, *_)
+
+
+def is_dark(r, g, b, *_):
+  # determine color too dark
+  # HSP (Highly Sensitive Poo) equation from http://alienryderflex.com/hsp.html
+  hsp =  0.299 * r**2 + 0.587 * g**2 + 0.114 * b**2
+  return 127.5 >= hsp**(1/2.0)
+
+def hilo(a, b, c):
+  # used in compliment function
+
+  if c < b: b, c = c, b
+  if b < a: a, b = b, a
+  if c < b: b, c = c, b
+  return a + c
+
+def complement(r, g, b, *_):
+  # return complement color
+  k = hilo(r, g, b)
+  return tuple(*(k - u for u in (r, g, b)), *_)
+ 
+def table(s, delim='|'):
+  out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
+  width = len(out[0])
+  out = [[*i, *(['']*(width-len(i)))] for i in out]
+  return [dict(zip(out[0], i)) for i in out[1:]]
+      
+def align(t):
+  widths = {k: len(str(k)) for k in t[0].keys()}
+  
+  for i in t:
+    for k, v in i.items():
+      cur = len(str(v))
+      if cur > widths[k]: widths[k] = cur
+  
+  return ' | '.join(str(idx).ljust(widths[idx]) for idx in t[0].keys()) + '\n' + \
+    '\n'.join(' | '.join(str(col).ljust(widths[idx])
+    for idx, col in row.items())
+      for row in t)
+      
+class Listenable:
+  def __init__(self): self._listeners = []
+  
+  def addListener(self, f): self._listeners.append(f)
+  def removeListener(self, f): self._listeners.remove(f)
+  def dispose(self): self._listeners.clear()
+  
+  @property
+  def hasListeners(self): return self._listeners == []
+  
+  def notifyListeners(self):
+    for l in self._listeners[:]: l()
+
+async def aloop(update, FPS=1/30):
+  diff = 0
+  last_frame_time = time.time()
+
+  while update(diff + FPS) is not False:
+    diff = time.time() - last_frame_time
+
+    await asyncio.sleep(FPS - diff)
+    last_frame_time = time.time()
+
+def system(signature, f):
+  def _system(es, delta = 0):
+    for entity in es:
+      if set(entity.keys()) >= signature:
+        f(entity, delta)
+  return _system
 
 # --- end focus
 
@@ -1208,7 +968,7 @@ doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
 
 
 
-_options['_line_numbers'] = True
+_options['_line_numbers'] = False
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
   _options['_line_numbers'] = state
@@ -1281,28 +1041,6 @@ def do_py() -> None:
     window.vdo("gv")
     data = cm_editbox.getSelection()
     exec(data)
-#    exec('''from browser import aio as asyncio
-#
-#redrawPending = False
-#redraws = []
-#
-#def redraw(fn=None):
-#  if fn: fn()
-#  if redrawPending: return
-#  asyncio.run(_redraw())
-#
-#async def _redraw():
-#  global redrawPending
-#
-#  redrawPending = True
-#  await asyncio.sleep(1.0/30) # 30 fps
-#
-#  root.clear()
-#  for f in redraws: f()
-#  
-#  redrawPending = False
-
-#''' + data)
     if print_red:
       out = '\n'.join([data, ''.join(print_red)])
       window.vdo("gv")
@@ -1328,52 +1066,7 @@ window.CodeMirror.Vim.defineEx("run_file", None, run_file)
 
 def run_shard(*l, **kw):
   visual_shard(*l, **kw)
-  delay(0)(do_py)
-
-  #viewport = doc.select_one('body').width//1.2, \
-  #  doc.select_one('body').height//1.2
-  #print_red = []
-  #def print(*objects, sep=' ', end='\n'):
-  #  print_red.append(sep.join(str(o) for o in objects) + end)
-  #
-  #cm_editbox.save()
-  #cur_line = cm_editbox.getCursor().line
-  #look_ahead = editbox.value.splitlines()[cur_line:]
-  #look_behind = editbox.value.splitlines()[: cur_line]
-  #start, end = 0, 0
-  #
-  #count = 0
-  #for idx, i in enumerate(look_ahead):
-  #  if not i.strip():
-  #    count += 1
-  #  else:
-  #    count = 0
-  #  if count > 1:
-  #    end = idx+cur_line - 1
-  #    break
-  #    
-  #count = 0
-  ##for idx, i in enumerate([*reversed(look_behind)]):
-  #for idx, i in enumerate(list(reversed(look_behind))):
-  #  if not i.strip():
-  #    count += 1
-  #  else:
-  #    count = 0
-  #  if count > 1:
-  #    start = cur_line - idx + 1
-  #    break
-  #  
-  ##print(editbox.value.splitlines()[start:end])
-  #try:
-  #  exec('\n'.join(editbox.value.splitlines()[start:end]))
-  #  if print_red:
-  #    popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
-  #except Exception as e:
-  #  import traceback
-  #  print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
-  #  popup(TEXTAREA(''.join(print_red), style={'width': viewport[0], 'height': viewport[1]}), *viewport)
-  #  global watch_depth
-  #  watch_depth = -1
+  window.setTimeout(do_py, 0)
 window.CodeMirror.Vim.defineEx("run_shard", None, run_shard)
 
 def visual_shard(*l, **kw):
@@ -1407,20 +1100,6 @@ def visual_shard(*l, **kw):
   #print(editbox.value.splitlines()[start:end])
 window.CodeMirror.Vim.defineEx("visual_shard", None, visual_shard)
 
-#def do_tp() -> None:
-#  try:
-#    window.vdo("gvo")
-#    data = cm_editbox.getSelection()
-#    data = list(list(i) for i in zip_longest(*([j.strip() for j in i.split('|')] for i in data.splitlines())))
-#    out = align(data)
-#    cm_editbox.replaceSelection(out.strip('\n'))
-#  except Exception as e:
-#    import traceback
-#    window.make_popup(traceback.format_exc())
-#
-#def run_tp(cm, params):
-#  do_tp()
-#window.CodeMirror.Vim.defineEx("do_tp", None, run_tp)
 
 def runpy(cm, params):
   #g = globals()
@@ -1429,6 +1108,8 @@ def runpy(cm, params):
 
 window.CodeMirror.Vim.defineEx("py", None, runpy)
 
+
+# i don't remember what's going on here.
 def better_sort():
   #import re
   import _jsre as re
@@ -1472,35 +1153,8 @@ window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
-  keep = ''
   try:
-    if data.splitlines()[0].endswith('= \\'): 
-      keep=data.splitlines()[0]+'\n'
-      data = '\n'.join(data.splitlines()[1:])
-    
-    if data.startswith('[['):
-      trans = False
-      if data.endswith('.T'):
-        trans = True
-        m = eval(data[:-2])
-      else:
-        m = eval(data)
-      w = len(m[0])
-      
-      for row in m:
-        while len(row) < w:
-          row.append(0)
-          
-      if {int, float} >= {type(j) for i in m for j in i}:
-        if trans:
-          out = keep+str(Matrix(m).T)
-        else:
-          out = keep+str(Matrix(m))
-      else:
-        out = keep+mstr(m, repr)
-
-    else:
-      out = align(matrix2(data))
+    out = align(table(data))
 
     window.vdo('gv')
     cm_editbox.replaceSelection(out.strip('\n'))
@@ -1509,27 +1163,6 @@ def run_align(cm, params):
 window.CodeMirror.Vim.defineEx("align", None, run_align)
 
 
-def props(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection().strip()
-  
-  args = data.split(' ')
-  out = ''
-  
-  for i in args:
-    out += f'''  @property
-  def {i}(self):
-    return self._{i}
-  @{i}.setter
-  def {i}(self, value):
-    if (old:=self._{i}) is not value:
-      self._{i} = value
-    
-'''
-    
-  window.vdo('gv')
-  cm_editbox.replaceSelection(out.strip('\n'))
-window.CodeMirror.Vim.defineEx("props", None, props)
 
 
 def bracespace(cm, params):
@@ -1545,38 +1178,6 @@ def bracespace(cm, params):
   window.insertTextAtCursor(cm, '  ')
 window.CodeMirror.Vim.defineEx("bracespace", None, bracespace)
 
-def double_tap(cm, params):
-  try:
-    chars = params.argString.strip()
-    line = cm_editbox.getCursor().line
-    line = cm_editbox.getCursor().line
-    ch = cm_editbox.getCursor().ch
-    cur_line = cm_editbox.getLine(line)
-    window.insertTextAtCursor(cm, chars)
-    window.CodeMirror.Vim.exitInsertMode(cm_editbox)
-    window.vdo('a')
-  except Exception as e:
-    import traceback
-    asyncio.run(popup(traceback.format_exc()))
-  #try:
-  #  chars = params.argString.strip()
-  #  line = cm_editbox.getCursor().line
-  #  ch = cm_editbox.getCursor().ch
-  #  cur_line = cm_editbox.getLine(line)
-  #  if len(cur_line) > ch and cur_line[ch] == chars:
-  #    cm_editbox.setCursor({'line':line, 'ch': ch+1})
-  #  else:
-  #    if chars in ('"', "'"):
-  #      window.insertTextAtCursor(cm, chars*2)
-  #    else:
-  #      window.insertTextAtCursor(cm, chars)
-  #    cm_editbox.setCursor({'line':line, 'ch': ch+1})
-  #    #window.CodeMirror.Vim.exitInsertMode(cm_editbox)
-  #    #window.vdo('a')
-  #except Exception as e:
-  #  import traceback
-  #  asyncio.run(popup(traceback.format_exc()))
-window.CodeMirror.Vim.defineEx("double_tap", None, double_tap)
 
 def run_surround(cm, params):
   try:
@@ -1594,65 +1195,7 @@ def run_surround(cm, params):
     asyncio.run(popup(traceback.format_exc()))
 window.CodeMirror.Vim.defineEx("surround", None, run_surround)
 
-
-
-#--- async stuff
-
-def center(el):
-  'bottom height left right top width'
-  root = getdim(doc.querySelector('body'))
-  eldim = getdim(el)
-  el.left = int(root.center[0] - eldim.width//2)
-  el.top = int(root.center[1] - eldim.height//2)
-
-#save_me = []
-#loaded = False
-#_options['save_me'] = save_me
-#
-#def save_on_blur(*l, **kw):
-#  if loaded:
-#    save_me.append(2)
-#
-#window.onblur = save_on_blur
-#
-#async def auto_saver():
-#  global loaded
-#  async with fopen() as f:
-#    cm_editbox.setValue(f.text)
-#    loaded = True
-#    while True:
-#      while not save_me:
-#        await asyncio.sleep(.1)
-#      cm_editbox.save()
-#      await f.write(editbox.value)
-#      if 1 in save_me:
-#        #window.alert('saved')
-#        asyncio.run(saved_notif())
-#      save_me.clear()
-#      print('Saved')
-#
-#async def saved_notif():
-#  notif = DIV([
-#      (time_display:=DIV('Saved'))],
-#    Class='card',
-#    style={
-#      'right': 0,
-#      'bottom': 0,
-#      'position':'fixed',
-#      'z-index': 99})
-#  with El(notif, doc) as n:
-#    await asyncio.sleep(1)
-
-#def _e(cm, params):
-#  asyncio.run(auto_saver())
-#window.CodeMirror.Vim.defineEx("e", None, _e)
-#window.CodeMirror.Vim.defineEx("edit", None, _e)
-
-#async def main():
-#  res = await asyncio.gather(auto_saver())
-#  window.alert(str(res))
-#
-#asyncio.run(main())
+# simple html stuff
 
 def popup(root, width='auto', height='auto'):
   if isinstance(root, (tuple, list, str, int, float, set, dict)):
@@ -1671,1213 +1214,11 @@ def popup(root, width='auto', height='auto'):
   d.showModal()
   
   return d
-  
-class Popup:
-  def __init__(self, *l, **kw):
-    self.d = popup(*l, **kw)
-    
-  def __enter__(self):
-    return self
-    
-  def __exit__(self, *l):
-    self.d.close()
-    
-class El:
-  def __init__(self, el, parent=None):
-    self.el = el
-    if parent:
-      parent <= self.el
-  
-  def __enter__(self):
-    return self.el
-    
-  def __exit__(self, *l):
-    self.el.remove()
-    
-class UIBox(DIV):
-  def __init__(self, *l, x=0, y=0, width=0, height=0, display='inline', 
-      opacity=1, axis=('left', 'top'), **kw):
-    for k, v in (
-        (axis[0], x),  (axis[1], y),
-        ('width', width), ('height', height),
-        ('display', display), ('opacity', opacity),
-        ('box-sizing', 'border-box'), ('position', 'absolute')):
-      self.style[k] = v
-      
-    super().__init__(*l, **kw)
-
-    
-class Tile(DIV):
-  def __init__(self, text, x=0, y=0, width=0, height=0, display='inline', 
-      opacity=1, axis=('left', 'top'), font_size='24px', data=None, **kw):
-          
-    self.data = data
-
-    for k, v in (
-        (axis[0], x),  (axis[1], y),
-        ('width', width), ('height', height),
-        ('display', display), ('opacity', opacity),
-        ('box-sizing', 'border-box'), ('position', 'absolute')):
-      self.style[k] = v
-      
-    super().__init__(DIV(text, 
-      style={
-        'position': 'absolute',
-        'left': '50%', 'top': '50%',
-        'transform': 'translate(-50%, -50%)',
-        'font-size': font_size}), **kw)
-        
-  @property
-  def text(self):
-    return self.children[0].text
-  @text.setter
-  def text(self, value):
-    self.children[0].text = value
-      
-class Icon(I):
-  def __init__(self, *l, font_size='32px', **kw):
-    super().__init__(*l, **{'Class': 'material-icons', **kw})
-    
-    self.style['font-size'] = font_size
-
-class Dot(DIV):
-  def __init__(self, *l, color='blue', shown=False, axis=('top', 'right')):
-    self.shown = shown
-    self.color = color
-    
-    super().__init__(*l, style={
-      'background': color,
-      'display': 'default' if shown else 'none',
-      'position': 'absolute',
-      axis[0]: 0,
-      axis[1]: 0,
-      'border-radius': '64px',
-      'min-width': '16px',
-      'min-height': '16px',
-      'box-shadow': '0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)',
-      })
-
-class Bubble(DIV):
-  def __init__(self, *l, x=0, y=0, width=64, height=64, display='inline-block', 
-      opacity=1, axis=('left', 'top'), **kw):
-    for k, v in (
-        (axis[0], x),  (axis[1], y),
-        ('min-width', width), ('min-height', height),
-        ('display', display), ('opacity', opacity),
-        ('box-sizing', 'border-box'), ('position', 'fixed'),
-        ('border-radius', '64px'),
-        ('box-shadow', '0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.20)'),
-        ('background-size', 'cover'),
-        ('transition-timing-function', 'cubic-bezier(0.4, 0.0, 0.2, 1)'),
-        ('transition', 'all 0.3s')):
-      self.style[k] = v
-      
-    super().__init__(*l, **kw)
-
-def make_ripple(el, base_color=(18,18,18,1), no_key=False):
-  mutator = tint if is_dark(*base_color) else shade
-  
-  hover_color = mutator(opacities[8], *base_color[:3], 1)
-  pulse_color = mutator(.4, *base_color[:3], 1)
-  
-  glows = [(*(base_color[:3]), i) for i in (.14, .12, .2)]
-  
-  @bind('mouseout blur', el)
-  def prep_ripple(*_):
-    base_sty = {'background-color': f'rgba{base_color}', 
-      'background-position': 'center', 
-      'box-shadow': 'none',
-      'transition': 'all 0.3s',
-      'transition-timing-function': 'cubic-bezier(0.4, 0.0, 0.2, 1)'}
-    for k, v in base_sty.items():
-      el.style[k] = v
-  prep_ripple()
-
-  @bind('mouseover mouseup focus', el)
-  def pre_ripple(*_):
-    hover_sty = {'transition': 'all 0.3s',
-      'box-shadow': f'0 4px 5px 0 rgba{glows[0]}, 0 1px 10px 0 rgba{glows[1]}, 0 2px 4px -1px rgba{glows[2]}',
-      'background': f'rgba{hover_color} radial-gradient(circle, transparent 1%, rgba{hover_color} 1%) center/15000%'}
-
-    for k, v in hover_sty.items():
-      el.style[k] = v
-
-  @bind('mousedown', el)
-  def do_ripple(*_):
-    active_sty = {'background-color': f'rgba{pulse_color}',
-      #'box-shadow': f'0 4px 5px 0 rgba(220, 20, 60, 0.14), 0 1px 10px 0 rgba(220, 20, 60, 0.12), 0 2px 4px -1px rgba(220, 20, 60, 0.20)',
-      'background-size': '100%', 'transition': 'all 0s'}
-
-    for k, v in active_sty.items():
-      el.style[k] = v
-    
-    Delay(.05, pre_ripple)
-
-  def _do_ripple(*_):
-    pre_ripple()
-    Delay(.4, do_ripple)
-    Delay(.45, pre_ripple)
-    Delay(.6, prep_ripple)
-  
-  def _key_ripple(ev):
-    if ev.key=='Enter' or ev.key==' ':
-      do_ripple()
-  
-  if not no_key:
-    el.bind('keydown', _key_ripple)
-  
-  return el, _do_ripple
-
-def tooltip(attach_to, content, down=True, style={}, color='black'):
-  if isinstance(attach_to, list):
-    x, y = attach_to
-  else:
-    target_bounds = attach_to.getBoundingClientRect()
-    x = target_bounds.x + (target_bounds.right - target_bounds.x)/2
-
-    if down:
-      y = target_bounds.bottom
-    else:
-      y = target_bounds.top
-
-  arrow = DIV(style={
-    'width': '0',
-    'height': '0',
-    'border': '12px solid transparent',
-    'border-bottom-color' if down else 'border-top-color': color,
-    'position': 'absolute',
-    'top' if down else 'bottom': '-24px',
-    'left': '50%',
-    'transform': 'translate(-50%, 0%)',
-  })
-
-  return DIV([arrow, content], style={
-    'position': 'fixed',
-    'left': x,
-    'top': y + (14 if down else -14),
-    'color': 'rgba(255, 255, 255, .83)',
-    'background': color,
-    'position': 'fixed',
-    'font-style': 'Roboto',
-    'padding': '4px 8px',
-    'transform': f'translate(-50%, {"0" if down else "-100"}%)',
-    **style,
-  }) 
-
-def diamond(*l, width=64, height=64, style={}, **kw):
-  return DIV(DIV(*l, **kw, style={
-      'width': width,
-      'height': height,
-      'transform': 'rotate(-45deg)',
-    }),style={
-      'width': width,
-      'height': height,
-      'transform': 'rotate(45deg)',
-      'display': 'inline-block',
-      **style,
-    })
-    
-def linebreak(label=''):
-  if not label:
-    return HR(style={'border': 'none', 'border-bottom': 'solid 2px rgba(255,255,255,.50)'})
-  return DIV(label, style={'padding-bottom': '2px', 'margin': '8px 0px', 'color': 'rgba(255,255,255,.50)', 'border': 'none', 'border-bottom': 'solid 2px rgba(255,255,255,.50)'})
-  
-def textbox(*l, style={}, **kw):
-  return INPUT(
-    *l, **kw,
-    style={
-      'background': 'none',
-      'color': 'rgba(255,255,255,.87)',
-      'border': 'none',
-      'border-bottom': '1px solid rgb(255,255,255,.87)',
-      'outline': 'none',
-      'box-sizing': 'border-box',
-      'padding': '4px',
-      **style
-    })
-  
-def button(*l, style={}, **kw):
-  return BUTTON(
-    *l, **kw,
-    style={
-      'background': 'none',
-      'color': 'rgba(255,255,255,.87)',
-      'font-weight': 'bold', 'font-family': 'Thin', 'font-size': '18px',
-      'border': '1px solid rgb(255,255,255,.87)',
-      'outline': 'none',
-      'box-sizing': 'border-box',
-      'padding': '8px',
-      'text-align': 'center',
-      #'opacity': .83,
-      'letter-spacing': '3px',
-      **style
-    })
-  
-def popover(attach_to, color='', header='', sub_header='', body='', 
-    keybind_hints='', offset=(0, 0), axis=('left', 'top'), width=350):
-  win_size = window.innerWidth, window.innerHeight
-  
-  if isinstance(attach_to, list):
-    x, y = attach_to
-    alignment = {
-      axis[0] if (x+offset[0]+width < win_size[0]) else 'right': x + offset[0],
-      axis[1]: y + offset[1],
-    }
-    
-  else:
-    target_bounds = attach_to.getBoundingClientRect()
-  
-    opposites = ('right', 'bottom' if axis[0]=='top' else 'top')
-    
-    alignment = {
-      axis[0] if (getattr(target_bounds, opposites[0]) + offset[0]+width < win_size[0]) else 'right': 
-        getattr(target_bounds, opposites[0]) + offset[0],
-      axis[1]: getattr(target_bounds, opposites[1]) + offset[1],
-    }
-
-  elements = []
-  
-  if header:
-    elements.append(DIV(
-      [
-        DIV(header, style={
-          'font-weight': 'bold',
-          'font-size': '20pt',
-        }),
-        DIV(sub_header, style={
-          'color': 'rgba(255,255,255,.66)',
-        }),
-      ],
-      style={
-        'background': color,  #'#B00020',
-        'padding': '6px 12px',
-        'border-top': 'white solid 2px',
-      }
-    ))
-
-  if body:
-    elements.append(DIV(body,
-      style={
-        'padding': '6px 12px',
-      }
-    ))
-
-  if keybind_hints:
-    elements.append(DIV(keybind_hints,
-      style={
-        'padding': '6px 12px',
-        'text-align': 'right',
-      }
-    ))
-
-  return DIV(
-    elements,
-    style={
-      'width': width,
-      'color': 'rgba(255,255,255,.83)',
-      'background': 'rgba(0, 0, 0, .5)',
-      'position': 'fixed',
-      'font-style': 'Roboto',
-      **alignment,
-    },
-  )
-
-# import from notes file
-
-#viewport = doc.select_one('body').width//1.2, \
-#  doc.select_one('body').height//1.2
-#
-#cell_size = [min(viewport)//3 - 32]*2
-#grid_size = [a//b for a, b in zip(viewport, cell_size)]
-#offset = [(a-b*c)/2 for a, b, c in zip(viewport, cell_size, grid_size)]
-#tracks = [[(round(a+b*i), round(a+b+b*i)) for i in range(c)]  # (coord, length) pairs
-#  for a, b, c in zip(offset, cell_size, grid_size)]
-
-def axis_to_tracks(axis, viewport, offset=None):
-  """ Used to generate a non-uniform grid. """
-  axis = [[v*b if isinstance(b, float) else b for b in a] 
-    for v, a in zip(viewport, axis)]
-
-  for v, a in zip(viewport, axis):
-    if (count:=len([i for i in a if i is ...])):
-      fill = (v - sum(i for i in a if i is not ...))/count
-      while ... in a:
-        a[a.index(...)] = fill
-
-  axis = [[round(sum(a[:i])) for i in range(len(a)+1)] for a in axis]
-  axis = [[(a[i]+o, a[i+1]+o) for i in range(len(a)-1)] 
-      for a, o in zip(axis, offset or [0]*len(axis))]
-  
-  return axis
-
-def tracks_to_coords(tracks, cell, ecell=None, padding=None):
-  """ Returns pairs of start and end of each axis in tracks. """
-  return [(t[c][0]+p, t[ec or c][1]-p*2) 
-      for c, ec, t, p in zip(
-          cell, ecell or [None]*len(cell), 
-          tracks, padding or [0]*len(cell))]
-
-def point_to_cell(tracks, point=(0, 0)):
-  """ Get cell that point is in on tracks. """
-  return [next((idx for idx, i in enumerate(t) if i[0] <= p <= i[1]), None)
-      for t, p in zip(tracks, point)]
-    
-coords_map = ('left', 'width'), ('top', 'height')
-def gmap(instance, *l, **kw):
-  for k, v in zip(coords_map, tracks_to_coords(*l, **kw)):
-    instance.style[k[0]] = v[0]
-    instance.style[k[1]] = v[1] - v[0]
-      
-      
-# dark material height to tint
-opacities = {0: 0,
-     1: .05,
-     2: .07,
-     3: .08,
-     4: .09,
-     6: .11,
-     8: .12,
-     12: .14,
-     16: .15,
-     24: .16}
-font_opacities = {'high': .87, 'medium': .6, 'disabled': .38}
-font_error = (176, 0, 32, 1) #B00020
-
-def tint(val, r, g, b, *_):
-  # Tints rgb values to apply 'light'
-
-  rt = r + (val * (255 - r))
-  gt = g + (val * (255 - g))
-  bt = b + (val * (255 - b))
-  return (rt, gt, bt, *_)
-
-def shade(val, r, g, b, *_):
-  # Tints rgb values to apply 'dark' 
-
-  rt = r - r*val 
-  gt = g - g*val 
-  bt = b - b*val 
-  return (rt, gt, bt, *_)
-
-
-def is_dark(r, g, b, *_):
-  # determine color too dark
-  # HSP (Highly Sensitive Poo) equation from http://alienryderflex.com/hsp.html
-  hsp =  0.299 * r**2 + 0.587 * g**2 + 0.114 * b**2
-  return 127.5 >= hsp**(1/2.0)
-
-def hilo(a, b, c):
-  # used in compliment function
-
-  if c < b: b, c = c, b
-  if b < a: a, b = b, a
-  if c < b: b, c = c, b
-  return a + c
-
-def complement(r, g, b, *_):
-  # return complement color
-  k = hilo(r, g, b)
-  return tuple(*(k - u for u in (r, g, b)), *_)
-
-#decode hex to tuple
-#tuple(bytes.fromhex("aabbccaa"))
-
-
-
-def matrix(s, delim='|'):
-  return [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
- 
-def matrix2(s, delim='|'):
-  out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
- 
-  width = len(out[0])
- 
-  return [[*i, *(['']*(width-len(i)))] for i in out]
- 
-def table(s, delim='|'):
-  l = matrix2(s, delim)
-  l[0][0] = l[0][0].lstrip('#')
-  return [dict(zip(l[0], i)) for i in l[1:] if not i[0].startswith('#')]
- 
-def align(l):
-  widths = [0 for i in l[0]]
-  width = len(l[0])
- 
-  for i in l:
-    for j in range(width):
-      i[j] = f'{i[j]}'
-      if len(i[j]) > widths[j]: widths[j] = len(i[j])
- 
-  aligns = [i.endswith(':') for i in l[0]]
- 
-  return '\n'.join(' | '.join(
-    i[j].rjust(widths[j]) if aligns[j] else i[j].ljust(widths[j])
-      for j in range(width)).rstrip() for i in l)
-      
-def mstr(l, tostring=str):
-  widths = [0 for i in l[0]]
-
-  for row in l:
-    for idx, col in enumerate(row):
-      cur = len(tostring(col))
-      if cur > widths[idx]: widths[idx] = cur
-      
-  return '[[' + '],\n ['.join(', '.join(tostring(col).rjust(widths[idx]) if isinstance(col, (int, float)) else tostring(col).ljust(widths[idx])
-    for idx, col in enumerate(row))
-      for row in l) + ']]'  
-
-class attrDict:
-  def __init__(self, **kw):
-    self.__dict__.update(kw)
-    
-  def __iter__(self):
-    yield from (getattr(self, k, None) for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self)))
-  
-  def __repr__(self):
-    return self.__class__.__name__ + '(' + ', '.join(f'{k}={getattr(self, k, None)!r}'
-        for k in (self.__slots__ if hasattr(self, '__slots__') else vars(self))) + ')'
-        
-def stagger(l, d):
-  d = d/len(l)
-  def _stagger(f):
-    for idx, i in enumerate(l, 1):
-      if isinstance(i, (tuple, list)):
-        Delay(idx*d, f, *i)
-      elif isinstance(i, (dict)):
-        Delay(idx*d, f, **i)
-      else:
-        Delay(idx*d, f, i)
-  return _stagger
-
-class Ticker:
-  def __init__(self):
-    self.last_tick = window.Date.now()
-    self.last_diff = self.last_tick
-    
-  def tick(self, sec):
-    n = window.Date.now()
-    _s = sec*1000
-    diff = self.last_tick + _s - n
-    self.last_tick += _s
-    
-    return max(diff/1000, 0)
-    
-  def diff(self):
-    _diff = window.Date.now() - self.last_diff
-    self.last_diff += _diff
-    
-    return _diff/1000
-    
-async def loop(d, f, running=True):
-  t = Ticker()
-  while f(t.diff()) is not False and running:
-    await asyncio.sleep(t.tick(d))
-    
-def delay(d, running=None):
-  if not running:
-    running = [None, 'running']
-  def _delay(f, *l, **kw):
-    async def __delay():
-      await asyncio.sleep(d)
-      if running:
-        running[:] = [f(*l, **kw), 'done']
-      else:
-        running[:] = [None, 'cancelled']
-    asyncio.run(__delay())
-    return f
-  return _delay
-  
-def Delay(d, f, *l, **kw):
-  task = [None, 'running']
-  delay(d, task)(f, *l, **kw)
-  return task
-    
-def debounce(d):
-  _delay = None
-  def _debounce(f):
-    def __debounce(*l, **kw):
-      nonlocal _delay
-      if _delay:
-        _delay.clear()
-      _delay = Delay(d, f, *l, **kw)
-    return __debounce
-  return _debounce
-  
-def throttle(d):
-  _delay, last, _l, _kw = None, -1, [], {}
-  def _throttle(f):
-    def do():
-      nonlocal last
-      last = window.Date.now()
-      f(*_l, **_kw)
-    def __throttle(*l, **kw):
-      nonlocal _delay, last, _l, _kw
-      if _delay:
-        _l, _kw = l, kw
-      elif ~last and window.Date.now() - last < d*1000:
-        _l, _kw = l, kw
-        _delay = Delay(d - (window.Date.now() - last)/1000, do)
-      else: 
-        last = window.Date.now()
-        f(*l, **kw)
-    return __throttle
-  return _throttle
-
-class HiveList:
-  def __init__(self, box, items=None, key=None, _refs=None):
-    self.box = box  # owning box
-    box.addList(self)  # register self to owning box
-    self.key = key
-    self.refs = list(_refs) if _refs else []  # for loading repr'd hive lists
-    
-    # build reference list to items
-    if items:
-      for i in items:
-        self.refs.append(next(k for k, v in box.items() if i is v))
-        
-  # call to remove list registration with box
-  def dispose(self):
-    self.box.removeList(self)
-    
-  def __repr__(self):
-    return str(tuple(self.refs))
-  def __str__(self):
-    return str(tuple(self.box[r] for r in self.refs))
-    
-  def __setitem__(self, key, value):
-    self.refs[key] = next(k for k, v in self.box.items() if value is v)
-    # dispatch change to listenables
-    self.box.dispatch(BoxEvent(self.key, self, False))
-    
-  def __getitem__(self, key):
-    return self.box[self.refs[key]]
-    
-  def __delitem__(self, key):
-    del self.refs[key]
-    # dispatch
-    self.box.dispatch(BoxEvent(self.key, None, True))
-    
-  def append(self, value):
-    self.refs.append(next(k for k, v in self.box.items() if value is v))
-    self.box.dispatch(BoxEvent(self.key, self, False))
-    
-  def extend(self, values):
-    self.refs.extend([next(k for k, v in self.box.items() if val is v) for val in values])
-    self.box.dispatch(BoxEvent(self.key, self, False))
-    
-  def remove(self, value):
-    for i in self.refs[:]:
-      if value is self.box[i]:
-        self.refs.remove(i)
-        # dispatch
-        self.box.dispatch(BoxEvent(self.key, None, True))
-        break
-    
-# event notifications
-class BoxEvent:
-  __slots__ = ('key', 'value', 'deleted')
-  def __init__(self, key, value, deleted):
-    self.key, self.value, self.deleted = key, value, deleted
-    
-  def __repr__(self):
-    return f'BoxEvent({self.key}, {self.value}, {self.deleted})'
-    
-class Box(dict):
-  def __init__(self, *largs, **kwargs):
-    self.listeners = {'': []}
-    self.hivelists = []
-    super().__init__(*largs, **kwargs)
-    
-    for k, v in self.items():
-      if isinstance(v, tuple):
-        self[k] = HiveList(self, _refs=v, key=k)
-      
-      if isinstance(v, dict):
-        for kk, vv in v.items():
-          if isinstance(vv, tuple):
-            v[kk] = HiveList(self, _refs=vv, key=k)
-    
-  def dispatch(self, event):
-    for l in self.listeners.get(event.key, []):
-      l(event)
-    for l in self.listeners['']:
-      l(event)
-      
-  def watch(self, fun, key=''):
-    self.listeners.setdefault(key, []).append(fun)
-    
-  def unwatch(self, fun, key=''):
-    self.listeners[key].remove(fun)
-    
-  # should be called by HiveList only
-  def addList(self, hl):
-    self.hivelists.append(hl)
-    
-  # should be called by HiveList only
-  def removeList(self, hl):
-    self.hivelists.remove(hl)
-    
-  # add incrementing key
-    
-  # updated key value
-  def __setitem__(self, attr, value):
-    super().__setitem__(attr, value)
-    
-    if isinstance(value, HiveList):
-      value.key = attr
-    
-    self.dispatch(BoxEvent(attr, value, False))
-      
-  # delete key value, update all hivelists
-  def __delitem__(self, attr):
-    for hl in self.hivelists:
-      if attr in hl.refs:
-        hl.refs.remove(attr)
-        self.dispatch(BoxEvent(hl.key, hl, True))
-        
-    super().__delitem__(attr)
-      
-    self.dispatch(BoxEvent(attr, None, True))
-
-# alternate approach to data driven ui
-class State:
-  def __init__(self):
-    self.isDirty = False
-    self.widget = SPAN(self.build())
-    
-  def build(self): pass
-  
-  def builder(self, *l, **kw):
-    last_focus = doc.activeElement
-    self.widget.clear()
-    self.widget <= self.build()
-    if last_focus.inside(self.widget):
-      last_focus.focus()
-    self.isDirty = False
-    
-  def setState(self, f=None):
-    if f: f()
-    if not self.isDirty:
-      self.isDirty = True
-      window.requestAnimationFrame(self.builder)
-
-class Listenable:
-  def __init__(self): self._listeners = []
-  
-  def addListener(self, f): self._listeners.append(f)
-  def removeListener(self, f): self._listeners.remove(f)
-  def dispose(self): self._listeners.clear()
-  
-  @property
-  def hasListeners(self): return self._listeners == []
-  
-  def notifyListeners(self):
-    for l in self._listeners[:]: l()
-    
-class ListenableList(Listenable, list):
-  def __init__(self, *l, **kw):
-    list.__init__(self, *l, **kw)
-    Listenable.__init__(self)
-
-  def __setitem__(self, *l, **kw):
-    list.__setitem__(self, *l, **kw)
-    self.notifyListeners()
-
-  def __delitem__(self, *l, **kw):
-    list.__delitem__(self, *l, **kw)
-    self.notifyListeners()
-
-  def __iadd__(self, *l, **kw):
-    list.__iadd__(self, *l, **kw)
-    self.notifyListeners()
-
-  def __imul__(self, *l, **kw):
-    list.__imul__(self, *l, **kw)
-    self.notifyListeners()
-
-  def append(self, *l, **kw):
-    list.append(self, *l, **kw)
-    self.notifyListeners()
-
-  def remove(self, *l, **kw):
-    list.remove(self, *l, **kw)
-    self.notifyListeners()
-
-  def insert(self, *l, **kw):
-    list.insert(self, *l, **kw)
-    self.notifyListeners()
-
-  def pop(self, *l, **kw):
-    t = list.pop(self, *l, **kw)
-    self.notifyListeners()
-    return t
-
-  def extend(self, *l, **kw):
-    list.extend(self, *l, **kw)
-    self.notifyListeners()
-
-  def sort(self, *l, **kw):
-    list.sort(self, *l, **kw)
-    self.notifyListeners()
-
-  def reverse(self, *l, **kw):
-    list.reverse(self, *l, **kw)
-    self.notifyListeners()
-
-  def clear(self, *l, **kw):
-    list.clear(self, *l, **kw)
-    self.notifyListeners()
-
-class ListenableDict(Listenable, dict):
-  def __init__(self, *l, **kw):
-    dict.__init__(self, *l, **kw)
-    Listenable.__init__(self)
-
-  def __setitem__(self, *l, **kw):
-    dict.__setitem__(self, *l, **kw)
-    self.notifyListeners()
-
-  def __delitem__(self, *l, **kw):
-    dict.__delitem__(self, *l, **kw)
-    self.notifyListeners()
-
-  def remove(self, *l, **kw):
-    dict.remove(self, *l, **kw)
-    self.notifyListeners()
-
-  def insert(self, *l, **kw):
-    dict.insert(self, *l, **kw)
-    self.notifyListeners()
-
-  def pop(self, *l, **kw):
-    t = dict.pop(self, *l, **kw)
-    self.notifyListeners()
-    return t
-
-  def extend(self, *l, **kw):
-    dict.extend(self, *l, **kw)
-    self.notifyListeners()
-
-  def popitem(self, *l, **kw):
-    t = dict.popitem(self, *l, **kw)
-    self.notifyListeners()
-    return t
-
-  def setdefaultupdate(self, *l, **kw):
-    t = dict.setdefaultupdate(self, *l, **kw)
-    self.notifyListeners()
-    return t
-
-  def clear(self, *l, **kw):
-    dict.clear(self, *l, **kw)
-    self.notifyListeners()
-    
-  def update(self, *l, **kw):
-    dict.update(self, *l, **kw)
-    self.notifyListeners()
       
 def bind(el, **kw):
   for k, v in kw.items():
     el.bind(k, v)
   return el
-  
-# stuff
-
-class Card:
-  def __init__(self, face, suit, value):
-    self.face, self.suit, self.value = face, suit, value
     
-  def __repr__(self):
-    return f'Card{self.face, self.suit, self.value}'
-    
-class Deck:
-  def __init__(self):
-    self.discard = []
-    
-    self.cards = [Card(f, s, fi*100+si)
-      for fi, f in enumerate(('ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'))
-      for si, s in enumerate(('clubs', 'diamonds', 'hearts', 'spades'))]
-    
-  def deal(self, n=1):
-    if n > len(self.cards):
-      self.cards.extend(self.discard)
-      self.discard.clear()
-      
-    while n and n <= len(self.cards):
-      yield self.cards.pop(0)
-      n -= 1;
-    
-  def discard(self, cards):
-    self.discard.extend(cards)
-    
-  def __repr__(self):
-    return f'Deck{self.cards, self.discard}'
-    
-class Matrix:
-  __slots__ = ('values',)
-  
-  # rows
-  @property
-  def m(self):
-    return len(self.values)
-    
-  # cols
-  @property
-  def n(self):
-    return len(self.values[0])
-    
-  @property
-  def T(self):  # transpose
-    return Matrix([list(i) for i in zip(*self)])
-  
-  def __init__(self, l):
-    #if not (type(l) == list):
-    #  raise Exception('Not a list')
-    #if not ({list} == {type(i) for i in l}):
-    #  raise Exception('Not a list of lists')
-    #if not ({int, float} >= {type(j) for i in l for j in i}):
-    #  raise Exception('Must be list<list<float/int>>')
-    assert type(l) == list, type(l)
-    assert {list} == {type(i) for i in l}, {type(i) for i in l}
-    assert {int, float} >= {type(j) for i in l for j in i}, {type(j) for i in l for j in i}
-    self.values = l
-    
-  @classmethod
-  def fill(cls, m, n, value=0.0):
-    return cls([[value for j in range(n)] for i in range(m)])
-    
-  @classmethod
-  def generate(cls, m, n, fn):
-    return cls([[fn(i, j) for j in range(n)] for i in range(m)])
-    
-  @classmethod
-  def identity(cls, m, n):
-    return cls([[1.0 if i == j else 0.0 for i in range(m)] for j in range(n)])
-  
-  def __str__(self):
-    width = 0
-    
-    for row in self.values:
-      for col in row:
-        cur = len(f'{col}')
-        if cur > width: width = cur
-          
-    return '[[' + '],\n ['.join(', '.join(f'{col}'.rjust(width) for col in row)
-      for row in self.values) + ']]'
-      
-  def __repr__(self):
-    return repr(self.values)
-    
-  def __getitem__(self, key):
-    return self.values[key]
-    
-  def __iter__(self):
-    return iter(self.values)
-    
-  def __len__(self):
-    return len(self.values)
-    
-  def __add__(self, other):
-    if isinstance(other, Matrix):
-      if other.m == self.m and other.n == self.n:
-        return Matrix([[self[i][j] + other[i][j] 
-          for j in range(self.n)] 
-            for i in range(self.m)])
-      elif other.m == self.m and other.n == 1:
-        return Matrix([[j+m[0] for j in row]
-          for row, m in zip(self, other)])
-    return Matrix([[self[i][j] + other
-      for j in range(self.n)]
-        for i in range(self.m)])
-        
-  __radd__ = __add__ 
-  def __sub__(self, other): return self + -other
-  __rsub__ = __sub__
-        
-  def __mul__(self, other):
-    if isinstance(other, Matrix):
-      if other.m == self.m and other.n == self.n:
-        return Matrix([[self[i][j] * other[i][j] 
-          for j in range(self.n)] 
-            for i in range(self.m)])
-      elif other.m == self.m and other.n == 1:
-        return Matrix([[j*m[0] for j in row]
-          for row, m in zip(self, other)])
-    return Matrix([[self[i][j] * other
-      for j in range(self.n)]
-        for i in range(self.m)])
-        
-  __rmul__ = __mul__
-  
-  def dot(self, other):
-    return Matrix([
-          [sum(x * y for x, y in zip(m1_r, m2_c)) for m2_c in zip(*other)] for m1_r in self
-        ])
-       
-  def __neg__(self):
-    return -1 * self
-        
-  def map(self, fn):
-    return Matrix([[fn(self[i][j])
-      for j in range(self.n)]
-        for i in range(self.m)])
-        
-  @property
-  def min(self):
-    _m = self[0][0]
-    
-    for j in range(self.n):
-      for i in range(self.m):
-        if self[i][j] < _m:
-          _m = self[i][j] 
-    
-    return _m
-    
-  @property
-  def max(self):
-    _m = self[0][0]
-    
-    for j in range(self.n):
-      for i in range(self.m):
-        if self[i][j] > _m:
-          _m = self[i][j] 
-    
-    return _m
-    
-  @staticmethod
-  def getMatrixMinor(m,i,j):
-    return [row[:j] + row[j+1:] for row in (m[:i]+m[i+1:])]
-
-  @staticmethod
-  def getMatrixDeternminant(m):
-    #base case for 2x2 matrix
-    if len(m) == 2:
-      return m[0][0]*m[1][1]-m[0][1]*m[1][0]
-
-    determinant = 0
-    for c in range(len(m)):
-      determinant += ((-1)**c)*m[0][c]*Matrix.getMatrixDeternminant(Matrix.getMatrixMinor(m,0,c))
-    return determinant
-
-  @property
-  def inv(self):
-    determinant = Matrix.getMatrixDeternminant(self)
-    #special case for 2x2 matrix:
-    if len(self) == 2:
-      return [[self[1][1]/determinant, -1*self[0][1]/determinant],
-          [-1*self[1][0]/determinant, self[0][0]/determinant]]
-
-    #find matrix of cofactors
-    cofactors = []
-    for r in range(len(self)):
-      cofactorRow = []
-      for c in range(len(self)):
-        minor = Matrix.getMatrixMinor(self,r,c)
-        cofactorRow.append(((-1)**(r+c)) * Matrix.getMatrixDeternminant(minor))
-      cofactors.append(cofactorRow)
-    #cofactors = transposeMatrix(cofactors)
-    cofactors = [list(i) for i in zip(*cofactors)]
-    for r in range(len(cofactors)):
-      for c in range(len(cofactors)):
-        cofactors[r][c] = cofactors[r][c]/determinant
-    return Matrix(cofactors)
-
-  
-#from browser import aio as asyncio
-#
-#redrawPending = False
-#redraws = []
-#
-#def redraw(fn=None):
-#  if fn: fn()
-#  asyncio.run(_redraw())
-#  
-#async def _redraw():
-#  global redrawPending
-#  if redrawPending: return
-#  
-#  redrawPending = True
-#  await asyncio.sleep(1.0/30) # 30 fps
-#  
-#  # clear root
-#  last_focus = doc.activeElement
-#  root.clear()
-#  
-#  for f in redraws: f()
-#  
-#  if last_focus.inside(root):
-#    last_focus.focus()
-#      
-#  redrawPending = False
-
-#from browser import aio as asyncio
-#
-#redrawPending = False
-#redraws = []
-#
-#def redraw(fn=None):
-#  if fn: fn()
-#  if redrawPending: return
-#  asyncio.run(_redraw())
-#
-#async def _redraw():
-#  global redrawPending
-#
-#  redrawPending = True
-#  await asyncio.sleep(1.0/30) # 30 fps
-#
-#  root.clear()
-#  for f in redraws: f()
-#  
-#  redrawPending = False
-
-#popup([root:=SPAN()])
-#
-#def update_ui():
-#  root <= DIV('test')
-#
-#redraw(lambda: redraws.append(update_ui))
-
-async def aloop(update, FPS=1/30):
-  diff = 0
-  last_frame_time = time.time()
-
-  while update(diff + FPS) is not False:
-    diff = time.time() - last_frame_time
-
-    await asyncio.sleep(FPS - diff)
-    last_frame_time = time.time()
-
-def system(signature, f):
-  def _system(es, delta = 0):
-    for entity in es:
-      if set(entity.keys()) >= signature:
-        f(entity, delta)
-  return _system
-
-class ECS:
-  def __init__(self, maxEntities=32):
-    self.entitiesAvailable = list(range(maxEntities)) # int
-    self.entitySignature = [set() for i in range(maxEntities)] # Set<Class>
-    self.entitiesAlive = 0
-
-    self.components = {} # <Class, ComponentArray>
-    self.systems = [] # System
-
-    self.maxEntities = maxEntities
-
-  def createEntity(self, components=[]):
-    e = self.entitiesAvailable.pop(0)
-
-    if len(components) > 0:
-      signature = {type(c) for c in components}
-      self.entitySignature[e] = signature
-      for c in components:
-        self.components[type(c)].add(e, c)
-
-      for s in self.systems:
-        if signature >= s.signature:
-          s.entities.append(e)
-
-    self.entitiesAlive += 1
-
-    return e
-
-  def disposeEntity(self, e):
-    self.entitiesAvailable.append(e)
-    for T in self.entitySignature[e]:
-      self.components[T].remove(e)
-    for s in self.systems:
-      s.entities.remove(e)
-
-  # ---
-
-  def addComponent(self, T, _maxEntities=None):
-    self.components[T] = ComponentArray(_maxEntities if _maxEntities else self.maxEntities)
-
-  def addEntityComponent(self, T, entity, component):
-    signature = self.entitySignature[entity]
-    signature.add(T)
-    self.components[T].add(entity, component)
-    self.updateSignature(entity, signature)
-
-  def removeEntityComponent(self, T, entity):
-    signature = self.entitySignature[entity]
-    signature.remove(T)
-    self.components[T].remove(entity)
-    self.updateSignature(entity, signature)
-
-  def getEntityComponent(self, T, entity):
-    return self.components[T].get(entity)
-
-  def __call__(self, T, entity):
-    return self.components[T].get(entity)
-
-  def getEntityComponents(self, entity):
-    return [self.components[T].get(entity) for T in self.entitySignature[entity]]
-
-  # ---
-
-  def addSystem(self, signature, f, enabled=True):
-    s = System(signature, f, enabled)
-    self.systems.append(s)
-    return s
-
-  def update(self, delta = 0):
-    for s in self.systems:
-      if s.enabled:
-        for entity in s.entities:
-          s.f(entity, delta)
-
-  def updateSignature(self, entity, signature):
-    for s in self.systems:
-      if signature >= s.signature:
-        s.entites.add(entity)
-      else:
-        s.entities.remove(entity)
-
-class System:
-  def __init__(self, signature, f, enabled=True):
-    self.signature = signature
-    self.f = f
-    self.entities = [] # int
-    self.enabled = enabled
-
-class ComponentArray:
-  def __init__(self, maxEntities):
-    self.maxEntities = maxEntities
-    self.size = 0
-    self.items = [None for i in range(maxEntities)]
-
-    self.entityToIndex = {}
-    self.indexToEntity = {}
-
-  def add(self, entity, component):
-    newIndex = self.size
-
-    self.entityToIndex[entity] = newIndex
-    self.indexToEntity[newIndex] = entity
-
-    self.items[newIndex] = component
-
-    self.size += 1
-
-  def remove(self, entity):
-    indexOfRemovedEntity = self.entityToIndex[entity]
-    indexOfLastElement = self.size - 1
-    self.items[indexOfRemovedEntity] = self.items[indexOfLastElement]
-
-    entityOfLastElement = self.indexToEntity[indexOfLastElement]
-    self.entityToIndex[entityOfLastElement] = indexOfRemovedEntity
-    self.indexToEntity[indexOfRemovedEntity] = entityOfLastElement
-
-    del self.entityToIndex[entity]
-    del self.indexToEntity[indexOfLastElement]
-
-    self.size -= 1
-
-  def get(self, entity):
-    return self.items[self.entityToIndex[entity]]
-  
 </script>
 </html>
