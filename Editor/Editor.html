@@ -687,7 +687,10 @@ function matrix2(s, delim='|'){
 function table(s, delim='|'){
   var out = s.trim().split('\n').map((i) => i.split(delim).map((j) => j.trim()));
   var width = out[0].length;
-  var l = out.map((i) => [...i, ...(Array.apply(null, Array(width-i.length)).map(function() { return '' }))]);
+  var l = out.map((i) => {
+    i = i.splice(0, width)
+    return [...i, ...(Array.apply(null, Array(width-i.length)).map(function() { return '' }))]
+  });
   var keys = l.shift();
 
   l = l.map((values) => keys.reduce((acc, k, i) => (acc[k] = values[i], acc), {}));
@@ -695,7 +698,44 @@ function table(s, delim='|'){
   return l;
 }
 
+/*def align(t):
+  widths = {k: len(k) for k in t[0].keys()}
+  keys = sorted([i for i in widths.keys() if i])
+
+  for i in t:
+    for k, v in i.items():
+      cur = len(v)
+      if cur > widths[k]: widths[k] = cur
+
+  return ' | '.join(idx.ljust(widths[idx]) for idx in keys).rstrip() + '\n' + \
+    '\n'.join(' | '.join(row[idx].ljust(widths[idx])
+    for idx in keys).rstrip()
+      for row in t)*/
+
 function align(l){
+  head = Object.keys(l[0]);
+  widths = {};
+  for(const i of head)
+    widths[i] = i.length;
+    
+  rights = {};
+  for (const i of head)
+    rights[i] = i.endsWith(':');
+  
+  keys = head.filter((i)=> i.length);
+  
+  for(const i of l){
+    for (const k of keys){
+      cur = i[k].length;
+      if (cur > widths[k])
+        widths[k] = cur;
+    }
+  }
+
+  return keys.map((idx) => rights[idx]? idx.padStart(widths[idx]): idx.padEnd(widths[idx])).join(' | ').trimEnd()+'\n' + l.map(
+    (row) => keys.map((idx) => rights[idx]? row[idx].padStart(widths[idx]): row[idx].padEnd(widths[idx])).join(' | ').trimEnd()).join('\n');
+}
+/*function align(l){
   widths = l[0].map((i) => 0);
   width = l[0].length;
 
@@ -716,7 +756,7 @@ function align(l){
   }
   
   return l.map((i) => i.join(' | ')).join('\n');
-}
+}*/
 
 
 function splitCsv(s){
@@ -882,16 +922,18 @@ def table(s, delim='|'):
   return [dict(zip(out[0], i)) for i in out[1:]]
       
 def align(t):
-  widths = {k: len(str(k)) for k in t[0].keys()}
+  widths = {k: len(k) for k in t[0].keys()}
+  keys = [i for i in widths.keys() if i]
+  rights = {i: i.endswith(':') for i in keys}
   
   for i in t:
     for k, v in i.items():
-      cur = len(str(v))
+      cur = len(v)
       if cur > widths[k]: widths[k] = cur
-  
-  return ' | '.join(str(idx).ljust(widths[idx]) for idx in t[0].keys()) + '\n' + \
-    '\n'.join(' | '.join(str(col).ljust(widths[idx])
-    for idx, col in row.items())
+
+  return ' | '.join(idx.rjust(widths[idx]) if rights[idx] else idx.ljust(widths[idx]) for idx in keys).rstrip() + '\n' + \
+    '\n'.join(' | '.join(row[idx].rjust(widths[idx]) if rights[idx] else row[idx].ljust(widths[idx])
+    for idx in keys).rstrip()
       for row in t)
       
 class Listenable:
@@ -907,16 +949,20 @@ class Listenable:
   def notify(self):
     for l in self._listeners[:]: l()
 
-async def aloop(update, FPS=1/30):
-  diff = 0
-  last_frame_time = time.time()
+async def aloop(update, step=1/30):
+  t = time.time()
+  now = t
+  running = True
 
-  while update(diff + FPS) is not False:
-    diff = time.time() - last_frame_time
-
-    await asyncio.sleep(FPS - diff)
-    last_frame_time = time.time()
-
+  while running:
+    await asyncio.sleep(t - now)
+    now = time.time()
+    while t < now:
+      t += step
+      if update() is False:
+        running = False
+        break
+    
 def system(signature, f):
   def _system(es, delta = 0):
     for entity in es:
@@ -934,7 +980,7 @@ editbox = window.editbox
 cm_editbox = window.cm_editbox
 _options['editbox'] = cm_editbox
 _options['so'] = 6*12
-_options['center'] = False
+_options['center'] = True
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = None
@@ -1132,7 +1178,7 @@ def better_sort():
     return False
 
   def better_sort(s):
-    gb = groupby(s.splitlines(), key=if_comment)
+    gb = chunkBy(s.splitlines(), key=if_comment)
     gb = [list(v) for k, v in gb]
     #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
     gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
@@ -1149,18 +1195,31 @@ def run_better_sort(cm, params):
     print(e)
 window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
 
-
 def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
   try:
-    out = align(table(data))
+    out = window.align(window.table(data))
 
     window.vdo('gv')
     cm_editbox.replaceSelection(out.strip('\n'))
   except:
     pass
 window.CodeMirror.Vim.defineEx("align", None, run_align)
+
+def caps(cm, params):
+  window.vdo('gv')
+  data = cm_editbox.getSelection()
+  try:
+    out = data.title()
+
+    window.vdo('gv')
+    cm_editbox.replaceSelection(out.strip('\n'))
+    window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
+    window.vdo('yy')
+  except:
+    pass
+window.CodeMirror.Vim.defineEx("caps", None, caps)
 
 
 
