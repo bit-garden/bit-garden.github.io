@@ -389,7 +389,7 @@ if ('data' in localStorage){
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
-            'lineNumbers':       false,
+            'lineNumbers':       true,
             "mode":              'simplemode',
             "theme":             "material",
             'tabSize':           2,
@@ -822,16 +822,16 @@ def reduce(l, f):
 
 def struct(name, args, verbose=False):
   sargs = '\n'.join(f'    self.{i} = {i}' for i in args)
-  reprs = ', '.join(f'{i}={{self.{i}!r}}' for i in args)
+  iters = ', '.join(f'self.{i}' for i in args)
   
   slot_template = f"""
 class {name}:
   __slots__ = {repr(tuple(args))}
   def __init__(self, {', '.join(args)}):
 {sargs}
-
-  def __repr__(self):
-    return f"{name}({reprs})"
+    
+  def __iter__(self):
+    yield from ({iters})
 """.strip()
   
   if verbose:
@@ -915,26 +915,33 @@ def complement(r, g, b, *_):
   k = hilo(r, g, b)
   return tuple(*(k - u for u in (r, g, b)), *_)
  
+def matrix(s, delim='|'):
+  return [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
+  
+def matrix2(s, delim='|'):
+  out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
+  width = len(out[0])
+  return [[*i, *(['']*(width-len(i)))] for i in out]
+ 
 def table(s, delim='|'):
   out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
   width = len(out[0])
   out = [[*i, *(['']*(width-len(i)))] for i in out]
   return [dict(zip(out[0], i)) for i in out[1:]]
       
-def align(t):
-  widths = {k: len(k) for k in t[0].keys()}
-  keys = [i for i in widths.keys() if i]
-  rights = {i: i.endswith(':') for i in keys}
-  
-  for i in t:
-    for k, v in i.items():
-      cur = len(v)
-      if cur > widths[k]: widths[k] = cur
+def align(l):
+  wide = len(l[0])
+  widths = [0 for i in range(wide)]
+  rights = [i.endswith(':') for i in l[0]]
 
-  return ' | '.join(idx.rjust(widths[idx]) if rights[idx] else idx.ljust(widths[idx]) for idx in keys).rstrip() + '\n' + \
-    '\n'.join(' | '.join(row[idx].rjust(widths[idx]) if rights[idx] else row[idx].ljust(widths[idx])
-    for idx in keys).rstrip()
-      for row in t)
+  for row in l:
+    for col in range(wide):
+      cur = len(row[col])
+      if cur > widths[col]: widths[col] = cur
+      
+  return '\n'.join(' | '.join(
+    row[col].rjust(widths[col]) if rights[col] else row[col].ljust(widths[col])
+      for col in range(wide)).rstrip() for row in l)
       
 class Listenable:
   def __init__(self): self._listeners = []
@@ -980,7 +987,7 @@ editbox = window.editbox
 cm_editbox = window.cm_editbox
 _options['editbox'] = cm_editbox
 _options['so'] = 6*12
-_options['center'] = True
+_options['center'] = False
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = None
@@ -1014,7 +1021,7 @@ doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
 
 
 
-_options['_line_numbers'] = False
+_options['_line_numbers'] = True
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
   _options['_line_numbers'] = state
@@ -1199,7 +1206,7 @@ def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
   try:
-    out = window.align(window.table(data))
+    out = align(matrix2(data))
 
     window.vdo('gv')
     cm_editbox.replaceSelection(out.strip('\n'))
