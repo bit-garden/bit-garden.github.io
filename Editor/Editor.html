@@ -113,6 +113,7 @@
   .CodeMirror-linenumber{
   color:#888888 !important;
   }
+  
 
 
 /* card style */
@@ -298,12 +299,11 @@ CodeMirror.defineSimpleMode("simplemode", {
   start: [
     {regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
 	
-    {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:\}.$ ?])/, token: "strings"}, // single quote strings code
+    {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:;\}.$ ?])/, token: "strings"}, // single quote strings code
     {regex: /(^| )'([^']|'\w)*'( |$)/, token: "strings"}, // single quote strings speech
     
-    {regex: /#.*$/, token: "comments"}, // darklights comments
-    {regex: / \|( |$)/, token: 'nums'},
-    {regex: /q(\/|\|)/, token: 'comments'},
+    {regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
+    //{regex: / \|( |$)/, token: 'nums'},
   ]
 });
 </script>
@@ -358,7 +358,7 @@ CodeMirror.Vim.map('<Tab>r', ':js alignRight()', 'visual')
 CodeMirror.Vim.map('<Tab>l', ':js alignLeft()', 'visual')
 CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
 
-CodeMirror.Vim.map('{}', ':bracespace {}', 'insert')
+//CodeMirror.Vim.map('{}', ':bracespace {}', 'insert')
 //CodeMirror.Vim.map('[]', ':bracespace []', 'insert')
 
 CodeMirror.Vim.unmap('s', 'visual')
@@ -377,6 +377,15 @@ CodeMirror.Vim.map('<C-j>', ':rundown', 'normal')
 
 // quick select column in pipe table
 CodeMirror.Vim.map('zv', ':vblock', 'normal')
+
+CodeMirror.Vim.map('(', ':double_tap ()', 'insert')
+CodeMirror.Vim.map(')', ':double_tap )', 'insert')
+CodeMirror.Vim.map('{', ':double_tap {}', 'insert')
+CodeMirror.Vim.map('}', ':double_tap }', 'insert')
+CodeMirror.Vim.map('[', ':double_tap []', 'insert')
+CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
+CodeMirror.Vim.map('"', ':double_tap "', 'insert')
+CodeMirror.Vim.map("'", ":double_tap '", 'insert')
 
 
 
@@ -735,28 +744,26 @@ function align(l){
   return keys.map((idx) => rights[idx]? idx.padStart(widths[idx]): idx.padEnd(widths[idx])).join(' | ').trimEnd()+'\n' + l.map(
     (row) => keys.map((idx) => rights[idx]? row[idx].padStart(widths[idx]): row[idx].padEnd(widths[idx])).join(' | ').trimEnd()).join('\n');
 }
-/*function align(l){
-  widths = l[0].map((i) => 0);
-  width = l[0].length;
 
-  for (const i of l){
-    for (j = 0; j < width; j++){
-      i[j] = `${i[j]}`;
-      if (i[j].length > widths[j])
-        widths[j] = i[j].length;
+
+function alignCsv(l){
+  wide = l[0].length;
+  
+  widths = [];
+  for(i=0; i < wide; i++){
+    widths.push(0);
+  }
+  
+  for (const row of l){
+    for (j=0; j < wide; j++){
+      cur = row[j].length;
+      if (cur > widths[j])
+        widths[j] = cur
     }
   }
   
-  var aligns = l[0].map((i) => i.endsWith(':'));
-  
-  for (const i of l){
-    for (j = 0; j < width; j++) {
-      i[j] = aligns[j] ? i[j].padStart(widths[j]) : i[j].padEnd(widths[j]);
-    }
-  }
-  
-  return l.map((i) => i.join(' | ')).join('\n');
-}*/
+  return l.map((row) => widths.map((w, idx) => row[idx].padEnd(w)).join(', ')).join('\n');
+}
 
 
 function splitCsv(s){
@@ -823,14 +830,16 @@ def reduce(l, f):
 def struct(name, args, verbose=False):
   sargs = '\n'.join(f'    self.{i} = {i}' for i in args)
   iters = ', '.join(f'self.{i}' for i in args)
+  initargs = ', '.join(f'{i}=None' for i in args)
   
   slot_template = f"""
 class {name}:
   __slots__ = {repr(tuple(args))}
-  def __init__(self, {', '.join(args)}):
+  
+  def __init__(self, {initargs}): 
 {sargs}
-    
-  def __iter__(self):
+
+  def __iter__(self): 
     yield from ({iters})
 """.strip()
   
@@ -914,7 +923,34 @@ def complement(r, g, b, *_):
   # return complement color
   k = hilo(r, g, b)
   return tuple(*(k - u for u in (r, g, b)), *_)
- 
+
+def try_cast(s):
+  try:
+    return int(s)
+  except:
+    try:
+      return float(s)
+    except:
+      return s
+
+def amatrix(s, delim='|'):
+  return [[try_cast(j.strip()) for j in i.split(delim)] for i in s.strip().splitlines()]
+  
+def aalign(l):
+  l = [[str(j) for j in i] for i in l]
+  wide = len(l[0])
+  widths = [0 for i in range(wide)]
+  rights = [i.endswith(':') for i in l[0]]
+
+  for row in l:
+    for col in range(wide):
+      if (cur:=len(row[col])) > widths[col]: 
+        widths[col] = cur
+      
+  return '\n'.join(' | '.join(
+    row[col].rjust(widths[col]) if rights[col] else row[col].ljust(widths[col])
+      for col in range(wide)).rstrip() for row in l)
+  
 def matrix(s, delim='|'):
   return [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
   
@@ -936,8 +972,8 @@ def align(l):
 
   for row in l:
     for col in range(wide):
-      cur = len(row[col])
-      if cur > widths[col]: widths[col] = cur
+      if (cur:=len(row[col])) > widths[col]: 
+        widths[col] = cur
       
   return '\n'.join(' | '.join(
     row[col].rjust(widths[col]) if rights[col] else row[col].ljust(widths[col])
@@ -979,6 +1015,27 @@ def system(signature, f):
 
 # --- end focus
 
+def double_tap(cm, params):
+  try:
+    chars = params.argString.strip()
+    line = cm_editbox.getCursor().line
+    ch = cm_editbox.getCursor().ch
+    cur_line = cm_editbox.getLine(line)
+    if len(cur_line) > ch and cur_line[ch] == chars:
+      cm_editbox.setCursor({'line':line, 'ch': ch+1})
+    else:
+      if chars in ('"', "'"):
+        window.insertTextAtCursor(cm, chars*2)
+      else:
+        window.insertTextAtCursor(cm, chars)
+      cm_editbox.setCursor({'line':line, 'ch': ch+1})
+      #window.CodeMirror.Vim.exitInsertMode(cm_editbox)
+      #window.vdo('a')
+  except Exception as e:
+    import traceback
+    asyncio.run(popup(traceback.format_exc()))
+window.CodeMirror.Vim.defineEx("double_tap", None, double_tap)
+
 
 ctrl = False
 tables = {}
@@ -990,7 +1047,7 @@ _options['so'] = 6*12
 _options['center'] = False
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
-_options['limelight'] = None
+_options['limelight'] = True
 _options['relative_number'] = True
 
 def runup(cm, params):
@@ -1005,13 +1062,77 @@ def rundown(cm, params):
 window.CodeMirror.Vim.defineEx("rundown", None, rundown)
 
 
+marks = cm_editbox.state.vim.marks
+chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890'
+
 def overscroll(cm):
+  lineNum = cm.getCursor().line + 1;
+  
+  if _options['limelight'] is not None:
+    look_at = int(doc.querySelector('.CodeMirror').scrollHeight/12)
+    last_line = cm.lastLine()
+    if len(cm_editbox.getSelections()) > 1:
+      cur_line = cm_editbox.listSelections()[0].anchor.line
+      cur_line_bot = cm_editbox.listSelections()[-1].anchor.line
+    else:
+      cur_line = cm.getCursor(True).line
+      cur_line_bot = cm.getCursor(False).line
+    line_range = range(cur_line, cur_line_bot+1)
+    up = True
+    down = True
+    for i in range(look_at):
+      if _options['limelight']:
+        if cm_editbox.state.vim.visualMode:
+          if cur_line-i in line_range:
+            cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+          else:
+            cm.addLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+          if cur_line+i in line_range:
+            cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+          else:
+            cm.addLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+        else:
+          #going down
+          if cur_line+i <= last_line and down and cm.getLine(cur_line+i).strip():
+            cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+          elif cur_line+i <= last_line and i:
+            cm.addLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+            down = False
+
+          #going up
+          if cur_line-i >= 0 and up and cm.getLine(cur_line-i).strip():
+            cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+          elif cur_line-i >= 0 and i:
+            cm.addLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+            up = False
+      else:
+        cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
+        cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
+      cm.removeLineClass(lineNum-1-i, 'gutter', 'CodeMirror-activeline-gutter')
+      cm.removeLineClass(lineNum-1+i, 'gutter', 'CodeMirror-activeline-gutter')
+    cm.addLineClass(lineNum-1, 'gutter', 'CodeMirror-activeline-gutter')
+
+    if (cm.getCursor().line == lineNum):
+      #cm.addLineClass(l, 'gutter', 'CodeMirror-activeline-gutter')
+      #cm.removeLineClass(l, 'gutter', 'CodeMirror-activeline-gutter')
+      return
+
+
+    #cm.getCursor().line = lineNum
+
   def temp(l):
+    _marks = {marks[k].find().line: k for k in window.Object.keys(marks) if k in chars and len(marks[k].lines)}
+    if l-1 in _marks:
+      return _marks[l-1]
+    return ''
+    
+    
     if _options['relative_number']:
-      return abs(cm.getCursor().line + 1 - l)
+      return abs(lineNum - l)
     else:
       return l
   cm.setOption('lineNumberFormatter', temp);
+  
   if _options['center'] and not cm_editbox.state.vim.insertMode and not cm_editbox.state.vim.visualMode:
     doc.querySelector('.CodeMirror').CodeMirror.setOption('cursorScrollMargin',doc.querySelector('.CodeMirror').scrollHeight/2)
   else:
@@ -1064,50 +1185,54 @@ def on_down(ev):
 
 window.bind('keydown', on_down)
 
-def do_py() -> None:
+#def do_py() -> None:
+#  try:
+#    print_red = []
+#    def print(*objects, sep=' ', end='\n'):
+#      print_red.append(sep.join(str(o) for o in objects) + end)
+#    class Q:
+#      def __call__(self, arg):
+#        if callable(arg):
+#          def f(*l, **kw):
+#            _ret = arg(*l, **kw)
+#            args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
+#            print(f'{arg.__qualname__}({args}) -> {_ret}')
+#            return _ret
+#            
+#          f.__name__ = arg.__name__
+#          f.__qualname__ = arg.__qualname__
+#          return f
+#        print(arg)
+#        return arg
+#        
+#      def __or__(self, arg):
+#        print(arg)
+#        return arg
+#      
+#      __truediv__ = __div__ = __or__
+#      
+#    q = Q()
+#    window.vdo("gv")
+#    data = cm_editbox.getSelection()
+#    exec(data)
+#    if print_red:
+#      out = '\n'.join([data, ''.join(print_red)])
+#      window.vdo("gv")
+#      cm_editbox.replaceSelection(out.strip('\n'))
+#  except Exception as e:
+#    import traceback
+#    print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
+#    out = '\n'.join([data, ''.join(print_red)])
+#    window.vdo("gv")
+#    cm_editbox.replaceSelection(out.strip('\n'))
+
+def do_py(*l, **kw):
   try:
-    print_red = []
-    def print(*objects, sep=' ', end='\n'):
-      print_red.append(sep.join(str(o) for o in objects) + end)
-    class Q:
-      def __call__(self, arg):
-        if callable(arg):
-          def f(*l, **kw):
-            _ret = arg(*l, **kw)
-            args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
-            print(f'{arg.__qualname__}({args}) -> {_ret}')
-            return _ret
-            
-          f.__name__ = arg.__name__
-          f.__qualname__ = arg.__qualname__
-          return f
-        print(arg)
-        return arg
-        
-      def __or__(self, arg):
-        print(arg)
-        return arg
-      
-      __truediv__ = __div__ = __or__
-      
-    q = Q()
-    window.vdo("gv")
-    data = cm_editbox.getSelection()
-    exec(data)
-    if print_red:
-      out = '\n'.join([data, ''.join(print_red)])
-      window.vdo("gv")
-      cm_editbox.replaceSelection(out.strip('\n'))
+    exec(cm_editbox.getSelection())
   except Exception as e:
     import traceback
-    print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
-    out = '\n'.join([data, ''.join(print_red)])
-    window.vdo("gv")
-    cm_editbox.replaceSelection(out.strip('\n'))
-
-def run_py(cm, params):
-  do_py()
-window.CodeMirror.Vim.defineEx("do_py", None, run_py)
+    print(traceback.format_exc())
+window.CodeMirror.Vim.defineEx("do_py", None, do_py)
 
 def run_file(cm, params):
   try:
@@ -1118,8 +1243,12 @@ def run_file(cm, params):
 window.CodeMirror.Vim.defineEx("run_file", None, run_file)
 
 def run_shard(*l, **kw):
+  window.kpos()
+  def _do_py(*l, **kw):
+    do_py()
+    window.rpos()
   visual_shard(*l, **kw)
-  window.setTimeout(do_py, 0)
+  window.setTimeout(_do_py, 0)
 window.CodeMirror.Vim.defineEx("run_shard", None, run_shard)
 
 def visual_shard(*l, **kw):
@@ -1207,6 +1336,7 @@ def run_align(cm, params):
   data = cm_editbox.getSelection()
   try:
     out = align(matrix2(data))
+    #out = window.alignCsv(window.splitCsv(data))
 
     window.vdo('gv')
     cm_editbox.replaceSelection(out.strip('\n'))
