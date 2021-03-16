@@ -299,8 +299,8 @@ CodeMirror.defineSimpleMode("simplemode", {
   start: [
     {regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
 	
-    {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:;\}.$ ?])/, token: "strings"}, // single quote strings code
-    {regex: /(^| )'([^']|'\w)*'( |$)/, token: "strings"}, // single quote strings speech
+    {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:;\}.$ ?])/, token: "variables"}, // single quote strings code
+    {regex: /(^| )'([^']|'\w)*'( |$)/, token: "variables"}, // single quote strings speech
     
     {regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
     //{regex: / \|( |$)/, token: 'nums'},
@@ -387,6 +387,8 @@ CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
 CodeMirror.Vim.map('"', ':double_tap "', 'insert')
 CodeMirror.Vim.map("'", ":double_tap '", 'insert')
 
+CodeMirror.Vim.map("<BS>", ":undouble_tap", 'insert')
+
 
 
 editbox = document.querySelector('.editbox')
@@ -398,7 +400,7 @@ if ('data' in localStorage){
 cm_editbox = CodeMirror.fromTextArea(editbox,{
             'matchBrackets':     true,
             'autoCloseBrackets': false,
-            'lineNumbers':       true,
+            'lineNumbers':       false,
             "mode":              'simplemode',
             "theme":             "material",
             'tabSize':           2,
@@ -932,24 +934,6 @@ def try_cast(s):
       return float(s)
     except:
       return s
-
-def amatrix(s, delim='|'):
-  return [[try_cast(j.strip()) for j in i.split(delim)] for i in s.strip().splitlines()]
-  
-def aalign(l):
-  l = [[str(j) for j in i] for i in l]
-  wide = len(l[0])
-  widths = [0 for i in range(wide)]
-  rights = [i.endswith(':') for i in l[0]]
-
-  for row in l:
-    for col in range(wide):
-      if (cur:=len(row[col])) > widths[col]: 
-        widths[col] = cur
-      
-  return '\n'.join(' | '.join(
-    row[col].rjust(widths[col]) if rights[col] else row[col].ljust(widths[col])
-      for col in range(wide)).rstrip() for row in l)
   
 def matrix(s, delim='|'):
   return [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
@@ -961,23 +945,18 @@ def matrix2(s, delim='|'):
  
 def table(s, delim='|'):
   out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
-  width = len(out[0])
-  out = [[*i, *(['']*(width-len(i)))] for i in out]
-  return [dict(zip(out[0], i)) for i in out[1:]]
+  return [dict(zip(out[0], out[i])) for i in range(1, len(out))]
       
-def align(l):
-  wide = len(l[0])
-  widths = [0 for i in range(wide)]
-  rights = [i.endswith(':') for i in l[0]]
-
-  for row in l:
-    for col in range(wide):
-      if (cur:=len(row[col])) > widths[col]: 
-        widths[col] = cur
+def align(l, glue=' | '):
+  widths = {k: len(k) for k in l[0].keys()}
+  keys = [i for i in widths.keys() if i]
+  
+  for i in l:
+    for k, v in i.items():
+      if (cur:=len(v)) > widths[k]: widths[k] = cur
       
-  return '\n'.join(' | '.join(
-    row[col].rjust(widths[col]) if rights[col] else row[col].ljust(widths[col])
-      for col in range(wide)).rstrip() for row in l)
+  return glue.join(i.ljust(widths[i]) for i in keys).rstrip() + '\n' + \
+     '\n'.join(glue.join(i[k].ljust(widths[k]) for k in keys).rstrip() for i in l)
       
 class Listenable:
   def __init__(self): self._listeners = []
@@ -1036,6 +1015,25 @@ def double_tap(cm, params):
     asyncio.run(popup(traceback.format_exc()))
 window.CodeMirror.Vim.defineEx("double_tap", None, double_tap)
 
+def undouble_tap(cm, params):
+  try:
+    chars = ["''", '""', '[]', '{}', '()']
+    line = cm_editbox.getCursor().line
+    ch = cm_editbox.getCursor().ch
+    cur_line = cm_editbox.getLine(line)
+    if len(cur_line) > ch and cur_line[ch-1]+cur_line[ch] in chars:
+      cm.execCommand('delCharBefore')
+      cm.execCommand('delCharAfter')
+    else:
+      # normal delete behavior
+      cm.execCommand('delCharBefore')
+      #window.CodeMirror.Vim.exitInsertMode(cm_editbox)
+      #window.vdo('a')
+  except Exception as e:
+    import traceback
+    asyncio.run(popup(traceback.format_exc()))
+window.CodeMirror.Vim.defineEx("undouble_tap", None, undouble_tap)
+
 
 ctrl = False
 tables = {}
@@ -1047,7 +1045,7 @@ _options['so'] = 6*12
 _options['center'] = False
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
-_options['limelight'] = True
+_options['limelight'] = None
 _options['relative_number'] = True
 
 def runup(cm, params):
@@ -1121,10 +1119,11 @@ def overscroll(cm):
     #cm.getCursor().line = lineNum
 
   def temp(l):
-    _marks = {marks[k].find().line: k for k in window.Object.keys(marks) if k in chars and len(marks[k].lines)}
-    if l-1 in _marks:
-      return _marks[l-1]
-    return ''
+    # display marks on number line instead
+    #_marks = {marks[k].find().line: k for k in window.Object.keys(marks) if k in chars and len(marks[k].lines)}
+    #if l-1 in _marks:
+    #  return _marks[l-1]
+    #return ''
     
     
     if _options['relative_number']:
@@ -1142,7 +1141,7 @@ doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
 
 
 
-_options['_line_numbers'] = True
+_options['_line_numbers'] = False
 def line_numbers(state=False):
   cm_editbox.setOption('lineNumbers', state)
   _options['_line_numbers'] = state
@@ -1335,8 +1334,9 @@ def run_align(cm, params):
   window.vdo('gv')
   data = cm_editbox.getSelection()
   try:
-    out = align(matrix2(data))
+    #out = align(table(data))
     #out = window.alignCsv(window.splitCsv(data))
+    out = window.align(window.table(data))
 
     window.vdo('gv')
     cm_editbox.replaceSelection(out.strip('\n'))
