@@ -6,11 +6,13 @@ class Listenable {
 
   void add(void Function() f) => _listeners.add(f);
   void remove(void Function() f) => _listeners.remove(f);
-  bool get hasListeners => _listeners.length != 0;
+  bool get hasListeners => _listeners.isNotEmpty;
   void dispose() => _listeners.clear();
 
   void notify() {
-    for (void Function() f in _listeners) f();
+    for (void Function() f in _listeners) {
+      f();
+    }
   }
 }
 
@@ -67,7 +69,7 @@ class ECS {
   int createEntity([List<dynamic> components = const <dynamic>[]]) {
     int e = freeEntities.isEmpty ? ++entityIndex : freeEntities.removeAt(0);
 
-    if (components.length > 0) {
+    if (components.isNotEmpty) {
       Set<Type> signature = {for (var c in components) c.runtimeType};
       entitySignature[e] = signature;
       for (var c in components) {
@@ -76,8 +78,9 @@ class ECS {
         (this.components[c.runtimeType])!.add(e, c);
       }
 
-      for (System s in systems)
+      for (System s in systems) {
         if (signature.containsAll(s.signature)) s.entities.add(e);
+      }
     }
 
     return e;
@@ -85,8 +88,12 @@ class ECS {
 
   /// Remove entity from arrays and systems.
   void disposeEntity(int e) {
-    for (Type T in entitySignature[e]!) this.components[T]!.remove(e);
-    for (System s in systems) s.entities.remove(e);
+    for (Type T in entitySignature[e]!) {
+      this.components[T]!.remove(e);
+    }
+    for (System s in systems) {
+      s.entities.remove(e);
+    }
     entitySignature.remove(e);
     freeEntities.add(e);
   }
@@ -148,29 +155,38 @@ class ECS {
 
   /// Call all system updates to entities.
   void update() {
-    for (System s in systems) if (s.f != null) s.f!(s.entities);
+    for (System s in systems) {
+      if (s.f != null) {
+        s.f!(s.entities);
+      }
+    }
   }
 
   /// Update [signature] for [entity].
   ///
   /// This will also add/remove entities from the relevant systems too.
   void updateSignature(int entity, Set<Type> signature) {
-    for (System s in systems)
+    for (System s in systems) {
       if (signature.containsAll(s.signature)) {
-        if (!s.entities.contains(entity)) s.entities.add(entity);
-      } else
+        if (!s.entities.contains(entity)) {
+          s.entities.add(entity);
+        }
+      } else {
         s.entities.remove(entity);
+      }
+    }
   }
 
   void load<T>(Map<String, dynamic> json, Function f) {
     components[T]!.fromJson(json, f);
-    for (var i in components[T]!.entityToIndex.keys)
+    for (var i in components[T]!.entityToIndex.keys) {
       (entitySignature[i] ??= {}).add(T);
+    }
   }
   //Map<String, dynamic> toJson<T>() => components[T]!.toJson();
 
   //ECS entityIndex freeEntities components
-  fromJson(Map<String, dynamic> json) {
+  void fromJson(Map<String, dynamic> json) {
     entityIndex = json['entityIndex'];
     freeEntities = json['freeEntities'].cast<int>();
   }
@@ -184,11 +200,15 @@ class ECS {
       };
 
   void resyncSystems() {
-    for (var i in systems) i.entities.clear();
-    for (var e in entitySignature.entries) updateSignature(e.key, e.value);
+    for (var i in systems) {
+      i.entities.clear();
+    }
+    for (var e in entitySignature.entries) {
+      updateSignature(e.key, e.value);
+    }
   }
 
-  toString() =>
+  String toString() =>
       'ECS(\n  entitiesAlive: $entitiesAlive, \n  components: $components, \n  systems: $systems\n)';
 }
 
@@ -200,7 +220,7 @@ class System {
 
   System(this.signature, this.f);
 
-  toString() =>
+  String toString() =>
       'System(\n    f: $f, \n    signature: $signature, \n    size: ${entities.length}\n  )';
 }
 
@@ -233,7 +253,7 @@ class ComponentArray<T> {
     // Copy element at end into deleted element's place to maintain density
     int indexOfRemovedEntity = entityToIndex[entity]!;
     int indexOfLastElement = size - 1;
-    T temp = items[indexOfRemovedEntity] as T;
+    T temp = items[indexOfRemovedEntity];
     items[indexOfRemovedEntity] = items[indexOfLastElement];
 
     // Update map to point to moved spot
@@ -252,7 +272,7 @@ class ComponentArray<T> {
   /// Get data by Entity ID.
   T get(int entity) => items[entityToIndex[entity]!];
 
-  toString() => '\n    ComponentArray<$T>(size: $size)\n  ';
+  String toString() => '\n    ComponentArray<$T>(size: $size)\n  ';
 
   void fromJson(Map<String, dynamic> json, Function f) {
     items = <T>[for (var i in json['items']) f(i)];
