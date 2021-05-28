@@ -136,10 +136,6 @@
     background: transparent;  /* Optional: just make scrollbar invisible */
 }
 
-pre, code, pre > * {
-        font-family: Mono;
-}
-
 .shadow_0 {
   box-shadow: none
 }
@@ -192,7 +188,6 @@ button, textarea, input{
   background: none;
   color: rgba(255,255,255,.87);
   border: none;
-  border-bottom: 1px solid rgb(222, 222, 222);
   outline: none;
   box-sizing: border-box;
 }
@@ -297,12 +292,13 @@ div:focus > .show_over {
 <script>
 CodeMirror.defineSimpleMode("simplemode", {
   start: [
-    {regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
+    //{regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
 	
-    {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:;\}.$ ?])/, token: "variables"}, // single quote strings code
-    {regex: /(^| )'([^']|'\w)*'( |$)/, token: "variables"}, // single quote strings speech
+    //{regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:;\}.$ ?])/, token: "variables"}, // single quote strings code
+    //{regex: /(^| )'([^']|'\w)*'( |$)/, token: "variables"}, // single quote strings speech
     
-    {regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
+    //{regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
+    //{regex: /\d\d\/\d\d \d\d:\d\d/, token: 'strings'}, // timestamps
     //{regex: / \|( |$)/, token: 'nums'},
   ]
 });
@@ -389,6 +385,8 @@ CodeMirror.Vim.map("'", ":double_tap '", 'insert')
 
 CodeMirror.Vim.map("<BS>", ":undouble_tap", 'insert')
 
+CodeMirror.Vim.map('<F5>', ':timestamp', 'insert')
+CodeMirror.Vim.map('<F5>', ':timestamp', 'normal')
 
 
 editbox = document.querySelector('.editbox')
@@ -792,6 +790,8 @@ from browser import document as doc
 from browser.html import *
 import time
 
+from math import *
+
 input = window.prompt
 
 def groupBy(l, key):
@@ -802,17 +802,24 @@ def groupBy(l, key):
 def chunkBy(l, key):
   last_key = k = None
   last_group = []
+  out = []
 
   for i in l:
     k = key(i)
     if k == last_key:
       last_group.append(i)
     else:
-      if len(last_group) > 0: yield [last_key, last_group]
+      if len(last_group) > 0: 
+        #yield [last_key, last_group]
+        out.append([last_key, last_group])
       last_key = k
       last_group = [i]
 
-  if len(last_group) > 0: yield [last_key, last_group]
+  if len(last_group) > 0: 
+    #yield [last_key, last_group]
+    out.append([last_key, last_group])
+  return out
+
 
 def chunk(l, n):
   for i in range(len(l)//n):
@@ -831,8 +838,8 @@ def reduce(l, f):
 
 def struct(name, args, verbose=False):
   sargs = '\n'.join(f'    self.{i} = {i}' for i in args)
-  iters = ', '.join(f'self.{i}' for i in args)
-  initargs = ', '.join(f'{i}=None' for i in args)
+  initargs = ', '.join(f'{i}' for i in args)
+  strargs = ', '.join(f'{i}: {{self.{i}}}' for i in args)
   
   slot_template = f"""
 class {name}:
@@ -840,9 +847,9 @@ class {name}:
   
   def __init__(self, {initargs}): 
 {sargs}
-
-  def __iter__(self): 
-    yield from ({iters})
+  
+  def __repr__(self):
+    return f'{name}({strargs})'
 """.strip()
   
   if verbose:
@@ -938,25 +945,26 @@ def try_cast(s):
 def matrix(s, delim='|'):
   return [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
   
-def matrix2(s, delim='|'):
-  out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
-  width = len(out[0])
-  return [[*i, *(['']*(width-len(i)))] for i in out]
+def matrixFill(l):
+  wide = 0
+  for i in l:
+    if len(i) > wide: wide = len(i)
+  return [[*i, *(['']*(wide - len(i)))] for i in l]
  
 def table(s, delim='|'):
   out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
   return [dict(zip(out[0], out[i])) for i in range(1, len(out))]
       
-def align(l, glue=' | '):
-  widths = {k: len(k) for k in l[0].keys()}
-  keys = [i for i in widths.keys() if i]
+def align(l, glue=' | ', lpad=0):
+  widths = [0 for k in l[0]]
+  keys = list(range(len(widths)))
   
   for i in l:
-    for k, v in i.items():
-      if (cur:=len(v)) > widths[k]: widths[k] = cur
+    for k in keys:
+      if (cur:=len(i[k])) > widths[k]: 
+        widths[k] = cur
       
-  return glue.join(i.ljust(widths[i]) for i in keys).rstrip() + '\n' + \
-     '\n'.join(glue.join(i[k].ljust(widths[k]) for k in keys).rstrip() for i in l)
+  return '\n'.join(' '*lpad + glue.join(i[k].ljust(widths[k]) for k in keys).rstrip() for i in l)
       
 class Listenable:
   def __init__(self): self._listeners = []
@@ -970,20 +978,198 @@ class Listenable:
   
   def notify(self):
     for l in self._listeners[:]: l()
+    
+class ListenableValue(Listenable):
+  def __init__(self, value):
+    super().__init__()
+    self._value = value
+    
+  @property
+  def value(self):
+    return self._value
+  
+  @value.setter
+  def value(self, value):
+    if value != self._value:
+      self._value = value
+      self.notify()
+      
+  def __repr__(self):
+    return repr(self._value)
+    
+class Node:
+  __slots__ = ('data',)
+  
+  def __init__(self, data): 
+    self.data = data
+  
+  def __repr__(self):
+    return f'Node(data: {self.data})'
+    
+class Point:
+  __slots__ = ('x', 'y')
+  
+  def __init__(self, x, y): 
+    self.x = x
+    self.y = y
+  
+  def __repr__(self):
+    return f'Point(x: {self.x}, y: {self.y})'
 
-async def aloop(update, step=1/30):
-  t = time.time()
-  now = t
-  running = True
+  def __add__(self, other):
+    return Point(self.x + other.x, self.y + other.y)
+    
+  def __sub__(self, other):
+    return Point(self.x - other.x, self.y - other.y)
+    
+  def __mul__(self, other):
+    return Point(self.x * other.x, self.y * other.y)
+    
+  def __eq__(self, other):
+    return self.x == other.x and self.y == other.y
+    
+  def __hash__(self):
+    return (self.x, self.y)
+    
+  def distanceTo(self, other):
+    dx = self.x - other.x;
+    dy = self.y - other.y;
+    return sqrt(dx * dx + dy * dy);
+    
+  def squaredDistanceTo(self, other):
+    dx = self.x - other.x;
+    dy = self.y - other.y;
+    return dx * dx + dy * dy;
+    
+  @property
+  def magnitude(self):
+    return sqrt(self.x * self.x + self.y * self.y)
+    
+# coords are top left 0, 0
+class Rectangle:
+  __slots__ = ('left', 'top', 'width', 'height')
 
-  while running:
-    await asyncio.sleep(t - now)
-    now = time.time()
-    while t < now:
-      t += step
-      if update() is False:
-        running = False
-        break
+  def __init__(self, left, top, width, height):
+    self.left = left
+    self.top = top
+    self.width = width
+    self.height = height
+
+  @classmethod
+  def fromPoints(cls, a, b):
+    left = min([a.x, b.x])
+    width = (max([a.x, b.x]) - left)
+    top = min([a.y, b.y])
+    height = (max([a.y, b.y]) - top)
+    return cls(left, top, width, height)
+
+  def __repr__(self):
+    return f'Rectangle(left: {self.left}, top: {self.top}, width: {self.width}, height: {self.height})'
+
+  def __hash__(self):
+    return (self.left, self.top, self.width, self.height)
+
+  @property
+  def bottom(self):
+    return self.top + self.height
+
+  @property
+  def bottomLeft(self):
+    return Point(self.left, self.top + self.height)
+
+  @property
+  def bottomRight(self):
+    return Point(self.left + self.width, self.top + self.height)
+
+  @property
+  def right(self):
+    return self.left + self.width
+
+  @property
+  def topLeft(self):
+    return Point(self.left, self.top)
+
+  @property
+  def topRight(self):
+    return Point(self.left + self.width, self.top)
+
+  def boundingBox(self, other):
+    right = max([self.left + self.width, other.left + other.width])
+    bottom = max([self.top + self.height, other.top + other.height])
+
+    left = min([self.left, other.left])
+    top = min([self.top, other.top])
+
+    return Rectangle(left, top, right - left, bottom - top)
+
+  def containsPoint(self, another):
+    return another.x >= self.left and\
+        another.x <= self.left + self.width and\
+        another.y >= self.top and\
+        another.y <= self.top + self.height
+        
+  def containsRectangle(self, another):
+    return self.left <= another.left and\
+        self.left + self.width >= another.left + another.width and\
+        self.top <= another.top and\
+        self.top + self.height >= another.top + another.height
+        
+  def intersection(self, other):
+    x0 = max([self.left, other.left])
+    x1 = min([self.left + self.width, other.left + other.width])
+
+    if x0 <= x1:
+      y0 = max([self.top, other.top])
+      y1 = min([self.top + self.height, other.top + other.height])
+
+      if y0 <= y1:
+        return Rectangle(x0, y0, x1 - x0, y1 - y0)
+    return None
+    
+  def intersects(self, other):
+    return self.left <= other.left + other.width and\
+        other.left <= self.left + self.width and\
+        self.top <= other.top + other.height and\
+        other.top <= self.top + self.height
+        
+  def __eq__(self, other):
+    return self.left == other.left and\
+        self.top == other.top and\
+        self.right == other.right and\
+        self.bottom == other.bottom
+
+    
+def dot(this, other):
+  return [[sum([this[row][x]*other[x][col] for x in range(len(this[0]))])for col in range(len(other[0]))] for row in range(len(this))]
+
+class Struct:
+  __slots__ = ()
+  
+  def __init__(self, **kw):
+    for k, v in kw.items():
+      setattr(self, k, v)
+
+def decompose(t, main_key):
+  out = ''
+  for r in t:
+    out += f"{r[main_key]}\n"
+    for k, v in r.items():
+      if k != main_key and v:
+        out+=f'  {k}: {v}\n'
+  return out
+
+
+
+
+async def aloop(f):
+  now = time.time()
+  d = 0
+  
+  while True:
+    ellapsed = abs(now - (now:=time.time()))
+    d = f(ellapsed)
+    if d == -1: break
+    await asyncio.sleep(d)
     
 def system(signature, f):
   def _system(es, delta = 0):
@@ -1034,6 +1220,17 @@ def undouble_tap(cm, params):
     asyncio.run(popup(traceback.format_exc()))
 window.CodeMirror.Vim.defineEx("undouble_tap", None, undouble_tap)
 
+def timestamp(cm, params):
+  try:
+    year, month, day, hour, min, sec, weekday, yearDay, *_ = time.localtime()
+    
+    window.insertTextAtCursor(cm, f'{hour}:{min:02d}')
+
+  except Exception as e:
+    import traceback
+    asyncio.run(popup(traceback.format_exc()))
+window.CodeMirror.Vim.defineEx("timestamp", None, timestamp)
+
 
 ctrl = False
 tables = {}
@@ -1042,7 +1239,7 @@ editbox = window.editbox
 cm_editbox = window.cm_editbox
 _options['editbox'] = cm_editbox
 _options['so'] = 6*12
-_options['center'] = False
+_options['center'] = True
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = None
@@ -1336,7 +1533,10 @@ def run_align(cm, params):
   try:
     #out = align(table(data))
     #out = window.alignCsv(window.splitCsv(data))
-    out = window.align(window.table(data))
+    #out = window.align(window.table(data))
+    temp = data.splitlines()[0]
+    pad = len(temp)-len(temp.lstrip())
+    out = align(matrixFill(matrix(data)), ' | ', pad)
 
     window.vdo('gv')
     cm_editbox.replaceSelection(out.strip('\n'))
@@ -1351,7 +1551,7 @@ def caps(cm, params):
     out = data.title()
 
     window.vdo('gv')
-    cm_editbox.replaceSelection(out.strip('\n'))
+    cm_editbox.replaceSelection(out.strip())
     window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
     window.vdo('yy')
   except:
@@ -1415,6 +1615,60 @@ def bind(el, **kw):
   for k, v in kw.items():
     el.bind(k, v)
   return el
+    
+def bubble(text='', color='#313131'):
+  return DIV(I(text, Class='material-icons'), style={
+    'border-radius': '999px',
+    'background': color,
+    'margin': '4px',
+    'padding': '4px',
+  })
+
+def bar(*l, style={}, **kw):
+  return DIV(*l, style={
+    'display': 'flex',
+    'flex-direction': 'row',
+    'background': '#131313',
+    'padding': '4px',
+    #'border-radius': '10px 3px',
+    'margin': '4px',
+    **style,
+  })
+
+def row(*l, style={}, **kw):
+  return DIV(*l, style={
+    'display': 'flex',
+    'flex-direction': 'row',
+    'flex-grow': '1',
+    **style,
+  }, **kw)
+
+def col(*l, style={}, **kw):
+  return DIV(*l, style={
+    'display': 'flex',
+    'flex-direction': 'column',
+    'flex-grow': '1',
+    **style,
+  }, **kw)
+
+def autoSize(ev):
+  ev.target.style['height'] = 'auto'
+  ev.target.style['height'] = f'{ev.target.scrollHeight}px'
+
+def textbox(*l, **kw):
+  t = TEXTAREA(*l, rows=1, **kw)
+  t.style['height'] = f'{t.scrollHeight}px'
+  t.style['overflow-y'] = 'hidden'
+  t.style['resize'] = 'none'
+
+  t.bind('input', autoSize)
+
+  def init():
+    t.style['height'] = 'auto'
+    t.style['height'] = f'{t.scrollHeight}px'
+  window.setTimeout(init, 50)
+
+  return t
     
 </script>
 </html>
