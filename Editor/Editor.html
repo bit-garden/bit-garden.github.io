@@ -1091,7 +1091,7 @@ class ECS:
     signature = self.entitySignature.get(u, set())
     for k, v in self.archetypes.items():
       if signature.issuperset(k):
-        if not u in v: v.add(u)
+        if not u in v: v.append(u)
       else:
         if u in v: v.remove(u)
         
