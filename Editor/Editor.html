@@ -293,11 +293,14 @@ div:focus > .show_over {
 CodeMirror.defineSimpleMode("simplemode", {
   start: [
     //{regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
-	
+
     //{regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:;\}.$ ?])/, token: "variables"}, // single quote strings code
     //{regex: /(^| )'([^']|'\w)*'( |$)/, token: "variables"}, // single quote strings speech
     
-    //{regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
+    
+    //{regex: /\/\/\/.*$/, token: "strings"}, // darklights comments
+    //{regex: /(#|\/\/)[^\/]?.*$/, token: "comments"}, // darklights comments
+    {regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
     //{regex: /\d\d\/\d\d \d\d:\d\d/, token: 'strings'}, // timestamps
     //{regex: / \|( |$)/, token: 'nums'},
   ]
@@ -357,16 +360,16 @@ CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
 //CodeMirror.Vim.map('{}', ':bracespace {}', 'insert')
 //CodeMirror.Vim.map('[]', ':bracespace []', 'insert')
 
-CodeMirror.Vim.unmap('s', 'visual')
-CodeMirror.Vim.map('s(', ':surround ()', 'visual')
-CodeMirror.Vim.map('s)', ':surround ()', 'visual')
-CodeMirror.Vim.map('s[', ':surround []', 'visual')
-CodeMirror.Vim.map('s]', ':surround []', 'visual')
-CodeMirror.Vim.map('s{', ':surround {}', 'visual')
-CodeMirror.Vim.map('s}', ':surround {}', 'visual')
+CodeMirror.Vim.unmap('S', 'visual')
+CodeMirror.Vim.map('S(', ':surround ()', 'visual')
+CodeMirror.Vim.map('S)', ':surround ()', 'visual')
+CodeMirror.Vim.map('S[', ':surround []', 'visual')
+CodeMirror.Vim.map('S]', ':surround []', 'visual')
+CodeMirror.Vim.map('S{', ':surround {}', 'visual')
+CodeMirror.Vim.map('S}', ':surround {}', 'visual')
 
-CodeMirror.Vim.map("s'", ":surround ''", 'visual')
-CodeMirror.Vim.map('s"', ':surround ""', 'visual')
+CodeMirror.Vim.map("S'", ":surround ''", 'visual')
+CodeMirror.Vim.map('S"', ':surround ""', 'visual')
 
 CodeMirror.Vim.map('<C-k>', ':runup', 'normal')
 CodeMirror.Vim.map('<C-j>', ':rundown', 'normal')
@@ -422,8 +425,9 @@ function on_change(cm, _change){
   if(c.ch)
     c.ch -= 1
   word = cm_editbox.findWordAt(c); word = cm_editbox.getRange(word.anchor, word.head).trim();
-  if(cm_editbox.state.vim.insertMode && word.match(/\w\w$/) && !just_completed)
+  if(cm_editbox.state.vim.insertMode && word.match(/\w\w$/) && !just_completed) {
     cm_editbox.showHint()
+  }
   else{
     cm_editbox.closeHint()
     just_completed = false
@@ -869,7 +873,6 @@ def structs(cm, params):
   cm_editbox.replaceSelection('\n\n'.join(out))
 window.CodeMirror.Vim.defineEx("struct", None, structs)
 
-
 def dstruct(name, args):
   sargs = ', '.join(f'this.{i}' for i in args)
   cargs = '\n'.join(f'  var {i};' for i in args)
@@ -974,7 +977,7 @@ class Listenable:
   def dispose(self): self._listeners.clear()
   
   @property
-  def hasListeners(self): return self._listeners == []
+  def hasListeners(self): return len(self._listeners) > 0
   
   def notify(self):
     for l in self._listeners[:]: l()
@@ -990,12 +993,13 @@ class ListenableValue(Listenable):
   
   @value.setter
   def value(self, value):
-    if value != self._value:
-      self._value = value
-      self.notify()
+    if value == self._value: return
+    self._value = value
+    self.notify()
       
   def __repr__(self):
     return repr(self._value)
+
     
 class Node:
   __slots__ = ('data',)
@@ -1006,30 +1010,15 @@ class Node:
   def __repr__(self):
     return f'Node(data: {self.data})'
     
-class Point:
+class MutablePoint:
   __slots__ = ('x', 'y')
   
-  def __init__(self, x, y): 
-    self.x = x
-    self.y = y
-  
-  def __repr__(self):
-    return f'Point(x: {self.x}, y: {self.y})'
-
-  def __add__(self, other):
-    return Point(self.x + other.x, self.y + other.y)
-    
-  def __sub__(self, other):
-    return Point(self.x - other.x, self.y - other.y)
-    
-  def __mul__(self, other):
-    return Point(self.x * other.x, self.y * other.y)
-    
-  def __eq__(self, other):
-    return self.x == other.x and self.y == other.y
-    
-  def __hash__(self):
-    return (self.x, self.y)
+  def __init__(self, x, y): self.x, self.y = x, y
+  def __repr__(self): return f'MutablePoint(x: {self.x}, y: {self.y})'
+  def __add__(self, other): return MutablePoint(self.x + other.x, self.y + other.y)
+  def __sub__(self, other): return MutablePoint(self.x - other.x, self.y - other.y)
+  def __mul__(self, other): return MutablePoint(self.x * other.x, self.y * other.y)
+  def __eq__(self, other): return self.x == other.x and self.y == other.y
     
   def distanceTo(self, other):
     dx = self.x - other.x;
@@ -1040,105 +1029,91 @@ class Point:
     dx = self.x - other.x;
     dy = self.y - other.y;
     return dx * dx + dy * dy;
-    
-  @property
-  def magnitude(self):
-    return sqrt(self.x * self.x + self.y * self.y)
-    
-# coords are top left 0, 0
-class Rectangle:
-  __slots__ = ('left', 'top', 'width', 'height')
-
-  def __init__(self, left, top, width, height):
-    self.left = left
-    self.top = top
-    self.width = width
-    self.height = height
-
-  @classmethod
-  def fromPoints(cls, a, b):
-    left = min([a.x, b.x])
-    width = (max([a.x, b.x]) - left)
-    top = min([a.y, b.y])
-    height = (max([a.y, b.y]) - top)
-    return cls(left, top, width, height)
-
-  def __repr__(self):
-    return f'Rectangle(left: {self.left}, top: {self.top}, width: {self.width}, height: {self.height})'
-
-  def __hash__(self):
-    return (self.left, self.top, self.width, self.height)
 
   @property
-  def bottom(self):
-    return self.top + self.height
+  def magnitude(self): return sqrt(self.x * self.x + self.y * self.y)
+  
+  def rotate(self, theta):
+    return MutablePoint(
+      self.x*cos(theta) - self.y*sin(theta),
+      self.x*sin(theta) + self.y*cos(theta)
+    )
+          
+  def angleTo(self, tar): return atan2(tar.y - self.y, tar.x - self.x)
 
-  @property
-  def bottomLeft(self):
-    return Point(self.left, self.top + self.height)
-
-  @property
-  def bottomRight(self):
-    return Point(self.left + self.width, self.top + self.height)
-
-  @property
-  def right(self):
-    return self.left + self.width
-
-  @property
-  def topLeft(self):
-    return Point(self.left, self.top)
-
-  @property
-  def topRight(self):
-    return Point(self.left + self.width, self.top)
-
-  def boundingBox(self, other):
-    right = max([self.left + self.width, other.left + other.width])
-    bottom = max([self.top + self.height, other.top + other.height])
-
-    left = min([self.left, other.left])
-    top = min([self.top, other.top])
-
-    return Rectangle(left, top, right - left, bottom - top)
-
-  def containsPoint(self, another):
-    return another.x >= self.left and\
-        another.x <= self.left + self.width and\
-        another.y >= self.top and\
-        another.y <= self.top + self.height
+def degreesToRads(deg): return (deg * pi) / 180.0
+def radsToDegrees(rad): return (rad * 180.0) / pi
         
-  def containsRectangle(self, another):
-    return self.left <= another.left and\
-        self.left + self.width >= another.left + another.width and\
-        self.top <= another.top and\
-        self.top + self.height >= another.top + another.height
-        
-  def intersection(self, other):
-    x0 = max([self.left, other.left])
-    x1 = min([self.left + self.width, other.left + other.width])
+def proxyList(m, l):
+  for i in l:
+    if i in m:
+      yield m[i]
+    else:
+      yield None
 
-    if x0 <= x1:
-      y0 = max([self.top, other.top])
-      y1 = min([self.top + self.height, other.top + other.height])
+def toggleList(l, e): l.remove(e) if e in l else l.append(e)
 
-      if y0 <= y1:
-        return Rectangle(x0, y0, x1 - x0, y1 - y0)
-    return None
+class ECS:
+  def __init__(self, makeId, disposeId):
+    self.componentArrays = {}
+    self.entitySignature = {}
+    self.archetypes = {}
+    self.makeId = makeId
+    self.disposeId = disposeId
+  
+  def entity(self, components = []):
+    u = self.makeId()
+    for c in components:
+      self.componentArrays.setdefault(type(c), ComponentArray()).items[u] = c
+      self.entitySignature.setdefault(u, set()).add(type(c))
+    self.updateArchetypes(u)
+    return u
     
-  def intersects(self, other):
-    return self.left <= other.left + other.width and\
-        other.left <= self.left + self.width and\
-        self.top <= other.top + other.height and\
-        other.top <= self.top + self.height
-        
-  def __eq__(self, other):
-    return self.left == other.left and\
-        self.top == other.top and\
-        self.right == other.right and\
-        self.bottom == other.bottom
-
+  def dispose(self, u):
+    for T in self.entitySignature.get(u, {}):
+      del self.componentArrays[T].items[u]
+    del self.entitySignature[u]
+    self.updateArchetypes(u)
+    self.disposeId(u)
     
+  def addComponent(self, u, c):
+    self.componentArrays.setdefault(type(c), ComponentArray()).items[u] = c
+    self.entitySignature.setdefault(u, set()).add(type(c))
+    self.updateArchetypes(u)
+    
+  def removeComponent(self, u, T):
+    _comp = self.componentArrays[T].items.pop(u)
+    self.entitySignature[u].remove(T)
+    self.updateArchetypes(u)
+    return _comp
+    
+  def updateArchetypes(self, u):
+    signature = self.entitySignature.get(u, set())
+    for k, v in self.archetypes.items():
+      if signature.issuperset(k):
+        if not u in v: v.add(u)
+      else:
+        if u in v: v.remove(u)
+        
+  def __call__(self, u, T):
+    return self.componentArrays[T].items[u]
+    
+  def maybe(self, u, T):
+    return self.componentArrays.get(T, ComponentArray()).items.get(u)
+    
+  def of(self, types):
+    return self.archetypes.setdefault(types, [
+      k for k, v in self.entitySignature.items()
+        if v.issuperset(types)
+    ])
+    
+class ComponentArray:
+  def __init__(self): self.items = {}
+  def __repr__(self): return f'ComponentArray(items: {self.items})'
+
+
+
+
 def dot(this, other):
   return [[sum([this[row][x]*other[x][col] for x in range(len(this[0]))])for col in range(len(other[0]))] for row in range(len(this))]
 
@@ -1161,15 +1136,18 @@ def decompose(t, main_key):
 
 
 
-async def aloop(f):
-  now = time.time()
-  d = 0
-  
-  while True:
-    ellapsed = abs(now - (now:=time.time()))
-    d = f(ellapsed)
-    if d == -1: break
-    await asyncio.sleep(d)
+async def mainloop(d, f):
+  stamp = time.now()
+  diff = 0
+  start = stamp
+  n = stamp
+
+  while f(diff):
+    stamp = n
+    await asyncio.sleep(d - (stamp - start) % d)
+    n = time.now()
+    diff = n - stamp
+
     
 def system(signature, f):
   def _system(es, delta = 0):
@@ -1203,7 +1181,7 @@ window.CodeMirror.Vim.defineEx("double_tap", None, double_tap)
 
 def undouble_tap(cm, params):
   try:
-    chars = ["''", '""', '[]', '{}', '()']
+    chars = ['""', "''", '[]', '{}', '()']
     line = cm_editbox.getCursor().line
     ch = cm_editbox.getCursor().ch
     cur_line = cm_editbox.getLine(line)
@@ -1239,7 +1217,7 @@ editbox = window.editbox
 cm_editbox = window.cm_editbox
 _options['editbox'] = cm_editbox
 _options['so'] = 6*12
-_options['center'] = True
+_options['center'] = False
 _options['body'] = doc.querySelector('body')
 _options['window'] = window
 _options['limelight'] = None
