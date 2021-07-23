@@ -292,15 +292,15 @@ div:focus > .show_over {
 <script>
 CodeMirror.defineSimpleMode("simplemode", {
   start: [
-    //{regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
+    {regex: /\w?"([^"\\]|\\.)*("|$)/, token: "variables"}, // Double quote
 
-    //{regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:;\}.$ ?])/, token: "variables"}, // single quote strings code
-    //{regex: /(^| )'([^']|'\w)*'( |$)/, token: "variables"}, // single quote strings speech
+    {regex: /(?![ \{\(\[])\w?'([^'\\]|\\.)*'\s*(?=[\)\],:;\}.$ ?])/, token: "variables"}, // single quote strings code
+    {regex: /(^| )'([^']|'\w)*'( |$)/, token: "variables"}, // single quote strings speech
     
     
-    //{regex: /\/\/\/.*$/, token: "strings"}, // darklights comments
-    //{regex: /(#|\/\/)[^\/]?.*$/, token: "comments"}, // darklights comments
-    {regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
+    {regex: /\/\/\/.*$/, token: "strings"}, // darklights comments
+    {regex: /(#|\/\/)[^\/]?.*$/, token: "comments"}, // darklights comments
+    //{regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
     //{regex: /\d\d\/\d\d \d\d:\d\d/, token: 'strings'}, // timestamps
     //{regex: / \|( |$)/, token: 'nums'},
   ]
