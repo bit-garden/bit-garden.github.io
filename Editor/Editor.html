@@ -75,7 +75,7 @@
  .cm-under{text-decoration: underline;}
  .cm-comments{color: #888888;    }
  .cm-strings{color: #aaffaa;}
- .cm-variables{color: #aaffff;}
+ .cm-variables{color: #ffffff;}
 
  .cm-deco{color: #ffbf00;}
  .cm-decorator{color: #ffaaff;}
@@ -298,9 +298,9 @@ CodeMirror.defineSimpleMode("simplemode", {
     {regex: /(^| )'([^']|'\w)*'( |$)/, token: "variables"}, // single quote strings speech
     
     
-    {regex: /\/\/\/.*$/, token: "strings"}, // darklights comments
-    {regex: /(#|\/\/)[^\/]?.*$/, token: "comments"}, // darklights comments
-    //{regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
+    //{regex: /(\/\/\/|##).*$/, token: "strings"}, // darklights comments
+    //{regex: /(#|\/\/)[^\/#]?.*$/, token: "comments"}, // darklights comments
+    {regex: /(#|\/\/).*$/, token: "comments"}, // darklights comments
     //{regex: /\d\d\/\d\d \d\d:\d\d/, token: 'strings'}, // timestamps
     //{regex: / \|( |$)/, token: 'nums'},
   ]
@@ -317,8 +317,21 @@ CodeMirror.Vim.map('jk', '<Esc>', 'insert')
 CodeMirror.Vim.map('<C-e>', ':js null', 'normal')
 CodeMirror.Vim.map('<C-p>', ':js cm_editbox.showHint()', 'insert')
 CodeMirror.Vim.map('<C-n>', ':js cm_editbox.showHint()', 'insert')
-CodeMirror.Vim.map('vw', '<Esc>viwygv', 'insert')
 
+// put 2 spaces instead of tab char
+CodeMirror.Vim.map('<Tab>', ':insertSoftTab', 'insert')
+
+// remove search higlights
+CodeMirror.Vim.map('<Tab><Space>', ':noh', 'normal')
+
+CodeMirror.Vim.map('<F5>', ':timestamp', 'insert')
+CodeMirror.Vim.map('<F5>', ':timestamp', 'normal')
+
+// Tab e to align table or selection
+CodeMirror.Vim.map('<Tab>e', ':vdo :kpos|vip|:align|:rpos|l', 'normal')
+CodeMirror.Vim.map('<Tab>e', ':vdo :align', 'visual')
+
+/*
 // ctrl + e to run file or selection
 CodeMirror.Vim.map('<C-e>', ':run_file', 'normal')
 CodeMirror.Vim.map('<C-e>', ':run_file', 'insert')
@@ -327,12 +340,8 @@ CodeMirror.Vim.map('<C-e>', ':do_py', 'visual')
 CodeMirror.Vim.map('<Tab><C-e>', ':run_shard', 'normal')
 CodeMirror.Vim.map('<Tab>v', ':visual_shard', 'normal')
 
-// Tab e to align table or selection
-CodeMirror.Vim.map('<Tab>e', ':vdo :kpos|vip|:align|:rpos|l', 'normal')
-CodeMirror.Vim.map('<Tab>e', ':vdo :align', 'visual')
 
-// put 2 spaces instead of tab char
-CodeMirror.Vim.map('<Tab>', ':insertSoftTab', 'insert')
+
 
 // Transpose table for easy column-wise edits
 CodeMirror.Vim.map('<Tab>t', ':vdo :kpos|vip|:do_tp|:rpos|l', 'normal')
@@ -345,9 +354,6 @@ CodeMirror.Vim.map('<C-y>', ':better_sort', 'visual')
 // sort by selection
 CodeMirror.Vim.map('<Tab>y', ':js sort_by()', 'visual')
 
-// remove search higlights
-CodeMirror.Vim.map('<Tab><Space>', ':noh', 'normal')
-
 // Save command, TODO
 //CodeMirror.Vim.map('ZA', ':py save_me.append(1)', 'normal')
 //CodeMirror.Vim.map('ZA', ':py save_me.append(1)', 'insert')
@@ -357,8 +363,8 @@ CodeMirror.Vim.map('<Tab>r', ':js alignRight()', 'visual')
 CodeMirror.Vim.map('<Tab>l', ':js alignLeft()', 'visual')
 CodeMirror.Vim.map('<Tab>c', ':js alignCenter()', 'visual')
 
-//CodeMirror.Vim.map('{}', ':bracespace {}', 'insert')
-//CodeMirror.Vim.map('[]', ':bracespace []', 'insert')
+CodeMirror.Vim.map('{}', ':bracespace {}', 'insert')
+CodeMirror.Vim.map('[]', ':bracespace []', 'insert')
 
 CodeMirror.Vim.unmap('S', 'visual')
 CodeMirror.Vim.map('S(', ':surround ()', 'visual')
@@ -384,12 +390,12 @@ CodeMirror.Vim.map('}', ':double_tap }', 'insert')
 CodeMirror.Vim.map('[', ':double_tap []', 'insert')
 CodeMirror.Vim.map(']', ':double_tap ]', 'insert')
 CodeMirror.Vim.map('"', ':double_tap "', 'insert')
-CodeMirror.Vim.map("'", ":double_tap '", 'insert')
-
+//CodeMirror.Vim.map("'", ":double_tap '", 'insert')
+//
 CodeMirror.Vim.map("<BS>", ":undouble_tap", 'insert')
 
 CodeMirror.Vim.map('<F5>', ':timestamp', 'insert')
-CodeMirror.Vim.map('<F5>', ':timestamp', 'normal')
+CodeMirror.Vim.map('<F5>', ':timestamp', 'normal')*/
 
 
 editbox = document.querySelector('.editbox')
@@ -442,11 +448,21 @@ function ac_hint(cm){
 }
 CodeMirror.commands.autocomplete = ac_hint
 
+
+//------------------------------------
 function runjs(cm, params){
   eval(params.argString)
 }
-
 CodeMirror.Vim.defineEx("js", null, runjs)
+
+function run_align(cm, params){
+  vdo('gv')
+  data = cm_editbox.getSelection()
+  out = align(table(comma2pipe(data.replaceAll('\t', '|'))))
+  vdo('gv')
+  cm_editbox.replaceSelection(out.trim())
+}
+CodeMirror.Vim.defineEx("align", null, run_align)
 
 function reg(_reg, _new = null){
   if(_new != null){
@@ -486,7 +502,61 @@ navigator.clipboard.readText()
   return dat
 }
 
-function move_to(tar, _forward = true) {
+// better function for doing macros
+// handles ' |' seperators
+// handles ? and / and : actions along with keys
+// only matches first instance at ? and /
+  // use look arounds to get further in the line with multiple instances
+function vdo(_keys, _type='macro'){
+  //console.log('"' + _keys + '"')
+  CodeMirror.Vim.exitInsertMode(cm_editbox)
+  __keys = _keys.trimLeft().split('|')
+  __keys.forEach((block)=>{
+    block = block.replace(/\<bar\>/g, '|')
+    if(block.startsWith(':')){
+      //do ex
+      // test js vdo('jjjj |:js alert("hi")')
+      CodeMirror.Vim.handleEx(cm_editbox, block.slice(1))
+      //add / move_to and ? leads
+    }else if(block.startsWith('/')){
+      move_to(block.slice(1))
+    }else if(block.startsWith('?')){
+      move_to(block.slice(1), false)
+    }else{
+      //normal vdo
+      block.split('').forEach((i)=>{
+        CodeMirror.Vim.handleKey(cm_editbox, i, _type)
+      })
+    }
+  })
+}
+function runvdo(cm, params){
+  vdo(params.argString)
+}
+CodeMirror.Vim.defineEx("vdo", null, runvdo)
+CodeMirror.Vim.defineEx("normal", null, runvdo)
+
+function kpos(cm, params){
+  window.lastscroll = cm_editbox.getScrollInfo()
+  window.lastline = cm_editbox.getCursor().line
+  window.lastch = cm_editbox.getCursor().ch
+}
+CodeMirror.Vim.defineEx('kpos', null, kpos)
+
+function rpos(cm, params){
+  cm_editbox.setCursor({'line':window.lastline, 'ch': window.lastch})
+  cm_editbox.scrollTo(window.lastscroll.left, window.lastscroll.top)
+}
+CodeMirror.Vim.defineEx('rpos', null, rpos)
+
+function timestamp(cm, params){
+  d = new Date()
+  s = `${d.getMonth()}/${d.getDay()} ${d.getHours()}:${d.getMinutes()}`
+  insertTextAtCursor(cm_editbox, s)
+}
+CodeMirror.Vim.defineEx('timestamp', null, timestamp)
+
+/*function move_to(tar, _forward = true) {
   var matchingLines = [];
   var matchingChars = [];
   var allLines      = editbox.value.split("\n");
@@ -531,46 +601,14 @@ function move_to(tar, _forward = true) {
   }
 }
 
-// better function for doing macros
-// handles ' |' seperators
-// handles ? and / and : actions along with keys
-// only matches first instance at ? and /
-  // use look arounds to get further in the line with multiple instances
-function vdo(_keys, _type='macro'){
-  //console.log('"' + _keys + '"')
-  CodeMirror.Vim.exitInsertMode(cm_editbox)
-  __keys = _keys.trimLeft().split('|')
-  __keys.forEach((block)=>{
-    block = block.replace(/\<bar\>/g, '|')
-    if(block.startsWith(':')){
-      //do ex
-      // test js vdo('jjjj |:js alert("hi")')
-      CodeMirror.Vim.handleEx(cm_editbox, block.slice(1))
-      //add / move_to and ? leads
-    }else if(block.startsWith('/')){
-      move_to(block.slice(1))
-    }else if(block.startsWith('?')){
-      move_to(block.slice(1), false)
-    }else{
-      //normal vdo
-      block.split('').forEach((i)=>{
-        CodeMirror.Vim.handleKey(cm_editbox, i, _type)
-      })
-    }
-  })
-}
-function runvdo(cm, params){
-  vdo(params.argString)
-}
-CodeMirror.Vim.defineEx("vdo", null, runvdo)
-CodeMirror.Vim.defineEx("normal", null, runvdo)
+
 
 function vblock(cm, params){
   cm_editbox.save()
   char_at = cm_editbox.getCursor().ch + 1
-  vdo("?^\\s*(#<bar>$)|j")
+  vdo("?^\\s*(\/\/<bar>#<bar>$)|j")
   line1 = cm.getCursor().line + 1
-  vdo("/^\\s*(#<bar>$)|k")
+  vdo("/^\\s*(\/\/<bar>#<bar>$)|k")
   line2 = cm.getCursor().line + 1
   vdo(line2 + "gg" + char_at + "<bar>t<bar>v" + line1 + "gg" + char_at + "<bar>T<bar>")
   CodeMirror.Vim.handleKey(cm_editbox, '<C-v>', 'macro')
@@ -655,30 +693,9 @@ function findMatches(text, tar, start=1) {
 }
 
 
-function kpos(cm, params){
-  window.lastscroll = cm_editbox.getScrollInfo()
-  window.lastline = cm_editbox.getCursor().line
-  window.lastch = cm_editbox.getCursor().ch
-}
-CodeMirror.Vim.defineEx('kpos', null, kpos)
 
-function rpos(cm, params){
-  cm_editbox.setCursor({'line':window.lastline, 'ch': window.lastch})
-  cm_editbox.scrollTo(window.lastscroll.left, window.lastscroll.top)
-}
-CodeMirror.Vim.defineEx('rpos', null, rpos)
 
-function uuid4() {
-  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-  );
-}
 
-function insertTextAtCursor(editor, text) {
-    var doc = editor.getDoc();
-    var cursor = doc.getCursor();
-    doc.replaceRange(text, cursor);
-}
 
 
 
@@ -697,19 +714,9 @@ function matrix2(s, delim='|'){
   return out.map((i) => [...i, ...(Array.apply(null, Array(width-i.length)).map(function() { return '' }))]);
 }
 
-function table(s, delim='|'){
-  var out = s.trim().split('\n').map((i) => i.split(delim).map((j) => j.trim()));
-  var width = out[0].length;
-  var l = out.map((i) => {
-    i = i.splice(0, width)
-    return [...i, ...(Array.apply(null, Array(width-i.length)).map(function() { return '' }))]
-  });
-  var keys = l.shift();
+*/
 
-  l = l.map((values) => keys.reduce((acc, k, i) => (acc[k] = values[i], acc), {}));
 
-  return l;
-}
 
 /*def align(t):
   widths = {k: len(k) for k in t[0].keys()}
@@ -725,7 +732,7 @@ function table(s, delim='|'){
     for idx in keys).rstrip()
       for row in t)*/
 
-function align(l){
+/*function align(l){
   head = Object.keys(l[0]);
   widths = {};
   for(const i of head)
@@ -747,6 +754,52 @@ function align(l){
 
   return keys.map((idx) => rights[idx]? idx.padStart(widths[idx]): idx.padEnd(widths[idx])).join(' | ').trimEnd()+'\n' + l.map(
     (row) => keys.map((idx) => rights[idx]? row[idx].padStart(widths[idx]): row[idx].padEnd(widths[idx])).join(' | ').trimEnd()).join('\n');
+}*/
+
+function uuid4() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  );
+}
+
+function insertTextAtCursor(editor, text) {
+    var doc = editor.getDoc();
+    var cursor = doc.getCursor();
+    doc.replaceRange(text, cursor);
+}
+
+function table(s, delim='|'){
+  var out = s.trim().split('\n').map((i) => i.split(delim).map((j) => j.trim()));
+  var width = out[0].length;
+  var l = out.map((i) => {
+    i = i.splice(0, width)
+    return [...i, ...(Array.apply(null, Array(width-i.length)).map(function() { return '' }))]
+  });
+  var keys = l.shift();
+
+  l = l.map((values) => keys.reduce((acc, k, i) => (acc[k.toString()] = values[i], acc), new Map()));
+
+  return l;
+}
+
+function align(l){
+  head = Object.keys(l[0]);
+  widths = {};
+  for(const i of head)
+    widths[i] = i.length;
+
+  keys = head.filter((i)=> i.length);
+  
+  for(const i of l){
+    for (const k of keys){
+      cur = i[k].length;
+      if (cur > widths[k])
+        widths[k] = cur;
+    }
+  }
+
+  return keys.map((idx) => idx.padEnd(widths[idx])).join(' | ').trimEnd()+'\n' + l.map(
+    (row) => keys.map((idx) => row[idx].padEnd(widths[idx])).join(' | ').trimEnd()).join('\n');
 }
 
 
@@ -769,6 +822,9 @@ function alignCsv(l){
   return l.map((row) => widths.map((w, idx) => row[idx].padEnd(w)).join(', ')).join('\n');
 }
 
+function comma2pipe(s){
+  return s.split(/(,)(?=(?:[^"]|"[^"]*")*$)/).filter((i, idx) => idx%2==0).join('|');
+}
 
 function splitCsv(s){
   return s.trim().split('\n').map((j) => j.split(/(,)(?=(?:[^"]|"[^"]*")*$)/).filter((i, idx) => idx%2==0).map((i) => i.trim()));
@@ -782,871 +838,5 @@ function csv2tab(s){
   return s.trim().split('\n').map((j) => j.split(/(,)(?=(?:[^"]|"[^"]*")*$)/).filter((i, idx) => idx%2==0).map((i) => i.trim())).map((i) => i.join('\t')).join('\n');
 }
 
-</script>
-<!--<script src="lib/brython_aio.js"></script>-->
-<script src="lib/brython.js"></script>
-<script src="lib/brython_stdlib.js"></script>
-<script type="text/python">
-
-from browser import window
-from browser import aio as asyncio
-from browser import document as doc
-from browser.html import *
-import time
-
-from math import *
-
-input = window.prompt
-
-def groupBy(l, key):
-  gb = {}
-  for i in l: gb.setdefault(key(i), []).append(i)
-  return gb
-
-def chunkBy(l, key):
-  last_key = k = None
-  last_group = []
-  out = []
-
-  for i in l:
-    k = key(i)
-    if k == last_key:
-      last_group.append(i)
-    else:
-      if len(last_group) > 0: 
-        #yield [last_key, last_group]
-        out.append([last_key, last_group])
-      last_key = k
-      last_group = [i]
-
-  if len(last_group) > 0: 
-    #yield [last_key, last_group]
-    out.append([last_key, last_group])
-  return out
-
-
-def chunk(l, n):
-  for i in range(len(l)//n):
-    yield l[n*i: n*(i+1)]
-  if len(l) % n != 0:
-    yield l[-n+1:]
-  
-# dart style implementations
-def fold(l, v, f):
-  for i in l: v = f(v, i)
-  return v
-  
-def reduce(l, f):
-  return fold(_:=iter(l), next(_), f)
-
-
-def struct(name, args, verbose=False):
-  sargs = '\n'.join(f'    self.{i} = {i}' for i in args)
-  initargs = ', '.join(f'{i}' for i in args)
-  strargs = ', '.join(f'{i}: {{self.{i}}}' for i in args)
-  
-  slot_template = f"""
-class {name}:
-  __slots__ = {repr(tuple(args))}
-  
-  def __init__(self, {initargs}): 
-{sargs}
-  
-  def __repr__(self):
-    return f'{name}({strargs})'
-""".strip()
-  
-  if verbose:
-    return slot_template
-  
-  local = {}
-  exec(slot_template, local)
-  return local[name]
-  
-def structs(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection().strip().splitlines()
-  
-  out = [struct(i.split(' ')[0], i.split(' ')[1:], verbose=True) for i in data]
-    
-  window.vdo('gv')
-  cm_editbox.replaceSelection('\n\n'.join(out))
-window.CodeMirror.Vim.defineEx("struct", None, structs)
-
-def dstruct(name, args):
-  sargs = ', '.join(f'this.{i}' for i in args)
-  cargs = '\n'.join(f'  var {i};' for i in args)
-  strargs = ', '.join(f'{i}: ${i}' for i in args)
-  
-  slot_template = f"""
-class {name} {{
-{cargs}
-
-  {name}({sargs});
-  
-  toString () => '{name}({strargs})';
-}}
-""".strip()
-  
-  return slot_template
-  
-def dstructs(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection().strip().splitlines()
-  
-  out = [dstruct(i.split(' ')[0], i.split(' ')[1:]) for i in data]
-    
-  window.vdo('gv')
-  cm_editbox.replaceSelection('\n\n'.join(out))
-window.CodeMirror.Vim.defineEx("dstruct", None, dstructs)
-
-def tint(val, r, g, b, *_):
-  # Tints rgb values to apply 'light'
-
-  rt = r + (val * (255 - r))
-  gt = g + (val * (255 - g))
-  bt = b + (val * (255 - b))
-  return (rt, gt, bt, *_)
-
-def shade(val, r, g, b, *_):
-  # Tints rgb values to apply 'dark' 
-
-  rt = r - r*val 
-  gt = g - g*val 
-  bt = b - b*val 
-  return (rt, gt, bt, *_)
-
-
-def is_dark(r, g, b, *_):
-  # determine color too dark
-  # HSP (Highly Sensitive Poo) equation from http://alienryderflex.com/hsp.html
-  hsp =  0.299 * r**2 + 0.587 * g**2 + 0.114 * b**2
-  return 127.5 >= hsp**(1/2.0)
-
-def hilo(a, b, c):
-  # used in compliment function
-
-  if c < b: b, c = c, b
-  if b < a: a, b = b, a
-  if c < b: b, c = c, b
-  return a + c
-
-def complement(r, g, b, *_):
-  # return complement color
-  k = hilo(r, g, b)
-  return tuple(*(k - u for u in (r, g, b)), *_)
-
-def try_cast(s):
-  try:
-    return int(s)
-  except:
-    try:
-      return float(s)
-    except:
-      return s
-  
-def matrix(s, delim='|'):
-  return [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
-  
-def matrixFill(l):
-  wide = 0
-  for i in l:
-    if len(i) > wide: wide = len(i)
-  return [[*i, *(['']*(wide - len(i)))] for i in l]
- 
-def table(s, delim='|'):
-  out = [[j.strip() for j in i.split(delim)] for i in s.strip().splitlines()]
-  return [dict(zip(out[0], out[i])) for i in range(1, len(out))]
-      
-def align(l, glue=' | ', lpad=0):
-  widths = [0 for k in l[0]]
-  keys = list(range(len(widths)))
-  
-  for i in l:
-    for k in keys:
-      if (cur:=len(i[k])) > widths[k]: 
-        widths[k] = cur
-      
-  return '\n'.join(' '*lpad + glue.join(i[k].ljust(widths[k]) for k in keys).rstrip() for i in l)
-      
-class Listenable:
-  def __init__(self): self._listeners = []
-  
-  def add(self, f): self._listeners.append(f)
-  def remove(self, f): self._listeners.remove(f)
-  def dispose(self): self._listeners.clear()
-  
-  @property
-  def hasListeners(self): return len(self._listeners) > 0
-  
-  def notify(self):
-    for l in self._listeners[:]: l()
-    
-class ListenableValue(Listenable):
-  def __init__(self, value):
-    super().__init__()
-    self._value = value
-    
-  @property
-  def value(self):
-    return self._value
-  
-  @value.setter
-  def value(self, value):
-    if value == self._value: return
-    self._value = value
-    self.notify()
-      
-  def __repr__(self):
-    return repr(self._value)
-
-    
-class Node:
-  __slots__ = ('data',)
-  
-  def __init__(self, data): 
-    self.data = data
-  
-  def __repr__(self):
-    return f'Node(data: {self.data})'
-    
-class MutablePoint:
-  __slots__ = ('x', 'y')
-  
-  def __init__(self, x, y): self.x, self.y = x, y
-  def __repr__(self): return f'MutablePoint(x: {self.x}, y: {self.y})'
-  def __add__(self, other): return MutablePoint(self.x + other.x, self.y + other.y)
-  def __sub__(self, other): return MutablePoint(self.x - other.x, self.y - other.y)
-  def __mul__(self, other): return MutablePoint(self.x * other.x, self.y * other.y)
-  def __eq__(self, other): return self.x == other.x and self.y == other.y
-    
-  def distanceTo(self, other):
-    dx = self.x - other.x;
-    dy = self.y - other.y;
-    return sqrt(dx * dx + dy * dy);
-    
-  def squaredDistanceTo(self, other):
-    dx = self.x - other.x;
-    dy = self.y - other.y;
-    return dx * dx + dy * dy;
-
-  @property
-  def magnitude(self): return sqrt(self.x * self.x + self.y * self.y)
-  
-  def rotate(self, theta):
-    return MutablePoint(
-      self.x*cos(theta) - self.y*sin(theta),
-      self.x*sin(theta) + self.y*cos(theta)
-    )
-          
-  def angleTo(self, tar): return atan2(tar.y - self.y, tar.x - self.x)
-
-def degreesToRads(deg): return (deg * pi) / 180.0
-def radsToDegrees(rad): return (rad * 180.0) / pi
-        
-def proxyList(m, l):
-  for i in l:
-    if i in m:
-      yield m[i]
-    else:
-      yield None
-
-def toggleList(l, e): l.remove(e) if e in l else l.append(e)
-
-class ECS:
-  def __init__(self, makeId, disposeId):
-    self.componentArrays = {}
-    self.entitySignature = {}
-    self.archetypes = {}
-    self.makeId = makeId
-    self.disposeId = disposeId
-  
-  def entity(self, components = []):
-    u = self.makeId()
-    for c in components:
-      self.componentArrays.setdefault(type(c), ComponentArray()).items[u] = c
-      self.entitySignature.setdefault(u, set()).add(type(c))
-    self.updateArchetypes(u)
-    return u
-    
-  def dispose(self, u):
-    for T in self.entitySignature.get(u, {}):
-      del self.componentArrays[T].items[u]
-    del self.entitySignature[u]
-    self.updateArchetypes(u)
-    self.disposeId(u)
-    
-  def addComponent(self, u, c):
-    self.componentArrays.setdefault(type(c), ComponentArray()).items[u] = c
-    self.entitySignature.setdefault(u, set()).add(type(c))
-    self.updateArchetypes(u)
-    
-  def removeComponent(self, u, T):
-    _comp = self.componentArrays[T].items.pop(u)
-    self.entitySignature[u].remove(T)
-    self.updateArchetypes(u)
-    return _comp
-    
-  def updateArchetypes(self, u):
-    signature = self.entitySignature.get(u, set())
-    for k, v in self.archetypes.items():
-      if signature.issuperset(k):
-        if not u in v: v.append(u)
-      else:
-        if u in v: v.remove(u)
-        
-  def __call__(self, u, T):
-    return self.componentArrays[T].items[u]
-    
-  def maybe(self, u, T):
-    return self.componentArrays.get(T, ComponentArray()).items.get(u)
-    
-  def of(self, types):
-    return self.archetypes.setdefault(types, [
-      k for k, v in self.entitySignature.items()
-        if v.issuperset(types)
-    ])
-    
-class ComponentArray:
-  def __init__(self): self.items = {}
-  def __repr__(self): return f'ComponentArray(items: {self.items})'
-
-
-
-
-def dot(this, other):
-  return [[sum([this[row][x]*other[x][col] for x in range(len(this[0]))])for col in range(len(other[0]))] for row in range(len(this))]
-
-class Struct:
-  __slots__ = ()
-  
-  def __init__(self, **kw):
-    for k, v in kw.items():
-      setattr(self, k, v)
-
-def decompose(t, main_key):
-  out = ''
-  for r in t:
-    out += f"{r[main_key]}\n"
-    for k, v in r.items():
-      if k != main_key and v:
-        out+=f'  {k}: {v}\n'
-  return out
-
-
-
-
-async def mainloop(d, f):
-  stamp = time.now()
-  diff = 0
-  start = stamp
-  n = stamp
-
-  while f(diff):
-    stamp = n
-    await asyncio.sleep(d - (stamp - start) % d)
-    n = time.now()
-    diff = n - stamp
-
-    
-def system(signature, f):
-  def _system(es, delta = 0):
-    for entity in es:
-      if set(entity.keys()) >= signature:
-        f(entity, delta)
-  return _system
-
-# --- end focus
-
-def double_tap(cm, params):
-  try:
-    chars = params.argString.strip()
-    line = cm_editbox.getCursor().line
-    ch = cm_editbox.getCursor().ch
-    cur_line = cm_editbox.getLine(line)
-    if len(cur_line) > ch and cur_line[ch] == chars:
-      cm_editbox.setCursor({'line':line, 'ch': ch+1})
-    else:
-      if chars in ('"', "'"):
-        window.insertTextAtCursor(cm, chars*2)
-      else:
-        window.insertTextAtCursor(cm, chars)
-      cm_editbox.setCursor({'line':line, 'ch': ch+1})
-      #window.CodeMirror.Vim.exitInsertMode(cm_editbox)
-      #window.vdo('a')
-  except Exception as e:
-    import traceback
-    asyncio.run(popup(traceback.format_exc()))
-window.CodeMirror.Vim.defineEx("double_tap", None, double_tap)
-
-def undouble_tap(cm, params):
-  try:
-    chars = ['""', "''", '[]', '{}', '()']
-    line = cm_editbox.getCursor().line
-    ch = cm_editbox.getCursor().ch
-    cur_line = cm_editbox.getLine(line)
-    if len(cur_line) > ch and cur_line[ch-1]+cur_line[ch] in chars:
-      cm.execCommand('delCharBefore')
-      cm.execCommand('delCharAfter')
-    else:
-      # normal delete behavior
-      cm.execCommand('delCharBefore')
-      #window.CodeMirror.Vim.exitInsertMode(cm_editbox)
-      #window.vdo('a')
-  except Exception as e:
-    import traceback
-    asyncio.run(popup(traceback.format_exc()))
-window.CodeMirror.Vim.defineEx("undouble_tap", None, undouble_tap)
-
-def timestamp(cm, params):
-  try:
-    year, month, day, hour, min, sec, weekday, yearDay, *_ = time.localtime()
-    
-    window.insertTextAtCursor(cm, f'{hour}:{min:02d}')
-
-  except Exception as e:
-    import traceback
-    asyncio.run(popup(traceback.format_exc()))
-window.CodeMirror.Vim.defineEx("timestamp", None, timestamp)
-
-
-ctrl = False
-tables = {}
-_options = {}
-editbox = window.editbox
-cm_editbox = window.cm_editbox
-_options['editbox'] = cm_editbox
-_options['so'] = 6*12
-_options['center'] = False
-_options['body'] = doc.querySelector('body')
-_options['window'] = window
-_options['limelight'] = None
-_options['relative_number'] = True
-
-def runup(cm, params):
-  cm_editbox.save()
-  tar = window.findMatches(cm_editbox.getTextArea().value, cm_editbox.getCursor().ch, cm_editbox.getCursor().line)[0]
-  window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(tar)+", 'ch':"+str(_options['editbox'].getCursor().ch)+"})")
-window.CodeMirror.Vim.defineEx("runup", None, runup)
-def rundown(cm, params):
-  cm_editbox.save()
-  tar = window.findMatches(_options['editbox'].getTextArea().value, _options['editbox'].getCursor().ch, _options['editbox'].getCursor().line)[-1]
-  window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(tar)+", 'ch':"+str(_options['editbox'].getCursor().ch)+"})")
-window.CodeMirror.Vim.defineEx("rundown", None, rundown)
-
-
-marks = cm_editbox.state.vim.marks
-chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890'
-
-def overscroll(cm):
-  lineNum = cm.getCursor().line + 1;
-  
-  if _options['limelight'] is not None:
-    look_at = int(doc.querySelector('.CodeMirror').scrollHeight/12)
-    last_line = cm.lastLine()
-    if len(cm_editbox.getSelections()) > 1:
-      cur_line = cm_editbox.listSelections()[0].anchor.line
-      cur_line_bot = cm_editbox.listSelections()[-1].anchor.line
-    else:
-      cur_line = cm.getCursor(True).line
-      cur_line_bot = cm.getCursor(False).line
-    line_range = range(cur_line, cur_line_bot+1)
-    up = True
-    down = True
-    for i in range(look_at):
-      if _options['limelight']:
-        if cm_editbox.state.vim.visualMode:
-          if cur_line-i in line_range:
-            cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
-          else:
-            cm.addLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
-          if cur_line+i in line_range:
-            cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
-          else:
-            cm.addLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
-        else:
-          #going down
-          if cur_line+i <= last_line and down and cm.getLine(cur_line+i).strip():
-            cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
-          elif cur_line+i <= last_line and i:
-            cm.addLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
-            down = False
-
-          #going up
-          if cur_line-i >= 0 and up and cm.getLine(cur_line-i).strip():
-            cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
-          elif cur_line-i >= 0 and i:
-            cm.addLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
-            up = False
-      else:
-        cm.removeLineClass(cur_line-i, 'text', 'CodeMirror-activeline')
-        cm.removeLineClass(cur_line+i, 'text', 'CodeMirror-activeline')
-      cm.removeLineClass(lineNum-1-i, 'gutter', 'CodeMirror-activeline-gutter')
-      cm.removeLineClass(lineNum-1+i, 'gutter', 'CodeMirror-activeline-gutter')
-    cm.addLineClass(lineNum-1, 'gutter', 'CodeMirror-activeline-gutter')
-
-    if (cm.getCursor().line == lineNum):
-      #cm.addLineClass(l, 'gutter', 'CodeMirror-activeline-gutter')
-      #cm.removeLineClass(l, 'gutter', 'CodeMirror-activeline-gutter')
-      return
-
-
-    #cm.getCursor().line = lineNum
-
-  def temp(l):
-    # display marks on number line instead
-    #_marks = {marks[k].find().line: k for k in window.Object.keys(marks) if k in chars and len(marks[k].lines)}
-    #if l-1 in _marks:
-    #  return _marks[l-1]
-    #return ''
-    
-    
-    if _options['relative_number']:
-      return abs(lineNum - l)
-    else:
-      return l
-  cm.setOption('lineNumberFormatter', temp);
-  
-  if _options['center'] and not cm_editbox.state.vim.insertMode and not cm_editbox.state.vim.visualMode:
-    doc.querySelector('.CodeMirror').CodeMirror.setOption('cursorScrollMargin',doc.querySelector('.CodeMirror').scrollHeight/2)
-  else:
-    doc.querySelector('.CodeMirror').CodeMirror.setOption('cursorScrollMargin',_options['so'])
-doc.querySelector('.CodeMirror').CodeMirror.on('cursorActivity', overscroll)
-
-
-
-
-_options['_line_numbers'] = False
-def line_numbers(state=False):
-  cm_editbox.setOption('lineNumbers', state)
-  _options['_line_numbers'] = state
-
-_options['line_numbers'] = line_numbers
-
-def on_down(ev):
-  global ctrl, tables
-  if ev.ctrlKey:
-    ctrl=True
-  else:
-    ctrl=False
-
-  if ev.which == 37 and ctrl:
-    if not cm_editbox.state.vim.insertMode:
-      ev.preventDefault()
-      ev.stopPropagation()
-      if _options['_line_numbers']:
-        cm_editbox.setOption('lineNumbers', False)
-      cm_editbox.setOption('lineWrapping', True)
-      cm_editbox.setOption('readOnly', True)
-  if ev.which == 39 and ctrl:
-    if not cm_editbox.state.vim.insertMode:
-      ev.preventDefault()
-      ev.stopPropagation()
-      if _options['_line_numbers']:
-        cm_editbox.setOption('lineNumbers', True)
-      cm_editbox.setOption('lineWrapping', False)
-      cm_editbox.setOption('readOnly', False)
-  if chr(ev.which)=='G' and ctrl:
-    start = cm_editbox.getCursor(True).line
-    end = cm_editbox.getCursor(False).line
-    if start == end:
-      window.alert(f'{cm_editbox.getCursor().line + 1}, {cm_editbox.getCursor().ch + 1}')
-    else:
-      diff = abs(start-end)
-      window.alert('{}:{}({})'.format(start+1, end+1, diff+1))
-    ev.preventDefault()
-    ev.stopPropagation()
-
-window.bind('keydown', on_down)
-
-#def do_py() -> None:
-#  try:
-#    print_red = []
-#    def print(*objects, sep=' ', end='\n'):
-#      print_red.append(sep.join(str(o) for o in objects) + end)
-#    class Q:
-#      def __call__(self, arg):
-#        if callable(arg):
-#          def f(*l, **kw):
-#            _ret = arg(*l, **kw)
-#            args = ', '.join(j for j in (', '.join(repr(i) for i in l), ', '.join(f'{k}={v!r}' for k, v in kw.items())) if j)
-#            print(f'{arg.__qualname__}({args}) -> {_ret}')
-#            return _ret
-#            
-#          f.__name__ = arg.__name__
-#          f.__qualname__ = arg.__qualname__
-#          return f
-#        print(arg)
-#        return arg
-#        
-#      def __or__(self, arg):
-#        print(arg)
-#        return arg
-#      
-#      __truediv__ = __div__ = __or__
-#      
-#    q = Q()
-#    window.vdo("gv")
-#    data = cm_editbox.getSelection()
-#    exec(data)
-#    if print_red:
-#      out = '\n'.join([data, ''.join(print_red)])
-#      window.vdo("gv")
-#      cm_editbox.replaceSelection(out.strip('\n'))
-#  except Exception as e:
-#    import traceback
-#    print_red += [i+'\n' for i in traceback.format_exc().splitlines()]
-#    out = '\n'.join([data, ''.join(print_red)])
-#    window.vdo("gv")
-#    cm_editbox.replaceSelection(out.strip('\n'))
-
-def do_py(*l, **kw):
-  try:
-    exec(cm_editbox.getSelection())
-  except Exception as e:
-    import traceback
-    print(traceback.format_exc())
-window.CodeMirror.Vim.defineEx("do_py", None, do_py)
-
-def run_file(cm, params):
-  try:
-    exec(cm_editbox.getValue())
-  except Exception as e:
-    import traceback
-    print(traceback.format_exc())
-window.CodeMirror.Vim.defineEx("run_file", None, run_file)
-
-def run_shard(*l, **kw):
-  window.kpos()
-  def _do_py(*l, **kw):
-    do_py()
-    window.rpos()
-  visual_shard(*l, **kw)
-  window.setTimeout(_do_py, 0)
-window.CodeMirror.Vim.defineEx("run_shard", None, run_shard)
-
-def visual_shard(*l, **kw):
-  cm_editbox.save()
-  cur_line = cm_editbox.getCursor().line
-  look_ahead = editbox.value.splitlines()[cur_line:]
-  look_behind = editbox.value.splitlines()[: cur_line]
-  start, end = 0, 0
-
-  count = 0
-  for idx, i in enumerate(look_ahead):
-    if not i.strip():
-      count += 1
-    else:
-      count = 0
-    if count > 1:
-      end = idx+cur_line - 1
-      break
-      
-  count = 0
-  #for idx, i in enumerate([*reversed(look_behind)]):
-  for idx, i in enumerate(list(reversed(look_behind))):
-    if not i.strip():
-      count += 1
-    else:
-      count = 0
-    if count > 1:
-      start = cur_line - idx + 1
-      break
-  window.vdo(f'{start+1}ggV{end}gg')
-  #print(editbox.value.splitlines()[start:end])
-window.CodeMirror.Vim.defineEx("visual_shard", None, visual_shard)
-
-
-def runpy(cm, params):
-  #g = globals()
-  #g.update(_options)
-  exec(params.argString, globals(), _options)
-
-window.CodeMirror.Vim.defineEx("py", None, runpy)
-
-
-# i don't remember what's going on here.
-def better_sort():
-  #import re
-  import _jsre as re
-  oldpos = cm_editbox.getCursor()
-  if not cm_editbox.state.vim.visualLine:
-    window.CodeMirror.Vim.exitInsertMode(cm_editbox)
-    window.vdo('gv') # hack for vim visual stating on codemirror
-  dat = cm_editbox.getSelection()
-
-  # Genius snippet.
-  def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
-    return [int(text) if text.isdigit() else re.sub(r'\s\s+', ' ', text.strip().lower())
-            for text in _nsre.split(s)]
-
-  def if_comment(i):
-    if i.lstrip().startswith('#'):
-      return i
-    if i.strip() == '':
-      return ''
-    return False
-
-  def better_sort(s):
-    gb = chunkBy(s.splitlines(), key=if_comment)
-    gb = [list(v) for k, v in gb]
-    #gb = '\n'.join('\n'.join(sorted(i, key=natural_sort_key)) for i in gb)
-    gb = '\n'.join('\n'.join(window.natsort(i)) for i in gb)
-    return(gb)
-
-  cm_editbox.replaceSelection(better_sort(dat))
-
-  window.eval("document.querySelector('.CodeMirror').CodeMirror.setCursor({'line':"+str(oldpos.line)+", 'ch':"+str(oldpos.ch)+"})")
-  window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
-def run_better_sort(cm, params):
-  try:
-    better_sort()
-  except Exception as e:
-    print(e)
-window.CodeMirror.Vim.defineEx("better_sort", None, run_better_sort)
-
-def run_align(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-  try:
-    #out = align(table(data))
-    #out = window.alignCsv(window.splitCsv(data))
-    #out = window.align(window.table(data))
-    temp = data.splitlines()[0]
-    pad = len(temp)-len(temp.lstrip())
-    out = align(matrixFill(matrix(data)), ' | ', pad)
-
-    window.vdo('gv')
-    cm_editbox.replaceSelection(out.strip('\n'))
-  except:
-    pass
-window.CodeMirror.Vim.defineEx("align", None, run_align)
-
-def caps(cm, params):
-  window.vdo('gv')
-  data = cm_editbox.getSelection()
-  try:
-    out = data.title()
-
-    window.vdo('gv')
-    cm_editbox.replaceSelection(out.strip())
-    window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
-    window.vdo('yy')
-  except:
-    pass
-window.CodeMirror.Vim.defineEx("caps", None, caps)
-
-
-
-
-def bracespace(cm, params):
-  chars = params.argString.strip()
-  window.insertTextAtCursor(cm, chars[0])
-  window.CodeMirror.Vim.exitInsertMode(cm_editbox)
-  window.vdo('o')
-  window.CodeMirror.Vim.exitInsertMode(cm_editbox)
-  window.vdo('o')
-  window.insertTextAtCursor(cm, chars[1])
-  window.CodeMirror.Vim.exitInsertMode(cm_editbox)
-  window.vdo('ka')
-  window.insertTextAtCursor(cm, '  ')
-window.CodeMirror.Vim.defineEx("bracespace", None, bracespace)
-
-
-def run_surround(cm, params):
-  try:
-    chars = params.argString.strip()
-    window.vdo("gv")
-    data = cm_editbox.getSelection()
-    if chars=='q':
-      out = f'q({data})'
-    else:
-      out = f'{chars[0]}{data}{chars[1]}'
-    cm_editbox.replaceSelection(out.strip('\n'))
-    window.CodeMirror.Vim.handleKey(cm_editbox, '<Esc>', 'macro')
-  except Exception as e:
-    import traceback
-    asyncio.run(popup(traceback.format_exc()))
-window.CodeMirror.Vim.defineEx("surround", None, run_surround)
-
-# simple html stuff
-
-def popup(root, width='auto', height='auto'):
-  if isinstance(root, (tuple, list, str, int, float, set, dict)):
-    root = DIV(root)
-  d = DIALOG(root)
-  root.style['width'] = width
-  root.style['height'] = height
-      
-  def on_click(ev):
-    d.remove()
-    cm_editbox.focus()
-  d.bind('close', on_click)
-    
-  doc <= d
-  
-  d.showModal()
-  
-  return d
-      
-def bind(el, **kw):
-  for k, v in kw.items():
-    el.bind(k, v)
-  return el
-    
-def bubble(text='', color='#313131'):
-  return DIV(I(text, Class='material-icons'), style={
-    'border-radius': '999px',
-    'background': color,
-    'margin': '4px',
-    'padding': '4px',
-  })
-
-def bar(*l, style={}, **kw):
-  return DIV(*l, style={
-    'display': 'flex',
-    'flex-direction': 'row',
-    'background': '#131313',
-    'padding': '4px',
-    #'border-radius': '10px 3px',
-    'margin': '4px',
-    **style,
-  })
-
-def row(*l, style={}, **kw):
-  return DIV(*l, style={
-    'display': 'flex',
-    'flex-direction': 'row',
-    'flex-grow': '1',
-    **style,
-  }, **kw)
-
-def col(*l, style={}, **kw):
-  return DIV(*l, style={
-    'display': 'flex',
-    'flex-direction': 'column',
-    'flex-grow': '1',
-    **style,
-  }, **kw)
-
-def autoSize(ev):
-  ev.target.style['height'] = 'auto'
-  ev.target.style['height'] = f'{ev.target.scrollHeight}px'
-
-def textbox(*l, **kw):
-  t = TEXTAREA(*l, rows=1, **kw)
-  t.style['height'] = f'{t.scrollHeight}px'
-  t.style['overflow-y'] = 'hidden'
-  t.style['resize'] = 'none'
-
-  t.bind('input', autoSize)
-
-  def init():
-    t.style['height'] = 'auto'
-    t.style['height'] = f'{t.scrollHeight}px'
-  window.setTimeout(init, 50)
-
-  return t
-    
 </script>
 </html>
