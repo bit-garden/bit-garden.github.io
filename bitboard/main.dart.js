@@ -34212,7 +34212,7 @@ A.a2J.prototype={
 $0(){this.a.aw(new A.a2E())},
 $S:0}
 A.a2E.prototype={
-$0(){$.eA.push(new A.kN("New note."))
+$0(){$.eA.push(new A.kN(""))
 A.a9_()},
 $S:0}
 A.f6.prototype={
