@@ -12,7 +12,12 @@ config_version=4
 
 config/name="Notepad"
 run/main_scene="res://Node.tscn"
+run/low_processor_mode=true
 config/icon="res://icon.png"
+
+[display]
+
+window/energy_saving/keep_screen_on=false
 
 [physics]
 
